@@ -50,7 +50,7 @@ forward_params.boundary_thickness = [0 0 4];
 
 %compute the forward field using convergent Born series
 forward_solver=FORWARD_SOLVER_CONVERGENT_BORN(forward_params);
-forward_solver.set_RI(RI); % change RI_optimized and run if you want to see the output of adjoint method
+forward_solver.set_RI(RI); % change to RI_optimized and run if you want to see the output of adjoint method
 tic;
 [field_trans,field_ref,field_3D]=forward_solver.solve(input_field);
 toc;

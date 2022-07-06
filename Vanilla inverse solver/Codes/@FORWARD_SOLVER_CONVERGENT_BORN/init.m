@@ -6,7 +6,7 @@ function init(h)
     warning('on','all');
     
     if h.parameters.verbose && h.parameters.iterations_number>0
-        warning('Best is to set iterations_number to -n for an automatic choice of this so that reflection to the ordern n-1 are taken in accound (transmission n=1, single reflection n=2, higher n=?)');
+        warning('Best is to set iterations_number to -n for an automatic choice of this so that reflection to the order n-1 are taken in accound (transmission n=1, single reflection n=2, higher n=?)');
     end
     
     if h.parameters.use_GPU
@@ -17,24 +17,16 @@ function init(h)
         h.pole_num=3;
     end
     
-    shifted_coordinate=cell(3,1);
-    if h.parameters.acyclic && h.cyclic_boundary_xy
-        %shift only in z h.parameters.acyclic
-        shifted_coordinate{1}=h.utility_border.fourier_space.coor{1};
-        shifted_coordinate{2}=h.utility_border.fourier_space.coor{2};
-        shifted_coordinate{3}=h.utility_border.fourier_space.coor{3}+h.utility_border.fourier_space.res{3}/4;
-    elseif h.parameters.acyclic
+    shifted_coordinate=h.utility_border.fourier_space.coor(1:3);
+    if h.parameters.acyclic
         %shift all by kres/4
-        shifted_coordinate{1}=h.utility_border.fourier_space.coor{1}+h.utility_border.fourier_space.res{1}/4;
-        shifted_coordinate{2}=h.utility_border.fourier_space.coor{2}+h.utility_border.fourier_space.res{2}/4;
-        shifted_coordinate{3}=h.utility_border.fourier_space.coor{3}+h.utility_border.fourier_space.res{3}/4;
-    else
-        %no shift
-        shifted_coordinate{1}=h.utility_border.fourier_space.coor{1};
-        shifted_coordinate{2}=h.utility_border.fourier_space.coor{2};
-        shifted_coordinate{3}=h.utility_border.fourier_space.coor{3};
+        if ~h.cyclic_boundary_xy
+            %shift only in z h.parameters.acyclic
+            shifted_coordinate{1}=shifted_coordinate{1}+h.utility_border.fourier_space.res{1}/4;
+            shifted_coordinate{2}=shifted_coordinate{2}+h.utility_border.fourier_space.res{2}/4;
+        end
+        shifted_coordinate{3}=shifted_coordinate{3}+h.utility_border.fourier_space.res{3}/4;
     end
-    
         
     h.rads=...
         (shifted_coordinate{1}./h.utility_border.k0_nm).*reshape([1 0 0],1,1,1,[])+...
@@ -44,16 +36,14 @@ function init(h)
     
     h.green_absorbtion_correction=((2*pi*h.utility_border.k0_nm)^2)/((2*pi*h.utility_border.k0_nm)^2+1i.*h.eps_imag);
     
-    step = abs(2*(2*pi*h.utility_border.k0_nm)/h.eps_imag);
-    Bornmax_opt = ceil(norm(size(h.RI,1:3).*h.parameters.resolution) / step / 2 + 1)*2; % -CHANGED
-    h.Bornmax = 0;
-    
+    % Maximum size of calculation of convergenent Born series
+    h.Bornmax = h.parameters.iterations_number;
     if h.parameters.iterations_number==0
         warning('set iterations_number to either a positive or negative value');
-    elseif h.parameters.iterations_number<=0
+    elseif h.parameters.iterations_number<0
+        step = abs(2*(2*pi*h.utility_border.k0_nm)/h.eps_imag);
+        Bornmax_opt = ceil(norm(size(h.RI,1:3).*h.parameters.resolution) / step / 2 + 1)*2; % -CHANGED
         h.Bornmax=Bornmax_opt*abs(h.parameters.iterations_number);
-    else
-        h.Bornmax =h.parameters.iterations_number;
     end
     
     if h.parameters.verbose
@@ -65,13 +55,13 @@ function init(h)
     if h.parameters.use_GPU
         h.eye_3=gpuArray(h.eye_3);
     end
+
+    % Helmholtz Green function in Fourier space 
     h.Greenp = 1 ./ (4*pi^2.*abs(...
         (shifted_coordinate{1}).^2 + ...
         (shifted_coordinate{2}).^2 + ...
         (shifted_coordinate{3}).^2 ...
         )-(2*pi*h.utility_border.k0_nm)^2-1i*h.eps_imag);
-    
-    %error('need to make a true k/4 shift !!!');
     
     if h.parameters.acyclic
         if h.boundary_thickness_pixel(1)==0 && h.boundary_thickness_pixel(2)==0
@@ -96,8 +86,8 @@ function init(h)
     else
         h.phase_ramp=1;
     end
+    
     if h.parameters.use_GPU
-        
         h.rads = gpuArray(single(h.rads));
         h.Greenp = gpuArray(single(h.Greenp));
     end

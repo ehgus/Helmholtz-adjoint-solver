@@ -20,27 +20,16 @@ function Field=solve_raw(h,source)
         Field_n = zeros(size_field,'single');
     end
     
-    source = fftshift(ifft2(ifftshift(source)));
+    % Trick to prevent cyclic convolution which generate artifacts
+    source = fftshift(ifft2(source));
     source = h.padd_field2conv(source);
-    
-    %figure; imagesc(gather(abs(source)));
-    
-    source = fftshift(fft2(ifftshift(source)));
-    
+    source = fft2(ifftshift(source));
     source = ((reshape(source, [size(source,1),size(source,2),1,size(source,3)])).*h.refocusing_util);
-    
-    h.refocusing_util=gather(h.refocusing_util);
     source = fftshift(ifft2(ifftshift(source)));
     source = h.crop_conv2RI(source);
-    
-    %{
-    figure; orthosliceViewer(gather(abs(fftshift(ifft2(ifftshift(h.refocusing_util))))));
-    figure; orthosliceViewer(gather(abs(h.refocusing_util)));
-    figure; orthosliceViewer(gather(angle(h.refocusing_util)));
-    figure; orthosliceViewer(gather(angle(source)));
-    figure; orthosliceViewer(gather(abs(source)));error('pause');
-    %}
-    
+
+    h.refocusing_util=gather(h.refocusing_util);
+
     incident_field = source;
     if size(h.RI,4)==1
         source = (h.V(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6))+1i*h.eps_imag).*source;
@@ -51,8 +40,8 @@ function Field=solve_raw(h,source)
             source = source + (h.V(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)):(h.ROI(6)),:,j1)) .* source00(:,:,:,j1);
         end
         source = source+1i*h.eps_imag*source00;
+        clear source00
     end
-    clear source00
     
     for jj = 1:h.Bornmax
         %flip the relevant quantities
@@ -67,12 +56,9 @@ function Field=solve_raw(h,source)
         %init other quantities
         PSI(:) = 0;
         psi(:) = 0;
-        if any(jj == [1,2])
-           Field_n(:)=0; 
-        end
-        
         
         if any(jj == [1,2]) % s
+            Field_n(:)=0;
             psi(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6),:,:) = (1i./ h.eps_imag).*source/2;
         else % gamma * E
             if size(h.V,4) == 1
@@ -109,7 +95,6 @@ function Field=solve_raw(h,source)
         % Attenuation
         Field_n=Field_n.*h.attenuation_mask;
         
-        
         % add the fields to the total field
         if jj==2
             clear source;
@@ -121,12 +106,10 @@ function Field=solve_raw(h,source)
             clear temp;
         end
     end
-    
-    %size(Field)
+
     Field = ...
         Field(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6),:,:) + incident_field;
-    %size(Field)
-    %size(incident_field)
+
     if h.parameters.verbose
         set(gcf,'color','w'), imagesc((abs(squeeze(Field(:,floor(size(Field,2)/2)+1,:))'))),axis image, title(['Iteration: ' num2str(jj) ' / ' num2str(h.Bornmax)]), colorbar, axis off,drawnow
         colormap hot

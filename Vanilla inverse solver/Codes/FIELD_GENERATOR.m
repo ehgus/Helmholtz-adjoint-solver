@@ -45,14 +45,12 @@ classdef FIELD_GENERATOR < handle
                             d2=2*(rand-1/2);
                         end
                     case 'circle'
-                        while(sqrt(d1.^2+d2.^2)>1)% It executed only ones
-                            dividand=1/(h.parameters.illumination_number);
+                            dividend=1/(h.parameters.illumination_number);
                             if h.parameters.start_with_normal
-                                dividand=1/(h.parameters.illumination_number-1);
+                                dividend=1/(h.parameters.illumination_number-1);
                             end
-                            d1=sin((ill_num-1)*2*pi*(dividand));
-                            d2=cos((ill_num-1)*2*pi*(dividand));
-                        end
+                            d1=sin((ill_num-1)*2*pi*(dividend));
+                            d2=cos((ill_num-1)*2*pi*(dividend));
                     otherwise
                         error("Unknown illumination style name")
                 end

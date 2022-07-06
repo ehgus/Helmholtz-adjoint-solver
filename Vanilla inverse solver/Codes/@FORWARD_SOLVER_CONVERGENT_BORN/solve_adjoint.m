@@ -21,8 +21,8 @@ function Field=solve_adjoint(h,source, intensity_mask)
     end
     
     h.refocusing_util=gather(h.refocusing_util);
-
     source = source.*intensity_mask;
+
     incident_field = source;
     if size(h.RI,4)==1
         source = (h.V(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6))+1i*h.eps_imag).*source;
@@ -33,8 +33,8 @@ function Field=solve_adjoint(h,source, intensity_mask)
             source = source + (h.V(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)):(h.ROI(6)),:,j1)) .* source00(:,:,:,j1);
         end
         source = source+1i*h.eps_imag*source00;
+        clear source00
     end
-    clear source00
     
     for jj = 1:h.Bornmax
         %flip the relevant quantities
@@ -49,12 +49,9 @@ function Field=solve_adjoint(h,source, intensity_mask)
         %init other quantities
         PSI(:) = 0;
         psi(:) = 0;
-        if any(jj == [1,2])
-           Field_n(:)=0; 
-        end
-        
         
         if any(jj == [1,2]) % s
+            Field_n(:)=0;
             psi(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6),:,:) = (1i./ h.eps_imag).*source/2;
         else % gamma * E
             if size(h.V,4) == 1
@@ -91,7 +88,6 @@ function Field=solve_adjoint(h,source, intensity_mask)
         % Attenuation
         Field_n=Field_n.*h.attenuation_mask;
         
-        
         % add the fields to the total field
         if jj==2
             clear source;
@@ -104,11 +100,9 @@ function Field=solve_adjoint(h,source, intensity_mask)
         end
     end
     
-    %size(Field)
     Field = ...
         Field(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6),:,:) + incident_field;
-    %size(Field)
-    %size(incident_field)
+
     if h.parameters.verbose
         set(gcf,'color','w'), imagesc((abs(squeeze(Field(:,floor(size(Field,2)/2)+1,:))'))),axis image, title(['Iteration: ' num2str(jj) ' / ' num2str(h.Bornmax)]), colorbar, axis off,drawnow
         colormap hot
