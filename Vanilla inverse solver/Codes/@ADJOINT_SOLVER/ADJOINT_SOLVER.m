@@ -27,7 +27,7 @@ classdef ADJOINT_SOLVER
             params.verbose = true;
 
             % Adjoint mode parameters
-            params.mode = "Intensity"; "Transmission"
+            params.mode = "Intensity"; %"Transmission"
             params.ROI_change = [];
             
             %params.filter_by_count=false;

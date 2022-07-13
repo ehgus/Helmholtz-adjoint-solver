@@ -37,28 +37,25 @@ for ii=1:h.parameters.itter_max
     E_adj=flip(E_adj,3);
     Figure_of_Merit(ii) = sum(abs(E_old).^2.*Target_intensity,'all') / sum(abs(E_old).^2,'all');
     
-    gradient_RI = real(E_adj.*E_old); % epsilon * dV is a constant, which is not important.
-    gradient_RI = sum(gradient_RI,4);
-    gradient_RI(~h.parameters.ROI_change) = 0;
+    gradient_RI_square = real(E_adj.*E_old); % epsilon * dV is a constant, which is not important.
+    gradient_RI_square = sum(gradient_RI_square,4);
+    gradient_RI_square(~h.parameters.ROI_change) = 0;
     
     % update the result
     % The update method is based on FISTA algorithm
     t_n=t_np;
     c_n=c_np;
 
-    s_n = u_n-(1/alpha)*gradient_RI;
+    s_n = u_n-(1/alpha)*gradient_RI_square;
     s_n=gather(s_n);
 
     t_np=(1+sqrt(1+4*t_n^2))/2;
     u_n=s_n+(t_n-1)/t_np*(s_n-x_n);
     x_n=s_n;
 
-    RI_opt=u_n;
-    RI_opt=sqrt(RI_opt);
-
+    RI_opt=sqrt(u_n);
     RI_opt((h.parameters.ROI_change(:)).*(real(RI_opt(:)) > nmax)==1) = nmax;
     RI_opt((h.parameters.ROI_change(:)).*(real(RI_opt(:)) < nmin)==1) = nmin;
-
     h.RI_inter=RI_opt;
 
     toc;

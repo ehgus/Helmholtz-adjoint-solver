@@ -61,37 +61,18 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
             emitter_3D=fftshift(fft2(ifftshift(emitter_3D)));
         end
         if h.parameters.return_transmission
-            %figure; orthosliceViewer(abs(h.kernel_trans));
             if (h.parameters.use_GPU)
                 h.kernel_trans=gpuArray(h.kernel_trans);
             end
-            %h.kernel_trans
-            %figure; orthosliceViewer(gather(abs(fftshift(ifft2(ifftshift((emitter_3D.*h.kernel_trans))))))); 
-            %figure; orthosliceViewer(gather(angle(fftshift(ifft2(ifftshift((emitter_3D.*h.kernel_trans)))))));
-            %error('pause');
             
             field_trans = h.crop_conv2field(fftshift(ifft2(ifftshift(sum(emitter_3D.*h.kernel_trans,3)))));
             field_trans=squeeze(field_trans);
-            
-            %figure; imagesc(abs(field_trans)); 
-            %figure; imagesc(angle(field_trans));
-            
-%                     if size(field_trans,3)>1
-%                         error('still not implemented');
-%                     end
             field_trans=fftshift(fft2(ifftshift(field_trans)));
-            %size(field_trans)
-            %size(input_field(:,:,:,field_num))
             field_trans=field_trans+input_field(:,:,:,field_num);
-            
-            %figure; imagesc(abs(fftshift(ifft2(ifftshift(field_trans)))));
-            %figure; imagesc(angle(fftshift(fft2(ifftshift(input_field(:,:,:,field_num))))));
-            %error('pause');
             
             [field_trans] = h.transform_field_2D(field_trans);
             field_trans=fftshift(ifft2(ifftshift(field_trans)));
             fields_trans(:,:,:,field_num)=gather(squeeze(field_trans));
-            
             h.kernel_trans=gather(h.kernel_trans);
         end
         if h.parameters.return_reflection
@@ -100,9 +81,6 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
             end
             field_ref = h.crop_conv2field(fftshift(ifft2(ifftshift(sum(emitter_3D.*h.kernel_ref,3)))));
             field_ref=squeeze(field_ref);
-%                     if size(field_ref,3)>1
-%                         error('still not implemented');
-%                     end
             field_ref=fftshift(fft2(ifftshift(field_ref)));
             [field_ref] = h.transform_field_2D_reflection(field_ref);
             field_ref=fftshift(ifft2(ifftshift(field_ref)));

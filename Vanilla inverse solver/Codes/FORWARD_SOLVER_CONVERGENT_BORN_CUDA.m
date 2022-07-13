@@ -74,9 +74,9 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN_CUDA < FORWARD_SOLVER_CONVERGENT_BORN
                 input_field=single(gpuArray(input_field));
             end
 
-            assert(size(input_field,3)!=1 && ~h.parameters.vector_simulation, ...
+            assert(size(input_field,3)~=1 && ~h.parameters.vector_simulation, ...
             'Scalar simulation requires scalar field: size(input_field,3)==1');
-            assert(size(input_field,3)!=2 && h.parameters.vector_simulation, ...
+            assert(size(input_field,3)~=2 && h.parameters.vector_simulation, ...
             'Vectorial simulation requires 2D vector field: size(input_field,3)==2');
             if h.parameters.verbose && size(input_field,3)==1
                 warning('Scalar simulation is less precise');
@@ -107,7 +107,6 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN_CUDA < FORWARD_SOLVER_CONVERGENT_BORN
             if num_gpu==0
                 num_gpu=1;
             end
-            num_gpu
             for itt_num=1:ceil(size(input_field,4)/num_gpu)
                 start_field=((itt_num-1)*length(h.used_gpu))+1;
                 end_field=(itt_num)*length(h.used_gpu);

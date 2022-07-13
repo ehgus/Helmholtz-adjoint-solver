@@ -63,8 +63,9 @@ function init(h)
         (shifted_coordinate{3}).^2 ...
         )-(2*pi*h.utility_border.k0_nm)^2-1i*h.eps_imag);
     
+    % phase ramp
     if h.parameters.acyclic
-        if h.boundary_thickness_pixel(1)==0 && h.boundary_thickness_pixel(2)==0
+        if all(h.boundary_thickness_pixel(1:2)==0)
             x=exp(-1i.*pi.*((1:size(h.V,3))-1)./size(h.V,3)/2);
             %x=circshift(x,-round(h.boundary_thickness_pixel/2));
             x=x./x(floor(size(x,1)/2)+1,floor(size(x,2)/2)+1,floor(size(x,3)/2)+1);

@@ -13,7 +13,7 @@ params_required.oversample_xy_fourier=2;
 params_required.simultanous_process=30;
 %params_required
 %params
-params=update_struct(params_required,params);%check for reuired parameter and keep only required one
+params=update_struct(params_required,params);%check for required parameter and keep only required one
 %change the parameter to englobe the full arrear.
 %params.oversize_z
 output_size_pixel=params.size(:);

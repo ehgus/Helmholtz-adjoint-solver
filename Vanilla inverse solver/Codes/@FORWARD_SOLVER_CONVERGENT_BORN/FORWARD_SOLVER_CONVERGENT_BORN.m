@@ -74,7 +74,7 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
             h.expected_RI_size=[h.parameters.RI_xy_size(1) h.parameters.RI_xy_size(2) h.parameters.size(3)];
             
             %make the cropped green function (for forward and backward field)
-            h.cyclic_boundary_xy=(h.parameters.boundary_thickness(1)==0 && h.parameters.boundary_thickness(2)==0 && h.expected_RI_size(1)==h.parameters.size(1) && h.expected_RI_size(2)==h.parameters.size(2));
+            h.cyclic_boundary_xy=(all(h.parameters.boundary_thickness(1:2)==0) && all(h.expected_RI_size(1:2)==h.parameters.size(1:2)));
             
             if h.cyclic_boundary_xy
                 h.refocusing_util=exp(h.utility.refocusing_kernel.*h.utility.image_space.coor{3});
@@ -100,16 +100,12 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
                 h.refocusing_util=fftshift(ifftn(ifftshift(h.refocusing_util)));
                 h.refocusing_util=fftshift(fft2(ifftshift(h.refocusing_util)));
                 
-                %figure;orthosliceViewer(abs(h.refocusing_util)); error('pause');
-                
-                %h.refocusing_util=h.refocusing_util./size(h.refocusing_util,3); 
                 h.refocusing_util=h.refocusing_util.*(h.utility.image_space.res{1}.*h.utility.image_space.res{2});
                 
                 
                 
                 warning('off','all');
                 free_space_green=(truncated_green_plus(params_truncated_green));
-                %free_space_green=(truncated_green_v2(params_truncated_green));
                 warning('on','all');
                 
                 
@@ -123,8 +119,6 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
                 
             end
             
-            %figure; orthosliceViewer(gather(abs(fftshift(fft2(ifftshift(h.refocusing_util))))));error('pause');
-            
             h.kernel_trans=fftshift(fft2(ifftshift(conj(free_space_green))));
             h.kernel_ref=  fftshift(fft2(ifftshift((free_space_green))));
             
@@ -134,9 +128,7 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
             warning('choose a higher size boundary to a size which fft is fast ??');
             warning('allow to chose a threshold for remaining energy');
             warning('min boundary size at low RI ??');
-            % Set boundary size & absorptivity
-            %display('HELLO');
-            %h.parameters.boundary_thickness
+
             if length(h.parameters.boundary_thickness) == 1
                 error('Boundary in only one direction is not precise; enter "boundary_thickness" as an array of size 3 use size 0 for ciclic boundary');
             elseif length(h.parameters.boundary_thickness) == 3

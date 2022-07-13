@@ -61,7 +61,7 @@ classdef FORWARD_SOLVER < handle
             elseif ZP(3)==1
                 fft_Field_3pol=fft_Field_2pol;
             else
-                rror('Far field has two polarisation');
+                error('Far field has two polarisation');
             end
         end
         
