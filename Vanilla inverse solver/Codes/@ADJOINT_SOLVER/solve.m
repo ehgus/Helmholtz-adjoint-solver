@@ -8,8 +8,6 @@ assert(strcmp(h.parameters.mode, "Intensity"),"Transmission mode is not implemen
 % set parameters
 RI_opt=single(RI);
 Figure_of_Merit=zeros(h.parameters.itter_max,1);
-dirichlet_boundary=false;
-use_gpu=true;
 alpha=1/h.parameters.step;
 
 s_n=0;
@@ -46,7 +44,8 @@ for ii=1:h.parameters.itter_max
     t_n=t_np;
     c_n=c_np;
 
-    s_n = u_n-(1/alpha)*gradient_RI_square;
+    % maximization (plus sign)
+    s_n = u_n+(1/alpha)*gradient_RI_square;
     s_n=gather(s_n);
 
     t_np=(1+sqrt(1+4*t_n^2))/2;
