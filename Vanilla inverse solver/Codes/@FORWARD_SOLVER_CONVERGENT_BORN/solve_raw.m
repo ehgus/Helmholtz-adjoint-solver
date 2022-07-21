@@ -11,9 +11,9 @@ function Field=solve_raw(h,source)
     end
     
     % generate incident field
-    source = fftshift(ifft2(source));
+    source = fftshift(ifft2(ifftshift(source)));
     source = h.padd_field2conv(source);
-    source = fft2(ifftshift(source));
+    source = fftshift(fft2(ifftshift(source)));
     source = ((reshape(source, [size(source,1),size(source,2),1,size(source,3)])).*h.refocusing_util);
     source = fftshift(ifft2(ifftshift(source)));
     source = h.crop_conv2RI(source);
