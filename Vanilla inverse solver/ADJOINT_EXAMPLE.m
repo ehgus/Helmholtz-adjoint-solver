@@ -60,7 +60,7 @@ toc;
 input_field_no_zero=input_field_scalar;zero_part_mask=abs(input_field_no_zero)<=0.01.*mean(abs(input_field_no_zero(:)));input_field_no_zero(zero_part_mask)=0.01.*exp(1i.*angle(input_field_no_zero(zero_part_mask)));
 figure('Name','Amplitude of transmitted light');imagesc(squeeze(abs(field_trans_scalar(:,:,:)./input_field_no_zero(:,:,:)))); colormap gray;
 figure('Name','Phase of transmitted light');imagesc(squeeze(angle(field_trans_scalar(:,:,:)./input_field_no_zero(:,:,:)))); colormap jet;
-figure('Name','E field in material');orthosliceViewer(real(field_3D(:,:,:,1)))
+figure('Name','E field in material');orthosliceViewer(real(field_3D(:,:,:,1)));
 figure('Name','Values along z aixs');plot(squeeze(real(field_3D(floor(end/2),floor(end/2),:,1))), 'r');hold on;plot(squeeze(real(RI(floor(end/2),floor(end/2),:,1))),'b');legend('E field','RI');
 %% Adjoint method
 

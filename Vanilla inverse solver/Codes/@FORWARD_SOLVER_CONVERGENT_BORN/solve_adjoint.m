@@ -1,18 +1,17 @@
-function Field=solve_adjoint(h,source, intensity_mask)
+function Field=solve_adjoint(h,propagating_field, intensity_mask)
     if (h.parameters.use_GPU)
         h.V=gpuArray(h.V);
         h.phase_ramp=gpuArray(h.phase_ramp);
-        source=gpuArray(single(source));
+        propagating_field=gpuArray(single(propagating_field));
         h.attenuation_mask=gpuArray(h.attenuation_mask);
         h.Greenp = gpuArray(h.Greenp);
         h.flip_Greenp = gpuArray(h.flip_Greenp);
     end
 
-    source = source.*intensity_mask;
+    incident_field = propagating_field.*intensity_mask;
     
     % Evaluate output field
-    incident_field = source;
-    Field = eval_scattered_field(h, source);
+    Field = eval_scattered_field(h, incident_field);
     Field = Field + incident_field;
 
     if h.parameters.verbose

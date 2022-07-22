@@ -30,8 +30,8 @@ function Field=eval_scattered_field(h,incident_field)
     conj_phase_ramp=conj(h.phase_ramp);
     
     for jj = 1:h.Bornmax
-        %flip the relevant quantities
         if h.parameters.acyclic
+            %flip the relevant quantities
             [Greenp, flip_Greenp] = deal(flip_Greenp, Greenp);
             [phase_ramp, conj_phase_ramp] = deal(conj_phase_ramp, phase_ramp);
         end

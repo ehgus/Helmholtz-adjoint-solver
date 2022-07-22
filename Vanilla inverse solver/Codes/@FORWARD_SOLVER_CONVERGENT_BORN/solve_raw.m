@@ -1,27 +1,26 @@
-function Field=solve_raw(h,source)
+function Field=solve_raw(h,incident_field)
     if (h.parameters.use_GPU)
         h.V=gpuArray(h.V);
         h.refocusing_util=gpuArray(h.refocusing_util);
         h.phase_ramp=gpuArray(h.phase_ramp);
-        source=gpuArray(single(source));
+        incident_field=gpuArray(single(incident_field));
         h.attenuation_mask=gpuArray(h.attenuation_mask);
         h.Greenp = gpuArray(h.Greenp);
         h.flip_Greenp = gpuArray(h.flip_Greenp);
     end
     
     % generate incident field
-    source = fftshift(ifft2(ifftshift(source)));
-    source = h.padd_field2conv(source);
-    source = fftshift(fft2(ifftshift(source)));
-    source = ((reshape(source, [size(source,1),size(source,2),1,size(source,3)])).*h.refocusing_util);
-    source = fftshift(ifft2(ifftshift(source)));
-    source = h.crop_conv2RI(source);
+    incident_field = fftshift(ifft2(ifftshift(incident_field)));
+    incident_field = h.padd_field2conv(incident_field);
+    incident_field = fftshift(fft2(ifftshift(incident_field)));
+    incident_field = ((reshape(incident_field, [size(incident_field,1),size(incident_field,2),1,size(incident_field,3)])).*h.refocusing_util);
+    incident_field = fftshift(ifft2(ifftshift(incident_field)));
+    incident_field = h.crop_conv2RI(incident_field);
 
     h.refocusing_util=gather(h.refocusing_util);
     
     % Evaluate output field
-    incident_field = source;
-    Field = eval_scattered_field(h,source);
+    Field = eval_scattered_field(h,incident_field);
     Field = Field + incident_field;
 
     if h.parameters.verbose
