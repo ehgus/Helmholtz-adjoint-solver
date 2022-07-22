@@ -6,7 +6,7 @@
 
 ## Brief guideline for the reading material
 
-- Forward solver: Supplemental materials of [1]
+- Forward solver: Supplemental materials of [1] and [8] - [9]
 - Adjoint method, Inverse solver: [2] - [4]
 - Applications: [5] - [7]
 
@@ -26,4 +26,7 @@
 [6] Nam, Sang-Hyeon, et al. *"Photolithographic realization of target nanostructures in 3D space by inverse design of phase modulation."* Science advances 8.21 (2022): eabm6310.
 
 [7] Piggott, Alexander Y., et al. *"Inverse design and demonstration of a compact and broadband on-chip wavelength demultiplexer."* Nature Photonics 9.6 (2015): 374-377.
- 
+
+[8] Osnabrugge, Gerwin, Saroch Leedumrongwatthanakun, and Ivo M. Vellekoop. "A convergent Born series for solving the inhomogeneous Helmholtz equation in arbitrarily large media." Journal of computational physics 322 (2016): 113-124.
+
+[9] Osnabrugge, Gerwin, Maaike Benedictus, and Ivo M. Vellekoop. "Ultra-thin boundary layer for high-accuracy simulations of light propagation." Optics express 29.2 (2021): 1649-1658.
