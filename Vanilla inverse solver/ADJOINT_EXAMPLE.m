@@ -75,6 +75,7 @@ adjoint_params.forward_solver_parameters=forward_params;
 adjoint_params.mode = "Intensity";
 adjoint_params.ROI_change = real(RI) > 2;
 adjoint_params.step = 0.01;
+adjoint_params.itter_max = 300;
 
 adjoint_solver = ADJOINT_SOLVER(adjoint_params);
 phantom_params.name="bead";

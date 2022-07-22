@@ -1,10 +1,6 @@
 function ROI = create_boundary_RI(h)
     
-    
     % Pad boundary
-    if (h.parameters.use_GPU)
-        h.RI = gpuArray(h.RI);
-    end
     old_RI_size=size(h.RI);
     
     pott=RI2potential(h.RI,h.parameters.wavelength,h.parameters.RI_bg);
@@ -18,7 +14,7 @@ function ROI = create_boundary_RI(h)
     
     pott = RI2potential(h.RI,h.parameters.wavelength,h.parameters.RI_bg);
     
-    h.attenuation_mask=1;
+    h.attenuation_mask=ones(size(pott),'single');
     for j1 = 1:3
         x=single(abs((1:size(pott,j1))-(floor(size(pott,j1)/2+1))+0.5)-0.5);x=circshift(x,-floor(size(pott,j1)/2));
         x=x/(h.boundary_thickness_pixel(j1)-0.5);
@@ -40,8 +36,4 @@ function ROI = create_boundary_RI(h)
     end
     
     h.RI = potential2RI(pott,h.parameters.wavelength,h.parameters.RI_bg);
-    if (h.parameters.use_GPU)
-        h.RI=gather(h.RI);
-        h.attenuation_mask=gather(h.attenuation_mask);
-    end
 end

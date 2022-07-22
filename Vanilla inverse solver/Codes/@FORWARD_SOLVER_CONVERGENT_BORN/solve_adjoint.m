@@ -4,9 +4,8 @@ function Field=solve_adjoint(h,source, intensity_mask)
         h.phase_ramp=gpuArray(h.phase_ramp);
         source=gpuArray(single(source));
         h.attenuation_mask=gpuArray(h.attenuation_mask);
-        h.rads = gpuArray(h.rads);
-        h.eye_3 = gpuArray(h.eye_3);
         h.Greenp = gpuArray(h.Greenp);
+        h.flip_Greenp = gpuArray(h.flip_Greenp);
     end
 
     source = source.*intensity_mask;

@@ -10,9 +10,10 @@ function condition_RI(h)
     h.pixel_step_size=round(step./(h.parameters.resolution));
     %add boundary to the RI
     h.ROI = h.create_boundary_RI(); %note: create_boundary_RI implicitely pad the h.RI along z axis
+    
     %update the size in the parameters
     h.V = RI2potential(h.RI,h.parameters.wavelength,h.parameters.RI_bg);
-    % h.V = h.V - 1i.*h.eps_imag; %-CHANGED
+    % h.V = h.V - 1i.*h.eps_imag
     if size(h.V,4)==1
         h.V = h.V - 1i.*h.eps_imag;
     else
@@ -20,5 +21,4 @@ function condition_RI(h)
             h.V(:,:,:,j1,j1) = h.V(:,:,:,j1,j1) - 1i.*h.eps_imag;
         end
     end
-    
 end

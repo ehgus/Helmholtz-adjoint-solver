@@ -16,8 +16,6 @@ t_np=1;
 
 u_n=RI_opt.^2;
 x_n=RI_opt.^2; 
-c_n=0;
-c_np=Inf;
 
 nmin = 1.4338; % RI of PDMS 
 nmax = 2.9778; % RI of TiO2
@@ -42,7 +40,6 @@ for ii=1:h.parameters.itter_max
     % update the result
     % The update method is based on FISTA algorithm
     t_n=t_np;
-    c_n=c_np;
 
     % maximization (plus sign)
     s_n = u_n+(1/alpha)*gradient_RI_square;

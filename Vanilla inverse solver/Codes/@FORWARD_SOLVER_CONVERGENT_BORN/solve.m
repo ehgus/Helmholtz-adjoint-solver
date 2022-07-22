@@ -61,7 +61,7 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
             emitter_3D=fftshift(fft2(ifftshift(emitter_3D)));
         end
         if h.parameters.return_transmission
-            if (h.parameters.use_GPU)
+            if h.parameters.use_GPU
                 h.kernel_trans=gpuArray(h.kernel_trans);
             end
             
@@ -76,7 +76,7 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
             h.kernel_trans=gather(h.kernel_trans);
         end
         if h.parameters.return_reflection
-            if (h.parameters.use_GPU)
+            if h.parameters.use_GPU
                 h.kernel_ref=gpuArray(h.kernel_ref);
             end
             field_ref = h.crop_conv2field(fftshift(ifft2(ifftshift(sum(emitter_3D.*h.kernel_ref,3)))));
@@ -93,7 +93,6 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
     h.V=gather(h.V);
     h.attenuation_mask=gather(h.attenuation_mask);
     h.phase_ramp=gather(h.phase_ramp);
-    h.rads = gather(single(h.rads));
-    h.Greenp = gather(single(h.Greenp));
-    h.eye_3 = gather(h.eye_3);
+    h.Greenp = gather(h.Greenp);
+    h.flip_Greenp = gather(h.flip_Greenp);
 end

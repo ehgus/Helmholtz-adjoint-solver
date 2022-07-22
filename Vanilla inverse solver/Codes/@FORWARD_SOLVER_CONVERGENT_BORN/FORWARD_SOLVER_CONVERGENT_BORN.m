@@ -8,13 +8,12 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
         cyclic_boundary_xy;
         
         Greenp;
-        rads;
-        eye_3;
+        flip_Greenp;
         
         V;
         pole_num;
         green_absorbtion_correction;
-        eps_imag;
+        eps_imag = Inf;
         
         kernel_trans;
         kernel_ref;
@@ -33,7 +32,7 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
             params=get_default_parameters@FORWARD_SOLVER();
             %specific parameters
             params.iterations_number=-1;
-            params.boundary_thickness = 6.*[1 1 1];
+            params.boundary_thickness = [6 6 6];
             params.boundary_sharpness = 1;%2;
             params.verbose = false;
             params.acyclic = true;
@@ -64,6 +63,7 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
             % make the refocusing to volume field(other variable depend on the max RI and as such are created later).
             
             h@FORWARD_SOLVER(params);
+            assert(length(h.parameters.boundary_thickness) == 3, 'h.boundary_thickness_pixel vector dimension should be 3.')
             
             if h.parameters.RI_xy_size(1)==0
                 h.parameters.RI_xy_size(1)=h.parameters.size(1);
@@ -91,7 +91,7 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
                     +[h.parameters.RI_center(1) h.parameters.RI_center(2) 0]';
                 
                 warning('off','all');
-                h.refocusing_util=(truncated_green_plus(params_truncated_green,true));
+                h.refocusing_util=truncated_green_plus(params_truncated_green,true);
                 h.refocusing_util=gather(h.refocusing_util);
                 h.refocusing_util=h.refocusing_util(...
                     1-min(0,h.parameters.RI_center(1)):end-max(0,h.parameters.RI_center(1)),...
@@ -102,21 +102,15 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
                 
                 h.refocusing_util=h.refocusing_util.*(h.utility.image_space.res{1}.*h.utility.image_space.res{2});
                 
-                
-                
                 warning('off','all');
                 free_space_green=(truncated_green_plus(params_truncated_green));
                 warning('on','all');
-                
-                
                 
                 free_space_green=free_space_green(...
                     1-min(0,h.parameters.RI_center(1)):end-max(0,h.parameters.RI_center(1)),...
                     1-min(0,h.parameters.RI_center(2)):end-max(0,h.parameters.RI_center(2)),:);
                 free_space_green=circshift(free_space_green,[-h.parameters.RI_center(1) -h.parameters.RI_center(2) 0]);
                 free_space_green=fftshift(ifftn(ifftshift(free_space_green)));
-                
-                
             end
             
             h.kernel_trans=fftshift(fft2(ifftshift(conj(free_space_green))));
@@ -126,20 +120,12 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
             h.kernel_trans=gather(h.kernel_trans);
             
             warning('choose a higher size boundary to a size which fft is fast ??');
-            warning('allow to chose a threshold for remaining energy');
+            warning('allow to choose a threshold for remaining energy');
             warning('min boundary size at low RI ??');
 
-            if length(h.parameters.boundary_thickness) == 1
-                error('Boundary in only one direction is not precise; enter "boundary_thickness" as an array of size 3 use size 0 for ciclic boundary');
-            elseif length(h.parameters.boundary_thickness) == 3
-                h.boundary_thickness_pixel = round((h.parameters.boundary_thickness*h.parameters.wavelength/h.parameters.RI_bg)./(h.parameters.resolution.*2));
-            else
-                error('h.boundary_thickness_pixel vector dimension should be 1 or 3.')
-            end
+            h.boundary_thickness_pixel = round((h.parameters.boundary_thickness*h.parameters.wavelength/h.parameters.RI_bg)./(h.parameters.resolution.*2));
         end
-
-
-
+        
     end
 end
 

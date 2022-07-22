@@ -1,4 +1,4 @@
-function Field=eval_scattered_field(h,source)
+function Field=eval_scattered_field(h,incident_field)
     size_field=[size(h.V,1),size(h.V,2),size(h.V,3),h.pole_num];
     if (h.parameters.use_GPU)
         psi = zeros(size_field,'single','gpuArray');
@@ -13,36 +13,27 @@ function Field=eval_scattered_field(h,source)
     end
     
     if size(h.RI,4)==1 % scalar RI = (x,y,z, tensor_dim1, tensor_dim2)
-        source = (h.V(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6))+1i*h.eps_imag).*source;
+        source = (h.V(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6))+1i*h.eps_imag).*incident_field;
     else % tensor
-        source00 = source;
-        source(:) = 0;
+        source = zeros('like',incident_field);
         for j1 = 1:3
-            source = source + (h.V(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)):(h.ROI(6)),:,j1)+1i*h.eps_imag) .* source00(:,:,:,j1);
+            source = source + h.V(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)):(h.ROI(6)),:,j1) .* incident_field(:,:,:,j1);
         end
-        clear source00
+        source = soruce + 1i*h.eps_imag .* incident_field;
     end
     
     Greenp = h.Greenp;
-    if h.pole_num==3
-        [xsize, ysize, zsize] = size(Greenp);
-        Greenp = Greenp.*(h.eye_3-h.green_absorbtion_correction*(h.rads).*reshape(h.rads,xsize,ysize,zsize,1,3));
-    end
     if h.parameters.acyclic
-        flip_Greenp = fft_flip(h.Greenp,[1 1 1],false);
-        if h.pole_num==3
-            flip_rads = fft_flip(h.rads,[1 1 1],false);
-            [xsize, ysize, zsize] = size(flip_Greenp);
-            flip_Greenp = flip_Greenp.*(h.eye_3-h.green_absorbtion_correction*(flip_rads).*reshape(flip_rads,xsize,ysize,zsize,1,3));
-        end
+        flip_Greenp = h.flip_Greenp;
     end
+    phase_ramp = h.phase_ramp;
     conj_phase_ramp=conj(h.phase_ramp);
     
     for jj = 1:h.Bornmax
         %flip the relevant quantities
         if h.parameters.acyclic
             [Greenp, flip_Greenp] = deal(flip_Greenp, Greenp);
-            [h.phase_ramp, conj_phase_ramp] = deal(conj_phase_ramp, h.phase_ramp);
+            [phase_ramp, conj_phase_ramp] = deal(conj_phase_ramp, phase_ramp);
         end
         
         %init other quantities
@@ -65,7 +56,7 @@ function Field=eval_scattered_field(h,source)
         
         % G x
         for j2 = 1:h.pole_num
-            coeff_field=fftn(psi(:,:,:,j2).*h.phase_ramp);
+            coeff_field=fftn(psi(:,:,:,j2).*phase_ramp);
             if h.pole_num==3 %dyadic absorptive green function convolution
                 PSI = PSI + Greenp(:,:,:,:,j2).* coeff_field;
             else %scalar absorptive green function convolution

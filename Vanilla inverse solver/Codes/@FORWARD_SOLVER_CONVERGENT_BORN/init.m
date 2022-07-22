@@ -9,9 +9,6 @@ function init(h)
         warning('Best is to set iterations_number to -n for an automatic choice of this so that reflection to the order n-1 are taken in accound (transmission n=1, single reflection n=2, higher n=?)');
     end
     
-    if h.parameters.use_GPU
-        h.RI=single(gpuArray(h.RI));
-    end
     h.pole_num=1;
     if h.parameters.vector_simulation
         h.pole_num=3;
@@ -27,12 +24,16 @@ function init(h)
         end
         shifted_coordinate{3}=shifted_coordinate{3}+h.utility_border.fourier_space.res{3}/4;
     end
-        
-    h.rads=...
-        (shifted_coordinate{1}./h.utility_border.k0_nm).*reshape([1 0 0],1,1,1,[])+...
-        (shifted_coordinate{2}./h.utility_border.k0_nm).*reshape([0 1 0],1,1,1,[])+...
-        (shifted_coordinate{3}./h.utility_border.k0_nm).*reshape([0 0 1],1,1,1,[]);
-    %error('need to make true k/4 shift for rad !!!');
+    for i=1:3
+        shifted_coordinate{i}=ifftshift(shifted_coordinate{i});
+    end
+    
+    if h.pole_num==3 % need to make true k/4 shift for rad !!!
+        rads=...
+            (shifted_coordinate{1}./h.utility_border.k0_nm).*reshape([1 0 0],1,1,1,[])+...
+            (shifted_coordinate{2}./h.utility_border.k0_nm).*reshape([0 1 0],1,1,1,[])+...
+            (shifted_coordinate{3}./h.utility_border.k0_nm).*reshape([0 0 1],1,1,1,[]);
+    end
     
     h.green_absorbtion_correction=((2*pi*h.utility_border.k0_nm)^2)/((2*pi*h.utility_border.k0_nm)^2+1i.*h.eps_imag);
     
@@ -51,10 +52,7 @@ function init(h)
         display(['step pixel size : ' num2str(h.pixel_step_size(3))])
     end
     
-    h.eye_3=single(reshape(eye(3),1,1,1,3,3));
-    if h.parameters.use_GPU
-        h.eye_3=gpuArray(h.eye_3);
-    end
+    eye_3=single(reshape(eye(3),1,1,1,3,3));
 
     % Helmholtz Green function in Fourier space 
     h.Greenp = 1 ./ (4*pi^2.*abs(...
@@ -88,21 +86,14 @@ function init(h)
         h.phase_ramp=1;
     end
     
-    if h.parameters.use_GPU
-        h.rads = gpuArray(single(h.rads));
-        h.Greenp = gpuArray(single(h.Greenp));
+    h.flip_Greenp = fft_flip(h.Greenp,[1 1 1],false);
+    if h.pole_num==3 % dyadic Green's function
+        [xsize, ysize, zsize] = size(h.Greenp);
+        flip_rads = fft_flip(rads,[1 1 1],false);
+        h.Greenp = h.Greenp.*(eye_3-h.green_absorbtion_correction*(rads).*reshape(rads,xsize,ysize,zsize,1,3));
+        h.flip_Greenp = h.flip_Greenp.*(eye_3-h.green_absorbtion_correction*(flip_rads).*reshape(flip_rads,xsize,ysize,zsize,1,3));
     end
     
-    h.Greenp=ifftshift(ifftshift(ifftshift(h.Greenp,1),2),3);
-    h.rads=ifftshift(ifftshift(ifftshift(h.rads,1),2),3);
-    
-    if h.parameters.verbose
-        figure('units','normalized','outerposition',[0 0 1 1])
-        colormap hot
-    end
-    
-    h.RI=gather(h.RI);
-    h.phase_ramp=gather(h.phase_ramp);
-    h.rads = gather(single(h.rads));
-    h.Greenp = gather(single(h.Greenp));
+    h.Greenp = single(gather(h.Greenp));
+    h.flip_Greenp = single(gather(h.flip_Greenp));
 end
