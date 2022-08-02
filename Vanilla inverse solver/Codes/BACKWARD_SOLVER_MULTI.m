@@ -22,7 +22,7 @@ classdef BACKWARD_SOLVER_MULTI < BACKWARD_SOLVER
             params.itter_max = 100; % imaginary RI
             params.num_scan_per_iteration = 0; % 0 -> every scan is used
             params.verbose = true;
-            %params.filter_by_count=false;
+            params.filter_by_count=false;
             if nargin==1
                 params=update_struct(params,init_params);
             end
@@ -35,13 +35,11 @@ classdef BACKWARD_SOLVER_MULTI < BACKWARD_SOLVER
             %[source_3D,trans_source,~]
             diff_field=(trans_source-output_field);
             err=sum(abs(diff_field).^2,'all');
-            %{
             if h.parameters.filter_by_count
                 diff_field=fftshift(fft2(ifftshift(diff_field)));
                 diff_field=diff_field.*reshape(h.filter,size(h.filter,1),size(h.filter,2),1,[]).*size(diff_field,4)/5;
                 diff_field=fftshift(ifft2(ifftshift(diff_field)));
             end
-            %}
             %err_list(end)
             %backpropagate
             warning ('off','all');
@@ -71,11 +69,9 @@ classdef BACKWARD_SOLVER_MULTI < BACKWARD_SOLVER
             if init_solver
                 h.forward_solver=h.parameters.forward_solver(h.parameters.forward_solver_parameters);
             end
-            %{
             if h.parameters.filter_by_count
                 h.overlap_count=OVERLAP_COUNTER(OVERLAP_COUNTER.get_default_parameters(params));
             end
-            %}
         end
         function [gradient_RI,err]=get_gradiant(h,RI,input_field,output_field)
             
@@ -92,12 +88,12 @@ classdef BACKWARD_SOLVER_MULTI < BACKWARD_SOLVER
         function [RI]=solve(h,input_field,output_field)
             
             RI=single(h.parameters.init_solver.solve(input_field,output_field));
-            %{
+            
             if h.parameters.filter_by_count
                 [~,h.filter]=h.overlap_count.get_overlap(input_field);
                 h.filter(h.filter>0)=1./h.filter(h.filter>0);
             end
-            %}
+
             err_list=[];
             
             dirichlet_boundary=false;
@@ -122,12 +118,6 @@ classdef BACKWARD_SOLVER_MULTI < BACKWARD_SOLVER
                 f1=figure(1);
                 f2=figure(2);
                 f3=figure(3);
-                %{
-                f4=figure(4);
-                f5=figure(5);
-                f6=figure(6);
-                f7=figure(7);
-                %}
             end
             
             Vmin = (h.parameters.nmin^2 - h.parameters.kappamax^2) / h.parameters.RI_bg^2 - 1;
@@ -141,18 +131,12 @@ classdef BACKWARD_SOLVER_MULTI < BACKWARD_SOLVER
                 tic;
                 
                 [gradient_RI,err_list(end+1)]=h.get_gradiant(RI,input_field,output_field);
-                %gradient_RI=real(gradient_RI);
-                %MFISTA
                 
                 t_n=t_np;
                 c_n=c_np;
                 
-%                 size(u_n)
-%                 size(gradient_RI)
                 s_n=TV_FISTA_inner_v2(u_n-(1/alpha)*gradient_RI,h.parameters.tv_param/alpha,...
                     Vmin, Vmax, Vimag_max, h.parameters.use_non_negativity,dirichlet_boundary,h.parameters.inner_itt,use_gpu);
-%                 s_n=TV_FISTA_inner(u_n-(1/alpha)*gradient_RI,h.parameters.tv_param/alpha,h.parameters.use_non_negativity,dirichlet_boundary,h.parameters.inner_itt,use_gpu);
-                s_n=gather(s_n);
                 t_np=(1+sqrt(1+4*t_n^2))/2;
                 u_n=s_n+(t_n-1)/t_np*(s_n-x_n);
                 x_n=s_n;
@@ -170,16 +154,6 @@ classdef BACKWARD_SOLVER_MULTI < BACKWARD_SOLVER
                     plot(err_list);title('Cost function')
                     set(0, 'currentfigure', f3);
                     semilogy((err_list));title('Cost function (log)')
-                    %{
-                    set(0, 'currentfigure', f4);
-                    imagesc([abs(squeeze(trans_source(:,:,1,[1]))) squeeze(abs(output_field(:,:,1,[1]))) squeeze(abs(trans_source(:,:,1,1)-output_field(:,:,1,1)))]); axis image;title('Abs (predicted / experimental / delta)'),colorbar
-                    set(0, 'currentfigure', f5);
-                    imagesc([abs(squeeze(trans_source(:,:,1,[end]))) squeeze(abs(output_field(:,:,1,[scan_list(end)]))) squeeze(abs(trans_source(:,:,1,[end])-output_field(:,:,1,[scan_list(end)])))]); axis image;title('Abs (predicted / experimental / delta)'),colorbar
-                    set(0, 'currentfigure', f6);
-                    imagesc([squeeze(angle(trans_source(:,:,1,[1]))) squeeze(angle(output_field(:,:,1,[scan_list(1)]))) angle(trans_source(:,:,1,1)./output_field(:,:,1,1))]);axis image;title('Angle (predicted / experimental)'),colorbar
-                    set(0, 'currentfigure', f7);
-                    imagesc([angle(trans_source(:,:,1,end)) angle(output_field(:,:,1,scan_list(end))) angle(trans_source(:,:,1,end)./output_field(:,:,1,scan_list(end)))]);axis image;title('Angle (predicted / experimental)'),colorbar
-                    %}
                     drawnow;
                 end
                 
