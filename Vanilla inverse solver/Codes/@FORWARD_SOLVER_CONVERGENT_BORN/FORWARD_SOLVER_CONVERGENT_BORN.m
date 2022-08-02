@@ -57,7 +57,7 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
         set_RI(h,RI);
         condition_RI(h);
         ROI = create_boundary_RI(h);
-        init(h);
+        set_kernel(h);
 
         function h=FORWARD_SOLVER_CONVERGENT_BORN(params)
             % make the refocusing to volume field(other variable depend on the max RI and as such are created later).

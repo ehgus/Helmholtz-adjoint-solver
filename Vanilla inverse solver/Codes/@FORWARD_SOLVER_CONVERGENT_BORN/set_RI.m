@@ -12,7 +12,7 @@ function set_RI(h,RI)
     h.condition_RI();%modify the RI (add padding and boundary)
     after_eps_imag = h.eps_imag;
     if after_eps_imag < 10000*abs(before_eps_imag-after_eps_imag) % to prevent redundant Green function evaluation
-        h.init();%init the parameter for the forward model
+        h.set_kernel();%init the parameter for the forward model
     end
 end
 

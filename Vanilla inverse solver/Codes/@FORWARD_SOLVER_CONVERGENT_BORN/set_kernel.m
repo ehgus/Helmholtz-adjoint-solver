@@ -1,4 +1,4 @@
-function init(h)
+function set_kernel(h)
     params_border=h.parameters;
     params_border.size=size(h.RI);
     warning('off','all');
