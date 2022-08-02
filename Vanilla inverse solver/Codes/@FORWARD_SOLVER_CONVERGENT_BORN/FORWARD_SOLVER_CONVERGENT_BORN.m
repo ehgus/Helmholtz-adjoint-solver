@@ -56,7 +56,7 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
 
         set_RI(h,RI);
         condition_RI(h);
-        ROI = create_boundary_RI(h);
+        create_boundary_RI(h);
         set_kernel(h);
 
         function h=FORWARD_SOLVER_CONVERGENT_BORN(params)

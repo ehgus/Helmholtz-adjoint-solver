@@ -52,7 +52,7 @@ forward_params.RI_bg = double(sqrt((minRI^2+maxRI^2)/2));
 
 %compute the forward field using convergent Born series
 forward_solver=FORWARD_SOLVER_CONVERGENT_BORN(forward_params);
-forward_solver.set_RI(RI_optimized); % change to RI_optimized and run if you want to see the output of adjoint method
+forward_solver.set_RI(RI); % change to RI_optimized and run if you want to see the output of adjoint method
 tic;
 [field_trans,~,field_3D]=forward_solver.solve(input_field);
 toc;
