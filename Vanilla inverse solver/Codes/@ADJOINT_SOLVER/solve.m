@@ -41,8 +41,8 @@ for ii=1:h.parameters.itter_max
     % The update method is based on FISTA algorithm
     t_n=t_np;
 
-    % maximization (plus sign)
-    s_n = u_n+(1/alpha)*gradient_RI_square;
+    % maximization (negative sign)
+    s_n = u_n-(1/alpha)*gradient_RI_square;
     s_n=gather(s_n);
 
     t_np=(1+sqrt(1+4*t_n^2))/2;
