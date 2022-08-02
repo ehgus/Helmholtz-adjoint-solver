@@ -78,12 +78,13 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
             
             if h.cyclic_boundary_xy
                 h.refocusing_util=exp(h.utility.refocusing_kernel.*h.utility.image_space.coor{3});
-                h.refocusing_util=gather(h.refocusing_util);
-                h.refocusing_util= h.refocusing_util.*h.utility.NA_circle;
-                free_space_green=h.refocusing_util./(1i*4*pi);
-                free_space_green=free_space_green.*h.utility.NA_circle./(h.utility.k3+~h.utility.NA_circle);
-                free_space_green=free_space_green./(h.utility.image_space.res{1}.*h.utility.image_space.res{2});
-                free_space_green=fftshift(ifft2(ifftshift(free_space_green)));
+                h.refocusing_util=ifftshift(gather(h.refocusing_util));
+                shifted_NA_circle = ifftshift(h.utility.NA_circle);
+                h.refocusing_util= h.refocusing_util.*shifted_NA_circle;
+                free_space_green=h.refocusing_util/(4i*pi);
+                free_space_green=free_space_green.*shifted_NA_circle./(ifftshift(h.utility.k3)+~shifted_NA_circle);
+                free_space_green=free_space_green./(h.utility.image_space.res{1}*h.utility.image_space.res{2});
+                free_space_green=ifft2(free_space_green);
             else
                 params_truncated_green=h.parameters;
                 params_truncated_green.size=h.parameters.size(:)...
@@ -97,13 +98,12 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
                     1-min(0,h.parameters.RI_center(1)):end-max(0,h.parameters.RI_center(1)),...
                     1-min(0,h.parameters.RI_center(2)):end-max(0,h.parameters.RI_center(2)),:);
                 h.refocusing_util=circshift(h.refocusing_util,[-h.parameters.RI_center(1) -h.parameters.RI_center(2) 0]);
-                h.refocusing_util=fftshift(ifftn(ifftshift(h.refocusing_util)));
-                h.refocusing_util=fftshift(fft2(ifftshift(h.refocusing_util)));
+                h.refocusing_util=ifft(ifftshift(h.refocusing_util),[],3);
                 
-                h.refocusing_util=h.refocusing_util.*(h.utility.image_space.res{1}.*h.utility.image_space.res{2});
+                h.refocusing_util=h.refocusing_util*(h.utility.image_space.res{1}*h.utility.image_space.res{2});
                 
                 warning('off','all');
-                free_space_green=(truncated_green_plus(params_truncated_green));
+                free_space_green=truncated_green_plus(params_truncated_green);
                 warning('on','all');
                 
                 free_space_green=free_space_green(...
@@ -113,8 +113,8 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
                 free_space_green=fftshift(ifftn(ifftshift(free_space_green)));
             end
             
-            h.kernel_trans=fftshift(fft2(ifftshift(conj(free_space_green))));
-            h.kernel_ref=  fftshift(fft2(ifftshift((free_space_green))));
+            h.kernel_trans=fft2(conj(free_space_green));
+            h.kernel_ref=  fft2(free_space_green);
             
             h.kernel_ref=gather(h.kernel_ref);
             h.kernel_trans=gather(h.kernel_trans);
