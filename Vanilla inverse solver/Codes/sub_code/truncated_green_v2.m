@@ -14,15 +14,12 @@ creation_size_pixel=ceil(max_size.*(1+(sqrt(3)-1)/2)./params.resolution(:))+4;%+
 params.size=creation_size_pixel;
 %create the utility variable
 warning('off','all');
-utility=DERIVE_OPTICAL_TOOL(params,params.use_GPU); 
+utility=DERIVE_OPTICAL_TOOL(params); 
 warning('on','all');
 %compute green
-S=2.*pi.*sqrt(abs(utility.fourier_space.coor{1}).^2+abs(utility.fourier_space.coor{2}).^2+abs(utility.fourier_space.coor{3}).^2);
-L=norm([utility.image_space.size{1}.*utility.image_space.res{1} utility.image_space.size{2}.*utility.image_space.res{2} utility.image_space.size{3}.*utility.image_space.res{3}]);
-L=L/sqrt(3);
-L=L/2;
-L=L.*sqrt(3)./(1+(sqrt(3)-1)/2);
-K=2.*pi.*utility.k0_nm; 
+S=2*pi*sqrt(abs(utility.fourier_space.coor{1}).^2+abs(utility.fourier_space.coor{2}).^2+abs(utility.fourier_space.coor{3}).^2);
+L=norm(utility.image_space.size(1:3).*utility.image_space.res(1:3))/(1+sqrt(3));
+K=2*pi*utility.k0_nm; 
 green=(1 ./(S.^2-K.^2)...
     -1./2./S...
     .*(exp(1i.*(S+K).*L)./(S+K)+exp(1i.*(-S+K).*L)./(S-K))...
@@ -34,7 +31,10 @@ green(S==K)= 1/2/K.*...
     );
 green=green.*utility.dVk;
 %cut the green function
-green=fftshift(ifftn(ifftshift(green)));
+if params.use_GPU
+    green=gpuArray(green);
+end
+green=fftshift(ifftn(green));
 ROI_start=(floor(size(green)'/2)+1)-(floor(output_size_pixel(:)/2));
 ROI_end=ROI_start+output_size_pixel(:)-1;
 green=green(...
@@ -42,4 +42,5 @@ green=green(...
     ROI_start(2):ROI_end(2),...
     ROI_start(3):ROI_end(3));
 green=fftshift(fftn(ifftshift(green)));
+green=gather(green);
 end

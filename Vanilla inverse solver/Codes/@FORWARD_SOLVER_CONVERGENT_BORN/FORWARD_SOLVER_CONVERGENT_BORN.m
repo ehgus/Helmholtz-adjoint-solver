@@ -78,12 +78,11 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
             
             if h.cyclic_boundary_xy
                 h.refocusing_util=exp(h.utility.refocusing_kernel.*h.utility.image_space.coor{3});
-                h.refocusing_util=ifftshift(gather(h.refocusing_util));
-                shifted_NA_circle = ifftshift(h.utility.NA_circle);
-                h.refocusing_util= h.refocusing_util.*shifted_NA_circle;
+                h.refocusing_util=gather(h.refocusing_util);
+                h.refocusing_util= h.refocusing_util.*h.utility.NA_circle;
                 free_space_green=h.refocusing_util/(4i*pi);
-                free_space_green=free_space_green.*shifted_NA_circle./(ifftshift(h.utility.k3)+~shifted_NA_circle);
-                free_space_green=free_space_green./(h.utility.image_space.res{1}*h.utility.image_space.res{2});
+                free_space_green=free_space_green.*h.utility.NA_circle./(h.utility.k3+~h.utility.NA_circle);
+                free_space_green=free_space_green/prod(h.utility.image_space.res(1:2));
                 free_space_green=ifft2(free_space_green);
             else
                 params_truncated_green=h.parameters;
@@ -100,7 +99,7 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
                 h.refocusing_util=circshift(h.refocusing_util,[-h.parameters.RI_center(1) -h.parameters.RI_center(2) 0]);
                 h.refocusing_util=ifft(ifftshift(h.refocusing_util),[],3);
                 
-                h.refocusing_util=h.refocusing_util*(h.utility.image_space.res{1}*h.utility.image_space.res{2});
+                h.refocusing_util=h.refocusing_util*prod(h.utility.image_space.res(1:2));
                 
                 warning('off','all');
                 free_space_green=truncated_green_plus(params_truncated_green);

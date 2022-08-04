@@ -43,13 +43,15 @@ H_optical_coor=H_optical_coor./max(H_optical_coor(:));
 H_optical_coor=H_optical_coor.*max(utility.fourier_space.coorxy(:)).*params.oversample_xy_fourier;
 H_optical_k3=(utility.k0_nm).^2-(H_optical_coor).^2;H_optical_k3(H_optical_k3<0)=0;H_optical_k3=sqrt(H_optical_k3);
 H_optical_circle=H_optical_coor<utility.kmax;
+z_fourier_coord=fftshift(utility.fourier_space.coor{3});
+z_fourier_res=utility.fourier_space.res(3);
+zsize=utility.fourier_space.size(3);
 
-green=sinc((H_optical_k3-utility.fourier_space.coor{3})./utility.fourier_space.res{3}...
-    .*((utility.fourier_space.size{3}-params.oversize_z/2)/utility.fourier_space.size{3}))...
-    .*((utility.fourier_space.size{3}-params.oversize_z/2)/utility.fourier_space.size{3});
+green=sinc((H_optical_k3-z_fourier_coord)./z_fourier_res.*((zsize-params.oversize_z/2)/zsize))...
+    .*((zsize-params.oversize_z/2)/zsize);
 if ~refocus_version
     green=green.*H_optical_circle./(H_optical_k3+~H_optical_circle);
-    green=green./(1i*4*pi);
+    green=green./(4i*pi);
 else
     green=green.*H_optical_circle;
 end
@@ -67,27 +69,27 @@ green=hankler.backward(img_green);
 
 clear hankler;
 %figure; imagesc(abs(green));
-[nearest_coordinate,nearest_coordinate2,blending_coeff]=bin_search_nearest(utility.fourier_space.coorxy,H_optical_coor);
+[nearest_coordinate,nearest_coordinate2,blending_coeff]=bin_search_nearest(fftshift(utility.fourier_space.coorxy),H_optical_coor);
 %nearest_coordinate=nearest_coordinate+...
-%    reshape(length(H_optical_coor).*((1:(utility.fourier_space.size{3}))-1),1,1,[]);
+%    reshape(length(H_optical_coor).*((1:(zsize))-1),1,1,[]);
 %nearest_coordinate2=nearest_coordinate2+...
-%    reshape(length(H_optical_coor).*((1:(utility.fourier_space.size{3}))-1),1,1,[]);
+%    reshape(length(H_optical_coor).*((1:(zsize))-1),1,1,[]);
 
 %figure; imagesc(blending_coeff);axis image;
-green_out=zeros(output_size_pixel(1),output_size_pixel(2),utility.fourier_space.size{3},'single');
+green_out=zeros(output_size_pixel(1),output_size_pixel(2),zsize,'single');
 if params.use_GPU
     green_out=gpuArray(green_out);
 end
 
-slices=1:params.simultanous_process:utility.fourier_space.size{3};
-if length(slices)==1 || slices(end)~=utility.fourier_space.size{3}
-    slices(end+1)=utility.fourier_space.size{3};
+slices=1:params.simultanous_process:zsize;
+if length(slices)==1 || slices(end)~=zsize
+    slices(end+1)=zsize;
 end
 for ii=1:length(slices)-1
     z_index=slices(ii):slices(ii+1);
     z_coor_add=reshape(length(H_optical_coor).*((z_index)-1),1,1,[]);
     green_slice=green(nearest_coordinate+z_coor_add).*blending_coeff+green(nearest_coordinate2+z_coor_add).*(1-blending_coeff);
-    green_slice=green_slice.*utility.fourier_space.size{3}./(utility.image_space.res{1}.*utility.image_space.res{2});
+    green_slice=green_slice.*zsize./prod(utility.image_space.res(1:2));
      
     %cut the green function
     green_slice=fftshift(ifft2(ifftshift(green_slice)));
