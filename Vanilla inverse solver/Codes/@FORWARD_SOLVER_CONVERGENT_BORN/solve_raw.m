@@ -10,12 +10,11 @@ function Field=solve_raw(h,incident_field)
     end
     
     % generate incident field
-    incident_field = ifft2(incident_field);
+    incident_field = fftshift(ifft2(ifftshift(incident_field)));
     incident_field = h.padd_field2conv(incident_field);
-    incident_field = fft2(incident_field);
-    [xsize,ysize,num_pol] = size(incident_field,1:3);
-    incident_field = reshape(incident_field, [xsize,ysize,1,num_pol]).*h.refocusing_util;
-    incident_field = ifft2(incident_field);
+    incident_field = fft2(ifftshift(incident_field));
+    incident_field = reshape(incident_field, [size(incident_field,1),size(incident_field,2),1,size(incident_field,3)]).*h.refocusing_util;
+    incident_field = fftshift(ifft2(incident_field));
     incident_field = h.crop_conv2RI(incident_field);
 
     h.refocusing_util=gather(h.refocusing_util);

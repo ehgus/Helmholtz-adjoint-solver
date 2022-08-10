@@ -2,6 +2,7 @@ function RI_opt=solve(h,input_field,Target_intensity,RI)
 % Adjoint solver targeting PDMS+TiO2+Microchem SU-8 2000 layered material.
 % It is not a universal solver.
 
+assert(mod(size(RI,3),2)==1, 'Length of RI block along z axis should be odd');
 assert(strcmp(h.parameters.mode, "Intensity"),"Transmission mode is not implemented yet")
 
 % set parameters

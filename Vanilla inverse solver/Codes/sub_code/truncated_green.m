@@ -8,19 +8,19 @@ params_required.use_GPU=true;
 params=update_struct(params_required,params);%check for reuired parameter and keep only required one
 %create the utility variable
 warning('off','all');
-utility=DERIVE_OPTICAL_TOOL(params); 
+utility=DERIVE_OPTICAL_TOOL(params,params.use_GPU); 
 warning('on','all');
 %compute green
 warning('handle even and odd');
 warning('treat the s==k case');
 warning('cut from round to square');
-if mod(utility.fourier_space.size(1),2)~=1
+if mod(utility.fourier_space.size{1},2)~=1
     error('not implemented for even size yet');
 end
-S=2*pi*sqrt(abs(utility.fourier_space.coor{1}).^2+abs(utility.fourier_space.coor{2}).^2+abs(utility.fourier_space.coor{3}).^2);
+S=2.*pi.*sqrt(abs(utility.fourier_space.coor{1}).^2+abs(utility.fourier_space.coor{2}).^2+abs(utility.fourier_space.coor{3}).^2);
 %{
-L=utility.image_space.size(1).*utility.image_space.res(1)./3;
-N3=prod(utility.image_space.size(1:3));
+L=utility.image_space.size{1}.*utility.image_space.res{1}./3;
+N3=utility.image_space.size{1}.*utility.image_space.size{2}.*utility.image_space.size{3};
 K=2.*pi.*utility.k0_nm;
 green=(1-...
     exp(1i.*K.*L)...
@@ -29,9 +29,10 @@ green=(1-...
     ./((S-K).*(S+K))...
     .*sqrt(N3);  
 %}
-L=norm(utility.image_space.size(1:3).*utility.image_space.res(1:3))/5;
-N3=prod(utility.image_space.size(1:3));
-K=2*pi*utility.k0_nm;
+L=norm([utility.image_space.size{1}.*utility.image_space.res{1} utility.image_space.size{2}.*utility.image_space.res{2} utility.image_space.size{3}.*utility.image_space.res{3}]);
+L = L/5;
+N3=utility.image_space.size{1}.*utility.image_space.size{2}.*utility.image_space.size{3};
+K=2.*pi.*utility.k0_nm;
 % green=(1-...
 %     exp(1i.*K.*L)...
 %     .*(cos(S.*L)-1i.*K.*L.*sinc(S.*L/pi))...
@@ -51,5 +52,5 @@ green(S==K)= 1/2/K.*...
     );
     %}
 %green=abs(coor_radius-utility.k0);
-green=fftshift(green);
+
 end

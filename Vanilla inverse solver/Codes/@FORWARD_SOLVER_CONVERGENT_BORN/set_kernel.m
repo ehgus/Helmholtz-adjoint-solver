@@ -19,10 +19,13 @@ function set_kernel(h)
         %shift all by kres/4
         if ~h.cyclic_boundary_xy
             %shift only in z h.parameters.acyclic
-            shifted_coordinate{1}=shifted_coordinate{1}+h.utility_border.fourier_space.res(1)/4;
-            shifted_coordinate{2}=shifted_coordinate{2}+h.utility_border.fourier_space.res(2)/4;
+            shifted_coordinate{1}=shifted_coordinate{1}+h.utility_border.fourier_space.res{1}/4;
+            shifted_coordinate{2}=shifted_coordinate{2}+h.utility_border.fourier_space.res{2}/4;
         end
-        shifted_coordinate{3}=shifted_coordinate{3}+h.utility_border.fourier_space.res(3)/4;
+        shifted_coordinate{3}=shifted_coordinate{3}+h.utility_border.fourier_space.res{3}/4;
+    end
+    for i=1:3
+        shifted_coordinate{i}=ifftshift(shifted_coordinate{i});
     end
     
     if h.pole_num==3 % need to make true k/4 shift for rad !!!
