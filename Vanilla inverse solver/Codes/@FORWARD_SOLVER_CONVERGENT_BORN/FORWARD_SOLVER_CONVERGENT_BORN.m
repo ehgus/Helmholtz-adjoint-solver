@@ -45,8 +45,7 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
     end
     methods
         [fields_trans,fields_ref,fields_3D]=solve(h,input_field);
-        Field=solve_raw(h,source);
-        Field=solve_adjoint(h,E_old,source)
+        Field=solve_forward(h,source);
 
         matt=padd_RI2conv(h,matt);
         matt=padd_field2conv(h,matt);

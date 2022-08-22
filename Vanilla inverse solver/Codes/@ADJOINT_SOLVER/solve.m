@@ -17,8 +17,8 @@ t_np=1;
 u_n=RI_opt.^2;
 x_n=RI_opt.^2; 
 
-nmin = 1.4338; % RI of PDMS 
-nmax = 2.9778; % RI of TiO2
+nmin = h.nmin; % RI of PDMS 
+nmax = h.nmax; % RI of TiO2
 
 % Run!
 for ii=1:h.parameters.itter_max
@@ -29,7 +29,7 @@ for ii=1:h.parameters.itter_max
     h.forward_solver.set_RI(RI_opt);
     [~,~,E_old]=h.forward_solver.solve(input_field);
     h.forward_solver.set_RI((flip(RI_opt,3))); % flip verison
-    E_adj=h.forward_solver.solve_adjoint(flip(conj(E_old),3),flip(sqrt(Target_intensity),3));
+    E_adj=h.solve_adjoint(flip(conj(E_old),3),flip(sqrt(Target_intensity),3));
     E_adj=flip(E_adj,3);
     Figure_of_Merit(ii) = sum(abs(E_old).^2.*Target_intensity,'all') / sum(abs(E_old).^2,'all');
     
@@ -40,18 +40,17 @@ for ii=1:h.parameters.itter_max
     % update the result
     % The update method is based on FISTA algorithm
     t_n=t_np;
-
+    t_np=(1+sqrt(1+4*t_n^2))/2;
     % maximization (negative sign)
     s_n = u_n-(1/alpha)*gradient_RI_square;
     s_n=gather(s_n);
 
-    t_np=(1+sqrt(1+4*t_n^2))/2;
     u_n=s_n+(t_n-1)/t_np*(s_n-x_n);
     x_n=s_n;
 
     RI_opt=sqrt(u_n);
-    RI_opt((h.parameters.ROI_change(:)).*(real(RI_opt(:)) > nmax)==1) = nmax;
-    RI_opt((h.parameters.ROI_change(:)).*(real(RI_opt(:)) < nmin)==1) = nmin;
+    RI_opt((h.parameters.ROI_change(:)).*(real(RI_opt(:)) > real(nmax))==1) = nmax;
+    RI_opt((h.parameters.ROI_change(:)).*(real(RI_opt(:)) < real(nmin))==1) = nmin;
     h.RI_inter=RI_opt;
 
     toc;

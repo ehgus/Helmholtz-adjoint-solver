@@ -37,7 +37,7 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
     
     for field_num=1:size(input_field,4)
         %figure; imagesc(abs(fftshift(ifft2(ifftshift(input_field(:,:,:,field_num))))));error('pause');
-        Field=h.solve_raw(input_field(:,:,:,field_num));
+        Field=h.solve_forward(input_field(:,:,:,field_num));
         %crop and remove near field (3D to 2D field)
         if h.parameters.return_3D
             fields_3D(:,:,:,:,field_num)=gather(Field);

@@ -1,6 +1,11 @@
 function Field=eval_scattered_field(h,incident_field)
     size_field=[size(h.V,1),size(h.V,2),size(h.V,3),h.pole_num];
     if (h.parameters.use_GPU)
+        h.V=gpuArray(h.V);
+        h.phase_ramp=gpuArray(h.phase_ramp);
+        h.attenuation_mask=gpuArray(h.attenuation_mask);
+        h.Greenp = gpuArray(h.Greenp);
+        h.flip_Greenp = gpuArray(h.flip_Greenp);
         psi = zeros(size_field,'single','gpuArray');
         PSI = zeros(size_field,'single','gpuArray');
         Field = zeros(size_field,'single','gpuArray');

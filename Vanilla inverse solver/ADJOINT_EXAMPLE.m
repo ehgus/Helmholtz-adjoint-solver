@@ -52,7 +52,7 @@ forward_params.RI_bg = double(sqrt((minRI^2+maxRI^2)/2));
 
 %compute the forward field using convergent Born series
 forward_solver=FORWARD_SOLVER_CONVERGENT_BORN(forward_params);
-forward_solver.set_RI(RI_optimized); % change to RI_optimized and run if you want to see the output of adjoint method
+forward_solver.set_RI(RI); % change to RI_optimized and run if you want to see the output of adjoint method
 tic;
 [field_trans,~,field_3D]=forward_solver.solve(input_field);
 toc;
@@ -64,22 +64,18 @@ figure('Name','Amplitude of transmitted light');imagesc(squeeze(abs(field_trans_
 figure('Name','Phase of transmitted light');imagesc(squeeze(angle(field_trans_scalar(:,:,:)./input_field_no_zero(:,:,:)))); colormap jet;
 figure('Name','E field in material');orthosliceViewer(real(field_3D(:,:,:,1)));
 figure('Name','Values along z aixs');plot(squeeze(real(field_3D(floor(end/2),floor(end/2),:,1))), 'r');hold on;plot(squeeze(real(RI(floor(end/2),floor(end/2),:,1))),'b');legend('E field','RI');
-%% Adjoint method
+ %% Adjoint method
 
 %Adjoint solver parameters
-if ~MULTI_GPU
-    adjoint_params=BACKWARD_SOLVER_MULTI.get_default_parameters(params);
-else
-    adjoint_params=BACKWARD_SOLVER_MULTI_MULTI_GPU.get_default_parameters(params);
-end
-adjoint_params.forward_solver= @(x) FORWARD_SOLVER_CONVERGENT_BORN(x);
-adjoint_params.forward_solver_parameters=forward_params;
+adjoint_params=ADJOINT_SOLVER.get_default_parameters(params);
 adjoint_params.mode = "Intensity";
 adjoint_params.ROI_change = real(RI) > 2;
 adjoint_params.step = 0.01;
 adjoint_params.itter_max = 200;
+adjoint_params.nmin = get_RI(cd0,"PDMS", params.wavelength);
+adjoint_params.nmax = get_RI(cd0,"TiO2", params.wavelength);
 
-adjoint_solver = ADJOINT_SOLVER(adjoint_params);
+adjoint_solver = ADJOINT_SOLVER(forward_solver,adjoint_params);
 phantom_params.name="bead";
 phantom_params.inner_size = [5 5 5];
 Target_intensity = PHANTOM.get(phantom_params);
