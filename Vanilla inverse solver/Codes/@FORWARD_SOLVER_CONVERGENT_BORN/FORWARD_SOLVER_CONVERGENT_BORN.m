@@ -113,8 +113,8 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
                 free_space_green=fftshift(ifftn(ifftshift(free_space_green)));
             end
             
-            h.kernel_trans=fft2(conj(free_space_green));
-            h.kernel_ref=  fft2(free_space_green);
+            h.kernel_trans=fftshift(fft2(conj(free_space_green)));
+            h.kernel_ref=  fftshift(fft2(free_space_green));
             
             h.kernel_ref=gather(h.kernel_ref);
             h.kernel_trans=gather(h.kernel_trans);
