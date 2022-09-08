@@ -1,6 +1,12 @@
 classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
-    properties %(SetAccess = protected, Hidden = true)
-        utility_border;
+    properties
+        iterations_number=-1;
+        boundary_thickness = [6 6 6];
+        boundary_sharpness = 1;
+        acyclic = true;
+        RI_xy_size = [0 0];
+        RI_center = [0 0];
+
         Bornmax;
         boundary_thickness_pixel;
         ROI;
@@ -10,11 +16,14 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
         Greenp;
         flip_Greenp;
         
-        V;
+        potential;
         pole_num;
         green_absorbtion_correction;
         eps_imag = Inf;
         
+        return_transmission=false;  %return transmission field
+        return_reflection=false;    %return reflection field
+        return_3D=true;             %return 3D field
         kernel_trans;
         kernel_ref;
         
@@ -27,31 +36,15 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
         
         expected_RI_size;
     end
-    methods(Static)
-        function params=get_default_parameters(init_params)
-            params=get_default_parameters@FORWARD_SOLVER();
-            %specific parameters
-            params.iterations_number=-1;
-            params.boundary_thickness = [6 6 6];
-            params.boundary_sharpness = 1;%2;
-            params.verbose = false;
-            params.acyclic = true;
-            params.RI_xy_size=[0 0];%if set to 0 the field is the same size as the simulation
-            params.RI_center=[0 0];
-            if nargin==1
-                params=update_struct(params,init_params);
-            end
-        end
-    end
     methods
         [fields_trans,fields_ref,fields_3D]=solve(h,input_field);
         Field=solve_forward(h,source);
 
-        matt=padd_RI2conv(h,matt);
-        matt=padd_field2conv(h,matt);
-        matt=crop_conv2field(h,matt);
-        matt=crop_conv2RI(h,matt);
-        matt=crop_field2RI(h,matt);
+        mat=padd_RI2conv(h,mat);
+        mat=padd_field2conv(h,mat);
+        mat=crop_conv2field(h,mat);
+        mat=crop_conv2RI(h,mat);
+        mat=crop_field2RI(h,mat);
 
         set_RI(h,RI);
         condition_RI(h);
@@ -60,20 +53,19 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
 
         function h=FORWARD_SOLVER_CONVERGENT_BORN(params)
             % make the refocusing to volume field(other variable depend on the max RI and as such are created later).
+            h = h@FORWARD_SOLVER(params)
+            assert(length(h.boundary_thickness) == 3, 'h.boundary_thickness_pixel vector dimension should be 3.')
             
-            h@FORWARD_SOLVER(params);
-            assert(length(h.parameters.boundary_thickness) == 3, 'h.boundary_thickness_pixel vector dimension should be 3.')
-            
-            if h.parameters.RI_xy_size(1)==0
-                h.parameters.RI_xy_size(1)=h.parameters.size(1);
+            if h.RI_xy_size(1)==0
+                h.RI_xy_size(1)=h.size(1);
             end
-            if h.parameters.RI_xy_size(2)==0
-                h.parameters.RI_xy_size(2)=h.parameters.size(2);
+            if h.RI_xy_size(2)==0
+                h.RI_xy_size(2)=h.size(2);
             end
-            h.expected_RI_size=[h.parameters.RI_xy_size(1) h.parameters.RI_xy_size(2) h.parameters.size(3)];
+            h.expected_RI_size=[h.RI_xy_size(1) h.RI_xy_size(2) h.size(3)];
             
             %make the cropped green function (for forward and backward field)
-            h.cyclic_boundary_xy=(all(h.parameters.boundary_thickness(1:2)==0) && all(h.expected_RI_size(1:2)==h.parameters.size(1:2)));
+            h.cyclic_boundary_xy=(all(h.boundary_thickness(1:2)==0) && all(h.expected_RI_size(1:2)==h.size(1:2)));
             
             if h.cyclic_boundary_xy
                 h.refocusing_util=exp(h.utility.refocusing_kernel.*h.utility.image_space.coor{3});
@@ -85,18 +77,18 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
                 free_space_green=free_space_green./(h.utility.image_space.res{1}*h.utility.image_space.res{2});
                 free_space_green=ifft2(free_space_green);
             else
-                params_truncated_green=h.parameters;
-                params_truncated_green.size=h.parameters.size(:)...
+                params_truncated_green=h;
+                params_truncated_green.size=h.size(:)...
                     +[h.expected_RI_size(1) h.expected_RI_size(2) 0]'...
-                    +[h.parameters.RI_center(1) h.parameters.RI_center(2) 0]';
+                    +[h.RI_center(1) h.RI_center(2) 0]';
                 
                 warning('off','all');
                 h.refocusing_util=truncated_green_plus(params_truncated_green,true);
                 h.refocusing_util=gather(h.refocusing_util);
                 h.refocusing_util=h.refocusing_util(...
-                    1-min(0,h.parameters.RI_center(1)):end-max(0,h.parameters.RI_center(1)),...
-                    1-min(0,h.parameters.RI_center(2)):end-max(0,h.parameters.RI_center(2)),:);
-                h.refocusing_util=circshift(h.refocusing_util,[-h.parameters.RI_center(1) -h.parameters.RI_center(2) 0]);
+                    1-min(0,h.RI_center(1)):end-max(0,h.RI_center(1)),...
+                    1-min(0,h.RI_center(2)):end-max(0,h.RI_center(2)),:);
+                h.refocusing_util=circshift(h.refocusing_util,[-h.RI_center(1) -h.RI_center(2) 0]);
                 h.refocusing_util=ifft(ifftshift(h.refocusing_util),[],3);
                 
                 h.refocusing_util=h.refocusing_util*(h.utility.image_space.res{1}*h.utility.image_space.res{2});
@@ -106,9 +98,9 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
                 warning('on','all');
                 
                 free_space_green=free_space_green(...
-                    1-min(0,h.parameters.RI_center(1)):end-max(0,h.parameters.RI_center(1)),...
-                    1-min(0,h.parameters.RI_center(2)):end-max(0,h.parameters.RI_center(2)),:);
-                free_space_green=circshift(free_space_green,[-h.parameters.RI_center(1) -h.parameters.RI_center(2) 0]);
+                    1-min(0,h.RI_center(1)):end-max(0,h.RI_center(1)),...
+                    1-min(0,h.RI_center(2)):end-max(0,h.RI_center(2)),:);
+                free_space_green=circshift(free_space_green,[-h.RI_center(1) -h.RI_center(2) 0]);
                 free_space_green=fftshift(ifftn(ifftshift(free_space_green)));
             end
             
@@ -117,12 +109,8 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
             
             h.kernel_ref=gather(h.kernel_ref);
             h.kernel_trans=gather(h.kernel_trans);
-            
-            warning('choose a higher size boundary to a size which fft is fast ??');
-            warning('allow to choose a threshold for remaining energy');
-            warning('min boundary size at low RI ??');
 
-            h.boundary_thickness_pixel = round((h.parameters.boundary_thickness*h.parameters.wavelength/h.parameters.RI_bg)./(h.parameters.resolution.*2));
+            h.boundary_thickness_pixel = round((h.boundary_thickness*h.wavelength/h.RI_bg)./(h.resolution.*2));
         end
         
     end

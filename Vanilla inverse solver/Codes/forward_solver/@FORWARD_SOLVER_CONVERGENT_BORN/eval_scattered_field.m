@@ -1,7 +1,7 @@
 function Field=eval_scattered_field(h,incident_field)
-    size_field=[size(h.V,1),size(h.V,2),size(h.V,3),h.pole_num];
-    if (h.parameters.use_GPU)
-        h.V=gpuArray(h.V);
+    size_field=[size(h.potential,1),size(h.potential,2),size(h.potential,3),h.pole_num];
+    if (h.use_GPU)
+        h.potential=gpuArray(h.potential);
         h.phase_ramp=gpuArray(h.phase_ramp);
         h.attenuation_mask=gpuArray(h.attenuation_mask);
         h.Greenp = gpuArray(h.Greenp);
@@ -18,24 +18,24 @@ function Field=eval_scattered_field(h,incident_field)
     end
     
     if size(h.RI,4)==1 % scalar RI = (x,y,z, tensor_dim1, tensor_dim2)
-        source = (h.V(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6))+1i*h.eps_imag).*incident_field;
+        source = (h.potential(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6))+1i*h.eps_imag).*incident_field;
     else % tensor
         source = zeros('like',incident_field);
         for j1 = 1:3
-            source = source + h.V(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)):(h.ROI(6)),:,j1) .* incident_field(:,:,:,j1);
+            source = source + h.potential(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)):(h.ROI(6)),:,j1) .* incident_field(:,:,:,j1);
         end
         source = soruce + 1i*h.eps_imag .* incident_field;
     end
     
     Greenp = h.Greenp;
-    if h.parameters.acyclic
+    if h.acyclic
         flip_Greenp = h.flip_Greenp;
     end
     phase_ramp = h.phase_ramp;
     conj_phase_ramp=conj(h.phase_ramp);
     
     for jj = 1:h.Bornmax
-        if h.parameters.acyclic
+        if h.acyclic
             %flip the relevant quantities
             [Greenp, flip_Greenp] = deal(flip_Greenp, Greenp);
             [phase_ramp, conj_phase_ramp] = deal(conj_phase_ramp, phase_ramp);
@@ -49,11 +49,11 @@ function Field=eval_scattered_field(h,incident_field)
             Field_n(:)=0;
             psi(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6),:,:) = (1i./h.eps_imag).*source/2;
         else % gamma * E
-            if size(h.V,4) == 1
-                psi = h.V .* Field_n;
+            if size(h.potential,4) == 1
+                psi = h.potential .* Field_n;
             else
                 for j1 = 1:3
-                    psi = psi + h.V(:,:,:,:,j1) .* Field_n(:,:,:,j1);
+                    psi = psi + h.potential(:,:,:,:,j1) .* Field_n(:,:,:,j1);
                 end
             end
             psi = (1i./h.eps_imag).*psi;
@@ -74,11 +74,11 @@ function Field=eval_scattered_field(h,incident_field)
         if ~any(jj == [1,2])
             Field_n = Field_n - psi;
         end
-        if size(h.V,4) == 1
-            Field_n = Field_n + (h.V) .* PSI;
+        if size(h.potential,4) == 1
+            Field_n = Field_n + (h.potential) .* PSI;
         else
             for j1 = 1:3
-                Field_n = Field_n + (h.V(:,:,:,:,j1)) .* PSI(:,:,:,j1);
+                Field_n = Field_n + (h.potential(:,:,:,:,j1)) .* PSI(:,:,:,j1);
             end
         end
         % Attenuation
@@ -97,4 +97,7 @@ function Field=eval_scattered_field(h,incident_field)
     end
     
     Field = Field(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6),:,:);
+    clear psi
+    clear PSI
+    clear Field_n
 end

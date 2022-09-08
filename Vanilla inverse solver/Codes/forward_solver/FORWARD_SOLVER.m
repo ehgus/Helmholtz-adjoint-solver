@@ -1,29 +1,14 @@
-classdef FORWARD_SOLVER < handle
-    properties (SetAccess = protected, Hidden = true)
-        parameters;
-        RI;
-        
+classdef FORWARD_SOLVER < OPTICAL_SYSTEM
+    properties
+        use_GPU=false;
         utility;
-    end
-    methods(Static)
-        function params=get_default_parameters(init_params)
-            %OPTICAL PARAMETERS
-            params=BASIC_OPTICAL_PARAMETER();
-            %SIMULATION PARAMETERS
-            params.return_transmission=true;%return transmission field
-            params.return_reflection=false;%return reflection field
-            params.return_3D=false;%return 3D field
-            params.use_GPU=true;
-            if nargin==1
-                params=update_struct(params,init_params);
-            end
-        end
+        RI;
     end
     methods
         function h=FORWARD_SOLVER(params)
-            h.parameters=params;
+            h = update_properties(h, params);
             warning('off','all');
-            h.utility=DERIVE_OPTICAL_TOOL(h.parameters,h.parameters.use_GPU);%reset it to have the gpu used
+            h.utility=DERIVE_OPTICAL_TOOL(h,h.use_GPU);%reset it to have the gpu used
             warning('on','all');
         end
         function set_RI(h,RI)
@@ -39,7 +24,7 @@ classdef FORWARD_SOLVER < handle
             ZP=size(fft_Field_2pol);
             fft_Field_2pol=fft_Field_2pol.*h.utility.NA_circle;
             
-            if h.parameters.use_abbe_sine
+            if h.use_abbe_sine
                 %abbe sine condition is due to the magnification
                 
                 filter=single(h.utility.NA_circle);
@@ -47,7 +32,7 @@ classdef FORWARD_SOLVER < handle
                 fft_Field_2pol=fft_Field_2pol.*filter;
             end
             if ZP(3)==2
-                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(ZP,h.parameters.RI_bg,h.parameters.wavelength,h.parameters.resolution);
+                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(ZP,h.RI_bg,h.wavelength,h.resolution);
                 
                 fft_Field_2pol=fft_Field_2pol.*K_mask;
                 
@@ -69,7 +54,7 @@ classdef FORWARD_SOLVER < handle
             ZP=size(fft_Field_3pol);
             fft_Field_3pol=fft_Field_3pol.*h.utility.NA_circle;
             
-            if h.parameters.use_abbe_sine
+            if h.use_abbe_sine
                 %abbe sine condition is due to the magnification
                 
                 fft_Field_3pol=fft_Field_3pol.*sqrt(h.utility.cos_theta).*h.utility.NA_circle;
@@ -79,7 +64,7 @@ classdef FORWARD_SOLVER < handle
                     error('Near field has three polarisation');
                 end
                 
-                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(ZP,h.parameters.RI_bg,h.parameters.wavelength,h.parameters.resolution);
+                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(ZP,h.RI_bg,h.wavelength,h.resolution);
                 
                 fft_Field_3pol=fft_Field_3pol.*K_mask;
                 
@@ -99,7 +84,7 @@ classdef FORWARD_SOLVER < handle
             ZP=size(fft_Field_3pol);
             fft_Field_3pol=fft_Field_3pol.*h.utility.NA_circle;
             
-            if h.parameters.use_abbe_sine
+            if h.use_abbe_sine
                 %abbe sine condition is due to the magnification
                 
                 fft_Field_3pol=fft_Field_3pol.*sqrt(h.utility.cos_theta).*h.utility.NA_circle;
@@ -109,7 +94,7 @@ classdef FORWARD_SOLVER < handle
                     error('Near field has three polarisation');
                 end
                 
-                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(ZP,h.parameters.RI_bg,h.parameters.wavelength,h.parameters.resolution);
+                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(ZP,h.RI_bg,h.wavelength,h.resolution);
                 
                 ewald_TanVec(:,:,3)=-ewald_TanVec(:,:,3);%because reflection invers k3
                 

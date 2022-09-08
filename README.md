@@ -3,6 +3,7 @@
 
 - target material: PDMS + TiO2 + Microchem SU-8 2000 layered material
 - test code: Vanilla inverse solver/ADJOINT_EXAMPLE.m
+- Only intensity-based optimization is applied
 
 ## Brief guideline for the reading material
 
