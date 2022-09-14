@@ -49,12 +49,20 @@ classdef ADJOINT_SOLVER < handle
             h.nmax = params.nmax;
         end
 
-        function get_gradeint(h,E_adj,E_old,isRItensor)
+        function get_gradient(h,E_adj,E_old,isRItensor)
+            % 3D gradient
             h.gradient_full(:) = real(E_adj.*E_old);
             if isRItensor
                 h.gradient(:) = sum(h.gradient_full,5);
             else
                 h.gradient(:) = sum(h.gradient_full,4:5);
+            end
+
+            % 2D gradient for lithography mask design
+            h.gradient(~h.parameters.ROI_change) = nan;
+            mean_2D = mean(h.gradient,3,'omitnan');
+            for i = 1:size(h.gradient,3)
+                h.gradient(:,:,i) = mean_2D;
             end
             h.gradient(~h.parameters.ROI_change) = 0;
         end

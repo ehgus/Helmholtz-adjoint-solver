@@ -43,8 +43,8 @@ for ii=1:h.parameters.itter_max
     E_adj=h.solve_adjoint(flip(conj(E_old),3),flip(sqrt(Target_intensity),3));
     E_adj=flip(E_adj,3);
     Figure_of_Merit(ii) = sum(abs(E_old).^2.*Target_intensity,'all') / sum(abs(E_old).^2,'all');
-    
-    h.get_gradeint(E_adj,E_old,isRItensor);
+
+    h.get_gradient(E_adj,E_old,isRItensor);
     
     % update the result
     % The update method is based on FISTA algorithm
