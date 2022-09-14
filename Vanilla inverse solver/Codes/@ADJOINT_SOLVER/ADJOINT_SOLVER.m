@@ -1,4 +1,4 @@
-classdef ADJOINT_SOLVER
+classdef ADJOINT_SOLVER < handle
     properties %(SetAccess = protected, Hidden = true)
         forward_solver;
         overlap_count;
@@ -7,6 +7,10 @@ classdef ADJOINT_SOLVER
         parameters;
         nmin;
         nmax;
+
+        % used for solver
+        gradient_full;
+        gradient;
     end
     methods(Static)
         function params=get_default_parameters(init_params)
@@ -45,5 +49,14 @@ classdef ADJOINT_SOLVER
             h.nmax = params.nmax;
         end
 
+        function get_gradeint(h,E_adj,E_old,isRItensor)
+            h.gradient_full(:) = real(E_adj.*E_old);
+            if isRItensor
+                h.gradient(:) = sum(h.gradient_full,5);
+            else
+                h.gradient(:) = sum(h.gradient_full,4:5);
+            end
+            h.gradient(~h.parameters.ROI_change) = 0;
+        end
     end
 end

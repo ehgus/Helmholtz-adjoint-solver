@@ -21,6 +21,17 @@ nmin = h.nmin; % RI of PDMS
 nmax = h.nmax; % RI of TiO2
 
 % Run!
+
+h.gradient = zeros(size(RI,1:4),'single');
+
+gradient_full_size = size(RI,1:5);
+if size(input_field,3) ==2
+    gradient_full_size(4) = 3;
+end
+gradient_full_size(5) = size(input_field,4);
+h.gradient_full = zeros(gradient_full_size,'single');
+isRItensor = size(RI,4) == 3;
+
 for ii=1:h.parameters.itter_max
     display(['Iteration: ' num2str(ii)]);
     tic;
@@ -33,16 +44,18 @@ for ii=1:h.parameters.itter_max
     E_adj=flip(E_adj,3);
     Figure_of_Merit(ii) = sum(abs(E_old).^2.*Target_intensity,'all') / sum(abs(E_old).^2,'all');
     
-    gradient_RI_square = real(E_adj.*E_old); % epsilon * dV is a constant, which is not important.
-    gradient_RI_square = sum(gradient_RI_square,4);
-    gradient_RI_square(~h.parameters.ROI_change) = 0;
+    %gradient_RI_square = real(E_adj.*E_old); % epsilon * dV is a constant, which is not important.
+    %gradient_RI_square = sum(gradient_RI_square,4);
+    %gradient_RI_square(~h.parameters.ROI_change) = 0;
+
+    h.get_gradeint(E_adj,E_old,isRItensor);
     
     % update the result
     % The update method is based on FISTA algorithm
     t_n=t_np;
     t_np=(1+sqrt(1+4*t_n^2))/2;
     % maximization (negative sign)
-    s_n = u_n-(1/alpha)*gradient_RI_square;
+    s_n = u_n-(1/alpha)*h.gradient;
     s_n=gather(s_n);
 
     u_n=s_n+(t_n-1)/t_np*(s_n-x_n);
