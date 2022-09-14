@@ -43,12 +43,8 @@ for ii=1:h.parameters.itter_max
     E_adj=h.solve_adjoint(flip(conj(E_old),3),flip(sqrt(Target_intensity),3));
     E_adj=flip(E_adj,3);
     Figure_of_Merit(ii) = sum(abs(E_old).^2.*Target_intensity,'all') / sum(abs(E_old).^2,'all');
-    
-    %gradient_RI_square = real(E_adj.*E_old); % epsilon * dV is a constant, which is not important.
-    %gradient_RI_square = sum(gradient_RI_square,4);
-    %gradient_RI_square(~h.parameters.ROI_change) = 0;
 
-    h.get_gradeint(E_adj,E_old,isRItensor);
+    h.get_gradient(E_adj,E_old,isRItensor);
     
     % update the result
     % The update method is based on FISTA algorithm
@@ -62,8 +58,8 @@ for ii=1:h.parameters.itter_max
     x_n=s_n;
 
     RI_opt=sqrt(u_n);
-    RI_opt((h.parameters.ROI_change(:)).*(real(RI_opt(:)) > real(nmax))==1) = nmax;
-    RI_opt((h.parameters.ROI_change(:)).*(real(RI_opt(:)) < real(nmin))==1) = nmin;
+    RI_opt(and(h.parameters.ROI_change(:),real(RI_opt(:)) > real(nmax))) = nmax;
+    RI_opt(and(h.parameters.ROI_change(:),real(RI_opt(:)) < real(nmin))) = nmin;
     h.RI_inter=RI_opt;
 
     toc;
