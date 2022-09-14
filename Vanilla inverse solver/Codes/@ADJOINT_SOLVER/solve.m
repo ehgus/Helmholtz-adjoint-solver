@@ -10,26 +10,26 @@ RI_opt=single(RI);
 Figure_of_Merit=zeros(h.parameters.itter_max,1);
 alpha=1/h.parameters.step;
 
-s_n=0;
+
 t_n=0;
 t_np=1;
 
-u_n=RI_opt.^2;
-x_n=RI_opt.^2; 
+s_n=RI_opt;
+x_n=RI_opt; 
 
 nmin = h.nmin; % RI of PDMS 
 nmax = h.nmax; % RI of TiO2
 
 % Run!
 
-h.gradient = zeros(size(RI,1:4),'single');
+h.gradient = complex(zeros(size(RI,1:4),'single'));
 
 gradient_full_size = size(RI,1:5);
 if size(input_field,3) ==2
     gradient_full_size(4) = 3;
 end
 gradient_full_size(5) = size(input_field,4);
-h.gradient_full = zeros(gradient_full_size,'single');
+h.gradient_full = complex(zeros(gradient_full_size,'single'));
 isRItensor = size(RI,4) == 3;
 
 for ii=1:h.parameters.itter_max
@@ -51,13 +51,12 @@ for ii=1:h.parameters.itter_max
     t_n=t_np;
     t_np=(1+sqrt(1+4*t_n^2))/2;
     % maximization (negative sign)
-    s_n = u_n-(1/alpha)*h.gradient;
+    s_n=h.update_gradient(s_n,RI_opt,1/alpha);
     s_n=gather(s_n);
 
-    u_n=s_n+(t_n-1)/t_np*(s_n-x_n);
+    RI_opt=s_n+(t_n-1)/t_np*(s_n-x_n);
     x_n=s_n;
 
-    RI_opt=sqrt(u_n);
     RI_opt(and(h.parameters.ROI_change(:),real(RI_opt(:)) > real(nmax))) = nmax;
     RI_opt(and(h.parameters.ROI_change(:),real(RI_opt(:)) < real(nmin))) = nmin;
     h.RI_inter=RI_opt;

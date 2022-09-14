@@ -66,5 +66,16 @@ classdef ADJOINT_SOLVER < handle
             end
             h.gradient(~h.parameters.ROI_change) = 0;
         end
+
+        function RI_opt = update_gradient(h,RI_opt,RI,step_size)
+            % update gradient based on the density-based 
+            % (RI + RI_gradient)^2 ~ V + gradient => RI_gradient = gradient/(2RI)
+            % TO project the RI_gradient on density,
+            % RI_porjected_gradient = inner_product(RI_gradient,unit_RI_vector)*unit_RI_vector
+            h.gradient(:) = h.gradient./RI;
+            h.gradient(:) = real(h.nmax-h.nmin)*real(h.gradient)+imag(h.nmax-h.nmin)*imag(h.gradient);
+            h.gradient(:) = step_size/2*(h.nmax-h.nmin)/abs(h.nmax-h.nmin)^2*h.gradient;
+            RI_opt(:) = RI - h.gradient;
+        end
     end
 end
