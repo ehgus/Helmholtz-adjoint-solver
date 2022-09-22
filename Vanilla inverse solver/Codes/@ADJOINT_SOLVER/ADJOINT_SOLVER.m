@@ -77,5 +77,11 @@ classdef ADJOINT_SOLVER < handle
             h.gradient(:) = step_size/2*(h.nmax-h.nmin)/abs(h.nmax-h.nmin)^2*h.gradient;
             RI_opt(:) = RI - h.gradient;
         end
+
+        function RI_opt = post_regularization(h,RI_opt)
+            % Min, Max regularization
+            RI_opt(and(h.parameters.ROI_change(:),real(RI_opt(:)) > real(h.nmax))) = h.nmax;
+            RI_opt(and(h.parameters.ROI_change(:),real(RI_opt(:)) < real(h.nmin))) = h.nmin;
+        end
     end
 end

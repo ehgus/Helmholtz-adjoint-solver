@@ -17,9 +17,6 @@ t_np=1;
 s_n=RI_opt;
 x_n=RI_opt; 
 
-nmin = h.nmin; % RI of PDMS 
-nmax = h.nmax; % RI of TiO2
-
 % Run!
 
 h.gradient = complex(zeros(size(RI,1:4),'single'));
@@ -57,8 +54,7 @@ for ii=1:h.parameters.itter_max
     RI_opt=s_n+(t_n-1)/t_np*(s_n-x_n);
     x_n=s_n;
 
-    RI_opt(and(h.parameters.ROI_change(:),real(RI_opt(:)) > real(nmax))) = nmax;
-    RI_opt(and(h.parameters.ROI_change(:),real(RI_opt(:)) < real(nmin))) = nmin;
+    RI_opt=h.post_regularization(RI_opt);
     h.RI_inter=RI_opt;
 
     toc;
