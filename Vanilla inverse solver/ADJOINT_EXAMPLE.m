@@ -52,7 +52,7 @@ forward_params.RI_bg = double(sqrt((minRI^2+maxRI^2)/2));
 
 %compute the forward field using convergent Born series
 forward_solver=FORWARD_SOLVER_CONVERGENT_BORN(forward_params);
-forward_solver.set_RI(RI); % change to RI_optimized and run if you want to see the output of adjoint method
+forward_solver.set_RI(RI_optimized); % change to RI_optimized and run if you want to see the output of adjoint method
 tic;
 [field_trans,~,field_3D]=forward_solver.solve(input_field);
 toc;
@@ -70,10 +70,11 @@ figure('Name','Values along z aixs');plot(squeeze(real(field_3D(floor(end/2),flo
 adjoint_params=ADJOINT_SOLVER.get_default_parameters(params);
 adjoint_params.mode = "Intensity";
 adjoint_params.ROI_change = real(RI) > 2;
-adjoint_params.step = 0.01;
+adjoint_params.step = 0.1;
 adjoint_params.itter_max = 200;
-adjoint_params.steepness = 0.5;
-adjoint_params.binarization_step = 100;
+adjoint_params.steepness = 2;
+adjoint_params.binarization_step = 50;
+adjoint_params.spatial_diameter = 0.2;
 adjoint_params.nmin = get_RI(cd0,"PDMS", params.wavelength);
 adjoint_params.nmax = get_RI(cd0,"TiO2", params.wavelength);
 

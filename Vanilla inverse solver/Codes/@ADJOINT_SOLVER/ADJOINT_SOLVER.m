@@ -10,6 +10,9 @@ classdef ADJOINT_SOLVER < handle
         density_map;
         steepness;
         binarization_step;
+        spatial_diameter;
+        spatial_filter;
+        spatial_filtering_count = 3;
 
         % used for solver
         gradient_full;
@@ -23,7 +26,7 @@ classdef ADJOINT_SOLVER < handle
             params.forward_solver= {};
 
             % Iteration parameters
-            params.step=0.01;
+            params.step=0.1;
             params.tv_param=0.001;
             params.use_non_negativity=false;
             params.nmin = -inf;
@@ -34,6 +37,7 @@ classdef ADJOINT_SOLVER < handle
             params.num_scan_per_iteration = 0; % 0 -> every scan is used
             params.steepness = 0.5;
             params.binarization_step = 100;
+            params.spatial_diameter = 1; % um
             params.verbose = true;
             % Adjoint mode parameters
             params.mode = "Intensity"; %"Transmission"
@@ -54,11 +58,21 @@ classdef ADJOINT_SOLVER < handle
             h.nmax = params.nmax;
             h.steepness = params.steepness; % it should be nonnegative value
             h.binarization_step = params.binarization_step;
+            
+            h.spatial_diameter = params.spatial_diameter;
+            spatial_radius = h.spatial_diameter/2;
+            pixel_size = fix(h.spatial_diameter./h.forward_solver.parameters.resolution);
+            x_idx = reshape(linspace(-spatial_radius,spatial_radius,pixel_size(1)),[],1);
+            y_idx = reshape(linspace(-spatial_radius,spatial_radius,pixel_size(2)),1,[]);
+            h.spatial_filter = spatial_radius - sqrt(x_idx.^2+y_idx.^2);
+            h.spatial_filter(h.spatial_filter < 0) = 0;
+            assert(sum(h.spatial_filter,'all') >0, 'The spatial_diameter should be more larger');
+            h.spatial_filter = h.spatial_filter/sum(h.spatial_filter,'all');
         end
 
         function get_gradient(h,E_adj,E_old,isRItensor)
             % 3D gradient
-            h.gradient_full(:) = real(E_adj.*E_old);
+            h.gradient_full(:) = E_adj.*E_old;
             if isRItensor
                 h.gradient(:) = sum(h.gradient_full,5);
             else
@@ -82,7 +96,7 @@ classdef ADJOINT_SOLVER < handle
             h.gradient(:) = h.gradient./RI;
             h.gradient(:) = real(h.nmax-h.nmin)*real(h.gradient)+imag(h.nmax-h.nmin)*imag(h.gradient);
             h.gradient(:) = step_size/2*(h.nmax-h.nmin)/abs(h.nmax-h.nmin)^2*h.gradient;
-            RI_opt(:) = RI + h.gradient;
+            RI_opt(:) = RI - h.gradient;
         end
 
         function RI_opt = post_regularization(h,RI_opt,index)
@@ -90,13 +104,17 @@ classdef ADJOINT_SOLVER < handle
             % Min, Max regularization
             h.density_map(h.density_map > 1) = 1;
             h.density_map(h.density_map < 0) = 0;
+            % adaptive spatial filtering
+            if index +h.spatial_filtering_count > h.parameters.itter_max
+                h.density_map(:) = cconv2(h.density_map,h.spatial_filter);
+            end
             % adaptive binarization
-            steepness = h.steepness*fix(index/h.binarization_step);
-            if steepness > h.steepness/2
-                tanh_value = tanh(steepness/2);
+            beta = h.steepness*fix(index/h.binarization_step);
+            if beta > h.steepness/2
+                tanh_value = tanh(beta/2);
                 ROI_density_map = h.density_map(h.parameters.ROI_change);
-                ROI_density_map(:) = (tanh_value + tanh(steepness*(ROI_density_map-0.5)))/ ...
-                                (tanh_value + tanh(steepness/2));
+                ROI_density_map(:) = (tanh_value + tanh(beta*(ROI_density_map-0.5)))/ ...
+                                (tanh_value + tanh(beta/2));
                 h.density_map(h.parameters.ROI_change) = ROI_density_map;
             end
             % update
