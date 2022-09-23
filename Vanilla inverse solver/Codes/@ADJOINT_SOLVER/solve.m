@@ -20,6 +20,7 @@ x_n=RI_opt;
 % Run!
 
 h.gradient = complex(zeros(size(RI,1:4),'single'));
+h.density_map = zeros(size(RI,1:3),'single');
 
 gradient_full_size = size(RI,1:5);
 if size(input_field,3) ==2
@@ -54,7 +55,7 @@ for ii=1:h.parameters.itter_max
     RI_opt=s_n+(t_n-1)/t_np*(s_n-x_n);
     x_n=s_n;
 
-    RI_opt=h.post_regularization(RI_opt);
+    RI_opt=h.post_regularization(RI_opt,ii);
     h.RI_inter=RI_opt;
 
     toc;

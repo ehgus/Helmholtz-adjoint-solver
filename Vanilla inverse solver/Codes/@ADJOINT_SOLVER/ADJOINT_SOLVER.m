@@ -7,6 +7,9 @@ classdef ADJOINT_SOLVER < handle
         parameters;
         nmin;
         nmax;
+        density_map;
+        steepness;
+        binarization_step;
 
         % used for solver
         gradient_full;
@@ -29,6 +32,8 @@ classdef ADJOINT_SOLVER < handle
             params.inner_itt = 100; % imaginary RI
             params.itter_max = 100; % imaginary RI
             params.num_scan_per_iteration = 0; % 0 -> every scan is used
+            params.steepness = 0.5;
+            params.binarization_step = 100;
             params.verbose = true;
             % Adjoint mode parameters
             params.mode = "Intensity"; %"Transmission"
@@ -47,6 +52,8 @@ classdef ADJOINT_SOLVER < handle
             h.forward_solver = forward_solver;
             h.nmin = params.nmin;
             h.nmax = params.nmax;
+            h.steepness = params.steepness; % it should be nonnegative value
+            h.binarization_step = params.binarization_step;
         end
 
         function get_gradient(h,E_adj,E_old,isRItensor)
@@ -75,13 +82,25 @@ classdef ADJOINT_SOLVER < handle
             h.gradient(:) = h.gradient./RI;
             h.gradient(:) = real(h.nmax-h.nmin)*real(h.gradient)+imag(h.nmax-h.nmin)*imag(h.gradient);
             h.gradient(:) = step_size/2*(h.nmax-h.nmin)/abs(h.nmax-h.nmin)^2*h.gradient;
-            RI_opt(:) = RI - h.gradient;
+            RI_opt(:) = RI + h.gradient;
         end
 
-        function RI_opt = post_regularization(h,RI_opt)
+        function RI_opt = post_regularization(h,RI_opt,index)
+            h.density_map(:) = real(RI_opt-h.nmin)/real(h.nmax-h.nmin); 
             % Min, Max regularization
-            RI_opt(and(h.parameters.ROI_change(:),real(RI_opt(:)) > real(h.nmax))) = h.nmax;
-            RI_opt(and(h.parameters.ROI_change(:),real(RI_opt(:)) < real(h.nmin))) = h.nmin;
+            h.density_map(h.density_map > 1) = 1;
+            h.density_map(h.density_map < 0) = 0;
+            % adaptive binarization
+            steepness = h.steepness*fix(index/h.binarization_step);
+            if steepness > h.steepness/2
+                tanh_value = tanh(steepness/2);
+                ROI_density_map = h.density_map(h.parameters.ROI_change);
+                ROI_density_map(:) = (tanh_value + tanh(steepness*(ROI_density_map-0.5)))/ ...
+                                (tanh_value + tanh(steepness/2));
+                h.density_map(h.parameters.ROI_change) = ROI_density_map;
+            end
+            % update
+            RI_opt(h.parameters.ROI_change) = h.density_map(h.parameters.ROI_change)*(h.nmax-h.nmin)+h.nmin;
         end
     end
 end

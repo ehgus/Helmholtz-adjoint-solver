@@ -72,6 +72,8 @@ adjoint_params.mode = "Intensity";
 adjoint_params.ROI_change = real(RI) > 2;
 adjoint_params.step = 0.01;
 adjoint_params.itter_max = 200;
+adjoint_params.steepness = 0.5;
+adjoint_params.binarization_step = 100;
 adjoint_params.nmin = get_RI(cd0,"PDMS", params.wavelength);
 adjoint_params.nmax = get_RI(cd0,"TiO2", params.wavelength);
 
