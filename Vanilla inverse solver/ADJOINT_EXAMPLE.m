@@ -52,19 +52,14 @@ forward_params.RI_bg = double(sqrt((minRI^2+maxRI^2)/2));
 
 %compute the forward field using convergent Born series
 forward_solver=FORWARD_SOLVER_CONVERGENT_BORN(forward_params);
-forward_solver.set_RI(RI_optimized); % change to RI_optimized and run if you want to see the output of adjoint method
+forward_solver.set_RI(RI);
 tic;
 [field_trans,~,field_3D]=forward_solver.solve(input_field);
 toc;
 
-% Display results: transmitted field
-[input_field_scalar,field_trans_scalar]=vector2scalarfield(input_field,field_trans);
-input_field_no_zero=input_field_scalar;zero_part_mask=abs(input_field_no_zero)<=0.01.*mean(abs(input_field_no_zero(:)));input_field_no_zero(zero_part_mask)=0.01.*exp(1i.*angle(input_field_no_zero(zero_part_mask)));
-figure('Name','Amplitude of transmitted light');imagesc(squeeze(abs(field_trans_scalar(:,:,:)./input_field_no_zero(:,:,:)))); colormap gray;
-figure('Name','Phase of transmitted light');imagesc(squeeze(angle(field_trans_scalar(:,:,:)./input_field_no_zero(:,:,:)))); colormap jet;
-figure('Name','E field in material');orthosliceViewer(real(field_3D(:,:,:,1)));
-figure('Name','Values along z aixs');plot(squeeze(real(field_3D(floor(end/2),floor(end/2),:,1))), 'r');hold on;plot(squeeze(real(RI(floor(end/2),floor(end/2),:,1))),'b');legend('E field','RI');
- %% Adjoint method
+% Configuration for bulk material
+display_RI_and_E_field(forward_solver,RI,input_field,'before optimization')
+%% Adjoint method
 
 %Adjoint solver parameters
 adjoint_params=ADJOINT_SOLVER.get_default_parameters(params);
@@ -85,3 +80,29 @@ Target_intensity = PHANTOM.get(phantom_params);
 
 % Execute the optimization code
 RI_optimized=adjoint_solver.solve(input_field,Target_intensity,RI);
+
+% Configuration for optimized metamaterial
+display_RI_and_E_field(forward_solver,RI_optimized,input_field,'after optimization')
+%% utilities
+function display_RI_and_E_field(forward_solver,RI,input_field,figureName)
+    forward_solver.set_RI(RI); % change to RI_optimized and run if you want to see the output of adjoint method
+    [field_trans,~,field_3D]=forward_solver.solve(input_field(:,:,:,1));
+
+    % tranform vector field to scalar field
+    [input_field_scalar,field_trans_scalar]=vector2scalarfield(input_field,field_trans);
+    input_field_no_zero=input_field_scalar;
+    zero_part_mask=abs(input_field_scalar)<=0.01*mean(abs(input_field_scalar),'all');
+    input_field_no_zero(zero_part_mask)=0.01*exp(1i.*angle(input_field_no_zero(zero_part_mask)));
+    relative_complex_trans_field = field_trans_scalar./input_field_no_zero;
+    intensity_map = sum(abs(field_3D).^2,4);
+    
+    % Display results: transmitted field
+    figure('Name',figureName);colormap parula;
+    subplot(2,1,1);imagesc(squeeze(abs(relative_complex_trans_field)));title('Amplitude of transmitted light');
+    subplot(2,1,2);imagesc(squeeze(angle(relative_complex_trans_field)));title('Phase of transmitted light');
+    figure('Name',[figureName '- intensity map']);orthosliceViewer(intensity_map);title('amplitude in material');colormap gray
+    figure('Name',[figureName '- real RI map']);orthosliceViewer(real(RI));title('RI of material');colormap gray
+    figure('Name',[figureName '- intensity and RI']);hold on;
+    plot(squeeze(real(field_3D(floor(end/2),floor(end/2),:,1))), 'r');
+    plot(squeeze(real(RI(floor(end/2),floor(end/2),:))),'b');legend('E field','RI');title('Values along z aixs');
+end
