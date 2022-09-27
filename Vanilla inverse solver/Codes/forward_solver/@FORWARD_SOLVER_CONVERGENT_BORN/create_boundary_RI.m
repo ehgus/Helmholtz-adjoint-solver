@@ -4,7 +4,7 @@ function create_boundary_RI(h)
     old_RI_size=size(h.RI);
     
     pott=RI2potential(h.RI,h.parameters.wavelength,h.parameters.RI_bg);
-    h.V=padarray(pott,h.boundary_thickness_pixel(1:3),0);
+    h.V=padarray(pott,h.boundary_thickness_pixel(1:3),'replicate');
     h.RI=potential2RI(h.V,h.parameters.wavelength,h.parameters.RI_bg);
     
     h.ROI = [...
