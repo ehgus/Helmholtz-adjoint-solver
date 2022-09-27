@@ -11,7 +11,6 @@ gpu_device=gpuDevice(target_gpu_device);
 MULTI_GPU=false; % Use Multiple GPU?
 
 %1 optical parameters
-params=BASIC_OPTICAL_PARAMETER();
 params.NA=1; % Numerical aperture
 params.wavelength=0.355; % [um]
 params.RI_bg=real(get_RI(cd0,"PDMS", params.wavelength)); % Background RI
@@ -21,7 +20,7 @@ params.vector_simulation=true; % True/false: dyadic/scalar Green's function
 params.size=[81 81 81]; % 3D volume grid
 
 %2 incident field parameters
-field_generator_params=FIELD_GENERATOR.get_default_parameters(params);
+field_generator_params=params;
 field_generator_params.illumination_number=1;
 field_generator_params.illumination_style='circle';%'circle';%'random';%'mesh'
 % create the incident field
@@ -43,7 +42,7 @@ RI = PHANTOM.get_TiO2_mask(phantom_params);
 % It displays results of light propagation along the target material
 
 %forward solver parameters
-forward_params=FORWARD_SOLVER_CONVERGENT_BORN.get_default_parameters(params);
+forward_params=params;
 forward_params.use_GPU=true;
 forward_params.return_3D = true;
 forward_params.boundary_thickness = [0 0 4];
@@ -62,7 +61,7 @@ display_RI_and_E_field(forward_solver,RI,input_field,'before optimization')
 %% Adjoint method
 
 %Adjoint solver parameters
-adjoint_params=ADJOINT_SOLVER.get_default_parameters(params);
+adjoint_params=params;
 adjoint_params.mode = "Intensity";
 adjoint_params.ROI_change = real(RI) > 2;
 adjoint_params.step = 0.1;

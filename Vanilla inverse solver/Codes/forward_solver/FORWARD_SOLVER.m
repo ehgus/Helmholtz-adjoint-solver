@@ -1,27 +1,19 @@
-classdef FORWARD_SOLVER < handle
+classdef FORWARD_SOLVER < OPTICAL_SIMULATION
     properties (SetAccess = protected, Hidden = true)
-        parameters;
         RI;
-        
         utility;
     end
-    methods(Static)
-        function params=get_default_parameters(init_params)
-            %OPTICAL PARAMETERS
-            params=BASIC_OPTICAL_PARAMETER();
-            %SIMULATION PARAMETERS
-            params.return_transmission=true;%return transmission field
-            params.return_reflection=false;%return reflection field
-            params.return_3D=false;%return 3D field
-            params.use_GPU=true;
-            if nargin==1
-                params=update_struct(params,init_params);
-            end
-        end
-    end
     methods
+        function get_default_parameters(h)
+            get_default_parameters@OPTICAL_SIMULATION(h);
+            %SIMULATION PARAMETERS
+            h.parameters.return_transmission=true;%return transmission field
+            h.parameters.return_reflection=false;%return reflection field
+            h.parameters.return_3D=false;%return 3D field
+            h.parameters.use_GPU=true;
+        end
         function h=FORWARD_SOLVER(params)
-            h.parameters=params;
+            h@OPTICAL_SIMULATION(params);
             warning('off','all');
             h.utility=DERIVE_OPTICAL_TOOL(h.parameters,h.parameters.use_GPU);%reset it to have the gpu used
             warning('on','all');

@@ -27,23 +27,18 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
         
         expected_RI_size;
     end
-    methods(Static)
-        function params=get_default_parameters(init_params)
-            params=get_default_parameters@FORWARD_SOLVER();
-            %specific parameters
-            params.iterations_number=-1;
-            params.boundary_thickness = [6 6 6];
-            params.boundary_sharpness = 1;%2;
-            params.verbose = false;
-            params.acyclic = true;
-            params.RI_xy_size=[0 0];%if set to 0 the field is the same size as the simulation
-            params.RI_center=[0 0];
-            if nargin==1
-                params=update_struct(params,init_params);
-            end
-        end
-    end
     methods
+        function get_default_parameters(h)
+            get_default_parameters@FORWARD_SOLVER(h);
+            %specific parameters
+            h.parameters.iterations_number=-1;
+            h.parameters.boundary_thickness = [6 6 6];
+            h.parameters.boundary_sharpness = 1;%2;
+            h.parameters.verbose = false;
+            h.parameters.acyclic = true;
+            h.parameters.RI_xy_size=[0 0];%if set to 0 the field is the same size as the simulation
+            h.parameters.RI_center=[0 0];
+        end
         [fields_trans,fields_ref,fields_3D]=solve(h,input_field);
         Field=solve_forward(h,source);
 

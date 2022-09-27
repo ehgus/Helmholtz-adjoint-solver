@@ -1,27 +1,16 @@
-classdef FIELD_GENERATOR < handle
-    properties (SetAccess = private, Hidden = true)
-        parameters;
-    end
-    methods(Static)
-        function params=get_default_parameters(init_params)
-            %OPTICAL PARAMETERS
-            params=BASIC_OPTICAL_PARAMETER();
-            %SIMULATION PARAMETERS
-            params.percentage_NA_usage=0.95;
-            params.illumination_style='random';% can be random circular etc...
-            params.illumination_number=10;
-            params.illumination_pol=[];
-            params.start_with_normal=true;
-            
-            if nargin==1
-                params=update_struct(params,init_params);
-            end
-        end
-    end
+classdef FIELD_GENERATOR < OPTICAL_SIMULATION
     methods
+        function get_default_parameters(h)
+            get_default_parameters@OPTICAL_SIMULATION(h);
+            %SIMULATION PARAMETERS
+            h.parameters.percentage_NA_usage=0.95;
+            h.parameters.illumination_style='random';% can be random circular etc...
+            h.parameters.illumination_number=10;
+            h.parameters.illumination_pol=[];
+            h.parameters.start_with_normal=true;
+        end
         function h=FIELD_GENERATOR(params)
-
-            h.parameters=params;
+            h@OPTICAL_SIMULATION(params);
         end
         function output_field=get_fields(h)
             % generate coherent light source

@@ -5,15 +5,16 @@ if ~exist('refocus_version','var')
 end
 %inspired from : "Fast convolution with free-space Green’s functions" Felipe Vico Leslie Greengard Miguel Ferrando
 %check that input has all the requires params
-params_required=BASIC_OPTICAL_PARAMETER();
 params_required.use_GPU=true;
 params_required.oversize_z=10;
 params_required.oversample_xy=20000;%200;
 params_required.oversample_xy_fourier=2;
 params_required.simultanous_process=30;
-%params_required
-%params
-params=update_struct(params_required,params);%check for required parameter and keep only required one
+fields = setdiff(fieldnames(params_required),fieldnames(params));
+for i = 1:length(fields)
+    field=fields{i};
+    params.(field)=params_required.(field);
+end
 %change the parameter to englobe the full arrear.
 %params.oversize_z
 output_size_pixel=params.size(:);
