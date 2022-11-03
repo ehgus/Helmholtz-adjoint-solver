@@ -52,9 +52,6 @@ forward_params.RI_bg = double(sqrt((minRI^2+maxRI^2)/2));
 %compute the forward field using convergent Born series
 forward_solver=FORWARD_SOLVER_CONVERGENT_BORN(forward_params);
 forward_solver.set_RI(RI);
-tic;
-[field_trans,~,field_3D]=forward_solver.solve(input_field);
-toc;
 
 % Configuration for bulk material
 display_RI_and_E_field(forward_solver,RI,input_field,'before optimization')
@@ -82,10 +79,18 @@ RI_optimized=adjoint_solver.solve(input_field,Target_intensity,RI);
 
 % Configuration for optimized metamaterial
 display_RI_and_E_field(forward_solver,RI_optimized,input_field,'after optimization')
+
+%% optional: save RI configuration
+filename = 'optimized_RI.h5';
+save_RI_data(filename,real(RI_optimized),params);
+RI_test = load_RI_data(filename);
+
 %% utilities
 function display_RI_and_E_field(forward_solver,RI,input_field,figureName)
     forward_solver.set_RI(RI); % change to RI_optimized and run if you want to see the output of adjoint method
+    tic;
     [field_trans,~,field_3D]=forward_solver.solve(input_field(:,:,:,1));
+    toc;
 
     % tranform vector field to scalar field
     [input_field_scalar,field_trans_scalar]=vector2scalarfield(input_field,field_trans);
@@ -104,4 +109,31 @@ function display_RI_and_E_field(forward_solver,RI,input_field,figureName)
     figure('Name',[figureName '- intensity and RI']);hold on;
     plot(squeeze(real(field_3D(floor(end/2),floor(end/2),:,1))), 'r');
     plot(squeeze(real(RI(floor(end/2),floor(end/2),:))),'b');legend('E field','RI');title('Values along z aixs');
+end
+
+function save_RI_data(filename,volume_RI,RI_params)
+    % save volume_RI and simulation condition in file_path (HDF5 format)
+    if isfile(filename)
+        delete(filename)
+    end
+    h5create(filename,'/RI_final/RI',size(volume_RI));
+    h5write(filename,'/RI_final/RI',volume_RI);
+    
+    attributenames = {'resolution','wavelength'};
+    for i = 1:length(attributenames)
+        attrname = attributenames{i};
+        h5writeatt(filename,'/RI_final',attrname,RI_params.(attrname));
+    end
+end
+
+function [volume_RI,RI_params] = load_RI_data(filename)
+    % save volume_RI and simulation condition in file_path (HDF5 format)
+    volume_RI = h5read(filename,'/RI_final/RI');
+    RI_params =struct();
+    
+    attributenames = {'resolution','wavelength'};
+    for i = 1:length(attributenames)
+        attrname = attributenames{i};
+        RI_params.(attrname) = h5readatt(filename,'/RI_final',attrname);
+    end
 end

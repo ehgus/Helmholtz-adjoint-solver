@@ -5,7 +5,7 @@
                     +[h.expected_RI_size(1) h.expected_RI_size(2)]';
                 
                 add_start=-((floor(sz(1:2)'/2))-(floor(size_conv(:)/2)))...
-                    +[h.parameters.RI_center(1) h.parameters.RI_center(2)]';;
+                    +[h.parameters.RI_center(1) h.parameters.RI_center(2)]';
                 add_end=size_conv(:)-sz(1:2)'-add_start(:);
                 
                 matt=padarray(matt,add_start,0,'pre');
