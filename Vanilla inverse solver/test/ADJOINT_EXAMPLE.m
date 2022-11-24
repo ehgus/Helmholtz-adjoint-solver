@@ -1,6 +1,6 @@
 clc, clear;
 % load all functions
-cd0 = fileparts(matlab.desktop.editor.getActiveFilename);
+cd0 = fileparts(fileparts(matlab.desktop.editor.getActiveFilename));
 addpath(genpath(cd0));
 
 %% set the simulation parameters
