@@ -20,6 +20,8 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
         pole_num;
         green_absorbtion_correction;
         eps_imag;
+
+        fdtd_temp_dir;
     end
     methods
         function get_default_parameters(h)
@@ -36,6 +38,7 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             h.parameters.non_cyclic_conv=true;
             h.parameters.xtol = 1e-5;
             h.parameters.dt_stability_factor = 0.99;
+            h.fdtd_temp_dir = './FDTD_TEMP';
         end
 
         function h=FORWARD_SOLVER_FDTD(params)
@@ -260,27 +263,20 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             
         end
         function Field=solve_raw(h,source,source_H)
-            cd_fdtd_temp = 'D:\Dohyeon_Lee\metamaterial_solver\_multiple_scattering_mshh\FDTD_TEMP';
-            cd_lumerical = 'C:\Program Files\Lumerical\v212\bin\fdtd-solutions.exe';
-            source=reshape(source,size(source,1),size(source,2),1,[]);
-            source=source*(-1i*4*pi*h.parameters.RI_bg/h.parameters.wavelength/h.parameters.resolution(3));%normalise the source term
-            source_H=reshape(source_H,size(source_H,1),size(source_H,2),1,[]);
-            source_H=source_H*(-1i*4*pi*h.parameters.RI_bg/h.parameters.wavelength/h.parameters.resolution(3));%normalise the source term
-        %% Lumerical starter - MAIN
-            if size(source,1)~=size(h.RI,1) || size(source,2)~=size(h.RI,2)
-               error('Field and RI sizes are not consistent'); 
-            end
+            assert(isequal(size(source,1:2),size(h.RI,1:2)),'Field and RI sizes are not consistent')
+            assert(isfolder(h.fdtd_temp_dir), 'FDTD temp folder is not valid')
 
-            %find the main component of the field 
-            source = squeeze(source);
-            source_H = squeeze(source_H);
-            Field_SPEC=source;
-            Field_SPEC=squeeze(Field_SPEC);
-            Field_SPEC_ABS=sqrt(abs(Field_SPEC(:,:,1)).^2+abs(Field_SPEC(:,:,2)).^2+abs(Field_SPEC(:,:,3)).^2);
+            cd_lumerical = 'C:\Program Files\Lumerical\v212\bin\fdtd-solutions.exe';
+            source_normalizer = -1i*4*pi*h.parameters.RI_bg/h.parameters.wavelength/h.parameters.resolution(3);
+            source=source*source_normalizer;%normalise the source term
+            source_H=source_H*source_normalizer;%normalise the source term
+
+            %find the main component of the field
+            Field_SPEC_ABS= sqrt(sum(abs(source).^2,3));
             [M,I]=max(Field_SPEC_ABS,[],'all','linear');
             Field_SPEC_ABS_OTHER=Field_SPEC_ABS;
             Field_SPEC_ABS_OTHER(I)=0;
-            is_plane_wave = (sum(Field_SPEC_ABS_OTHER(:))<(M/100));
+            is_plane_wave = any(Field_SPEC_ABS_OTHER(:)<(M/100));
             phi=0;
             theta=0;
             para_pol=0;
@@ -294,7 +290,7 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
                d1=d1-(1+floor(size(Field_SPEC_ABS,1)/2));
                d2=d2-(1+floor(size(Field_SPEC_ABS,2)/2));
 
-               kres2 = h.utility_border.fourier_space.coor{1};%
+               kres2 = h.utility.fourier_space.coor{1};
                max_angle = h.parameters.RI_bg/h.parameters.wavelength/kres2;
 
                phi=angle(d1+1i*d2);
@@ -314,8 +310,8 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             size(RImap)
 
 
-            lumerical_save_RI_text(RImap,h.parameters.resolution,[cd_fdtd_temp '\index.txt']);
-            lumerical_save_field(source,source_H,h.parameters.resolution, [cd_fdtd_temp '\field.mat']);
+            lumerical_save_RI_text(RImap,h.parameters.resolution,fullfile(h.fdtd_temp_dir, 'index.txt'));
+            lumerical_save_field(source,source_H,h.parameters.resolution, fullfile(h.fdtd_temp_dir, 'field.mat'));
             %bool is not supported by
             return_trans=double(1);
             return_ref=double(1);
@@ -330,22 +326,22 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             shutoff_min = double(h.parameters.xtol);
             dt_stability_factor = double(h.parameters.dt_stability_factor);
 
-            save([cd_fdtd_temp '\optical.mat'],'lambda','base_index','return_trans','return_ref','return_vol',...
+            save(fullfile(h.fdtd_temp_dir, 'optical.mat'),'lambda','base_index','return_trans','return_ref','return_vol',...
                 'is_plane_wave','phi','theta','para_pol','ortho_pol','shutoff_min','dt_stability_factor');
 
-            command=[' "' cd_lumerical '"      -run -exit  "' cd_fdtd_temp '\lumerical_fdtd_script.lsf" '];
+            command=[' "' cd_lumerical '"      -run -exit  "' h.fdtd_temp_dir '\lumerical_fdtd_script.lsf" '];
             system(command);
 
             % check the result data is still being written
-            fid = fopen(fullfile(cd_fdtd_temp, 'result.mat'),'r');
+            fid = fopen(fullfile(h.fdtd_temp_dir, 'result.mat'),'r');
             while fid == -1
                 pause(1);
-                fid = fopen(fullfile(cd_fdtd_temp, 'result.mat'),'r');
+                fid = fopen(fullfile(h.fdtd_temp_dir, 'result.mat'),'r');
             end
             fclose(fid);
             
             %% End of FDTD
-            load(fullfile(cd_fdtd_temp, 'result.mat'));
+            load(fullfile(h.fdtd_temp_dir, 'result.mat'));
 
             if true
                 Field=reshape(res_vol.E,length(res_vol.x),length(res_vol.y),length(res_vol.z),3);

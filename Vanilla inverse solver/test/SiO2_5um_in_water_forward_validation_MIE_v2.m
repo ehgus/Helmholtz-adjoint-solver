@@ -87,9 +87,13 @@ else
 end
 
 %% Draw results
-[input_field_scalar,field_trans_multi_test1_scalar]=vector2scalarfield(input_field,field_trans_multi_test1);
-[input_field_scalar,field_trans_multi_test2_scalar]=vector2scalarfield(input_field,field_trans_multi_test2);
-[input_field_scalar,field_ref_multi_test1_scalar]=vector2scalarfield(input_field,field_ref_multi_test1);
+field_3D_multi_test1 = field_3D_multi_test1/mean(field_3D_multi_test1,'all');
+field_3D_multi_test2 = field_3D_multi_test2/mean(field_3D_multi_test2,'all');
+field_3D_Mie = field_3D_Mie/mean(field_3D_Mie,'all');
+
+[~,field_trans_multi_test1_scalar]=vector2scalarfield(input_field,field_trans_multi_test1);
+[~,field_trans_multi_test2_scalar]=vector2scalarfield(input_field,field_trans_multi_test2);
+[~,field_ref_multi_test1_scalar]=vector2scalarfield(input_field,field_ref_multi_test1);
 [input_field_scalar,field_ref_multi_test2_scalar]=vector2scalarfield(input_field,field_ref_multi_test2);
 input_field_no_zero=input_field_scalar;zero_part_mask=abs(input_field_no_zero)<=0.01.*mean(abs(input_field_no_zero(:)));input_field_no_zero(zero_part_mask)=0.01.*exp(1i.*angle(input_field_no_zero(zero_part_mask)));
 
