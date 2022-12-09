@@ -6,7 +6,7 @@ clear;
 groupscope("::model");#go to the main scope
 um = 10^-6;
 
-dirname = "D:\Dohyeon_Lee\metamaterial_solver\_multiple_scattering_mshh\FDTD_TEMP";
+dirname = "D:\Dohyeon_Lee\metamaterial_solver\Helmholtz-adjoint-solver\Vanilla inverse solver\test\FDTD_TEMP";
 filename_RI = dirname + "\index.txt";
 filename_FIELD = dirname + "\field.mat";
 filename_save = dirname + "\result.mat";
@@ -28,6 +28,8 @@ save(filename_fsp);
 #theta;
 #para_pol;
 #ortho_pol;
+#shutoff_min = 1e-8;
+#dt_stability_factor = 0.999;
 
 ?base_index;
 ?lambda;
@@ -39,7 +41,8 @@ save(filename_fsp);
 ?theta;
 ?para_pol;
 ?ortho_pol;
-
+?shutoff_min;
+?dt_stability_factor;
 
 addimport;
 set("name","refractive_index");
@@ -81,8 +84,8 @@ set("y max",max_y);
 set("z min",min_z);
 set("z max",max_z);
 #boundary
-set('x min bc','Periodic');
-set('y min bc','Periodic');
+set('x min bc','Bloch');
+set('y min bc','Bloch');
 set('z min bc','PML');
 set('z max bc','PML');
 set('pml profile',3);
@@ -101,7 +104,8 @@ set('mesh cells y',y_num-1);
 
 set('define z mesh by',4);
 set('mesh cells z',z_num-1);
-
+set("auto shutoff min", shutoff_min);
+set("dt stability factor", dt_stability_factor);
 #mesh_x=getresult("FDTD","x"); #get mesh location
 
 
@@ -187,7 +191,7 @@ if(is_plane_wave)
     
     set("z",dz);
     
-    set("center wavelength",lambda*um*1.336);
+    set("center wavelength",lambda*um);
     set("wavelength span",0);
 }
 

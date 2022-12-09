@@ -38,6 +38,7 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             h.parameters.non_cyclic_conv=true;
             h.parameters.xtol = 1e-5;
             h.parameters.dt_stability_factor = 0.99;
+            h.parameters.is_plane_wave = false;
             h.fdtd_temp_dir = './FDTD_TEMP';
         end
 
@@ -63,7 +64,10 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
         end
         function create_boundary_RI(h)
             
-            h.boundary_thickness_pixel = round((h.parameters.boundary_thickness*h.parameters.wavelength/h.parameters.RI_bg)/h.parameters.resolution(3));
+            h.boundary_thickness_pixel = round(h.parameters.boundary_thickness*h.parameters.wavelength/h.parameters.RI_bg/h.parameters.resolution(3));
+            if h.boundary_thickness_pixel == 0
+                return
+            end
             
             abs_scatt_pott = RI2potential((h.parameters.RI_bg+1i*h.parameters.boundary_strength),h.parameters.wavelength,h.parameters.RI_bg);
             
@@ -171,6 +175,9 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             h.RI=gather(h.RI);
         end
         function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
+            if h.parameters.use_cuda && h.parameters.non_cyclic_conv 
+                error('not implemented');
+            end
             if ~h.parameters.use_GPU
                 h.parameters.use_cuda=false;
                 input_field=single(input_field);
@@ -178,11 +185,7 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
                 h.RI=single(gpuArray(h.RI));
                 input_field=single(gpuArray(input_field));
             end
-            if h.parameters.use_cuda
-               if h.parameters.non_cyclic_conv 
-                   error('not implemented');
-               end
-            end
+            
             if size(input_field,3)>1 &&~h.parameters.vector_simulation
                 error('the source is 2D but parameter indicate a vectorial simulation');
             elseif size(input_field,3)==1 && h.parameters.vector_simulation
@@ -206,9 +209,11 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             input_field=input_field.*exp(h.utility.refocusing_kernel.*h.parameters.resolution(3).*(-floor(h.initial_ZP_3/2)-1-h.parameters.padding_source));
             source_H=source_H.*exp(h.utility.refocusing_kernel.*h.parameters.resolution(3).*(-floor(h.initial_ZP_3/2)-1-h.parameters.padding_source));
             source_0_3D=input_field;%save to remove the reflection
-            k_space_mask = sqrt(max(0,1-(h.utility.fourier_space.coor{1}./h.utility.k0_nm).^2-(h.utility.fourier_space.coor{2}./h.utility.k0_nm).^2));
-            input_field=input_field.*k_space_mask;%normalisation needed here only for source terms (term from the helmotz equation in plane source because of double derivative)
-            source_H=source_H.*k_space_mask;%normalisation needed here only for source terms (term from the helmotz equation in plane source because of double derivative)
+
+            %normalisation needed here only for source terms (term from the helmotz equation in plane source because of double derivative)
+            k_space_mask = sqrt(max(0,1-h.utility.fourier_space.coor{1}.^2/h.utility.k0_nm^2-h.utility.fourier_space.coor{2}.^2/h.utility.k0_nm^2));
+            input_field=input_field.*k_space_mask;
+            source_H=source_H.*k_space_mask;
 
             input_field=fftshift(ifft2(ifftshift(input_field)));
             source_H=fftshift(ifft2(ifftshift(source_H)));
@@ -231,7 +236,7 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             end
             
             for field_num=1:size(input_field,4)
-                Field=h.solve_raw(input_field(:,:,:,field_num), source_H(:,:,:,field_num));
+                Field=h.solve_forward(input_field(:,:,:,field_num), source_H(:,:,:,field_num));
                 %crop and remove near field (3D to 2D field)
                 
                 if h.parameters.return_3D
@@ -262,46 +267,38 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             end
             
         end
-        function Field=solve_raw(h,source,source_H)
+        function Field=solve_forward(h,source,source_H)
             assert(isequal(size(source,1:2),size(h.RI,1:2)),'Field and RI sizes are not consistent')
             assert(isfolder(h.fdtd_temp_dir), 'FDTD temp folder is not valid')
 
             cd_lumerical = 'C:\Program Files\Lumerical\v212\bin\fdtd-solutions.exe';
-            source_normalizer = -1i*4*pi*h.parameters.RI_bg/h.parameters.wavelength/h.parameters.resolution(3);
-            source=source*source_normalizer;%normalise the source term
-            source_H=source_H*source_normalizer;%normalise the source term
 
             %find the main component of the field
             Field_SPEC_ABS= sqrt(sum(abs(source).^2,3));
-            [M,I]=max(Field_SPEC_ABS,[],'all','linear');
-            Field_SPEC_ABS_OTHER=Field_SPEC_ABS;
-            Field_SPEC_ABS_OTHER(I)=0;
-            is_plane_wave = any(Field_SPEC_ABS_OTHER(:)<(M/100));
+            [~,I]=max(Field_SPEC_ABS,[],'all','linear');
             phi=0;
             theta=0;
-            para_pol=0;
+            para_pol=1;
             ortho_pol=0;
 
-            is_plane_wave=false;
-
-            if is_plane_wave
-               disp('Simulating using plane wave illumination')
-               [d1,d2]= ind2sub(size(Field_SPEC_ABS),I);
-               d1=d1-(1+floor(size(Field_SPEC_ABS,1)/2));
-               d2=d2-(1+floor(size(Field_SPEC_ABS,2)/2));
-
-               kres2 = h.utility.fourier_space.coor{1};
-               max_angle = h.parameters.RI_bg/h.parameters.wavelength/kres2;
-
-               phi=angle(d1+1i*d2);
-               theta=asin(sqrt(d1.^2+d2.^2)/max_angle);
-
-               director=[cos(phi)*cos(theta) sin(phi)*cos(theta) sin(theta)];
-               norm_director=[cos(phi+pi/2)*cos(theta) sin(phi+pi/2)*cos(theta) 0*sin(theta)];
-               para_pol=sum(squeeze(source(1,1,:)).*squeeze(director'),'all');
-               ortho_pol=sum(squeeze(source(1,1,:)).*squeeze(norm_director'),'all');
-
-            end
+%             if h.parameters.is_plane_wave
+%                disp('Simulating using plane wave illumination')
+%                [d1,d2]= ind2sub(size(Field_SPEC_ABS),I);
+%                d1=d1-(1+floor(size(Field_SPEC_ABS,1)/2));
+%                d2=d2-(1+floor(size(Field_SPEC_ABS,2)/2));
+% 
+%                kres2 = h.utility.fourier_space.coor{1};
+%                max_angle = h.parameters.RI_bg/h.parameters.wavelength/kres2;
+% 
+%                phi=angle(d1+1i*d2);
+%                theta=asin(sqrt(d1.^2+d2.^2)./max_angle);
+% 
+%                director=[cos(phi)*cos(theta) sin(phi)*cos(theta) sin(theta)];
+%                norm_director=[cos(phi+pi/2)*cos(theta) sin(phi+pi/2)*cos(theta) 0*sin(theta)];
+%                para_pol=sum(squeeze(source(1,1,:)).*squeeze(director'),'all');
+%                ortho_pol=sum(squeeze(source(1,1,:)).*squeeze(norm_director'),'all');
+% 
+%             end
             
             RImap=padarray(h.V,[1 1 0],'circular','post');
             source=padarray(source,[1 1 0],'circular','post');
@@ -318,7 +315,7 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             return_vol=double(1);
             base_index = h.parameters.RI_bg;
             lambda = h.parameters.wavelength;
-            is_plane_wave=double(is_plane_wave);
+            is_plane_wave=double(h.parameters.is_plane_wave);
             phi=double(phi);
             theta=double(theta);
             para_pol=double(para_pol);
@@ -343,10 +340,8 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             %% End of FDTD
             load(fullfile(h.fdtd_temp_dir, 'result.mat'));
 
-            if true
-                Field=reshape(res_vol.E,length(res_vol.x),length(res_vol.y),length(res_vol.z),3);
-                Field=Field(1:end-1,1:end-1,:,:);
-            end
+            Field=reshape(res_vol.E,length(res_vol.x),length(res_vol.y),length(res_vol.z),3);
+            Field=Field(1:end-1,1:end-1,:,:);
             if h.parameters.verbose
                 set(gcf,'color','w'), imagesc((abs(squeeze(Field(:,floor(size(Field,2)/2)+1,:))'))),axis image, title(['Iteration: ' num2str(jj) ' / ' num2str(Bornmax)]), colorbar, axis off,drawnow
                 colormap hot
@@ -380,6 +375,8 @@ else
 end
 fclose(fid);
 end
+
+
 function lumerical_save_field(FIELD,FIELD_H,dx,file_name)
 %% Lumerical function: lumerical_save_field
 

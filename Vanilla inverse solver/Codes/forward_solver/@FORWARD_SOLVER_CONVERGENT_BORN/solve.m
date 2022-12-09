@@ -5,7 +5,7 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
         h.RI=single(gpuArray(h.RI));
         input_field=single(gpuArray(input_field));
     end
-    
+
     assert(size(input_field,3)~=1 || ~h.parameters.vector_simulation, ...
     'Scalar simulation requires scalar field: size(input_field,3)==1');
     assert(size(input_field,3)~=2 || h.parameters.vector_simulation, ...
@@ -13,7 +13,7 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
     if h.parameters.verbose && size(input_field,3)==1
         warning('Scalar simulation is less precise');
     end
-    
+
     input_field=fftshift(fft2(ifftshift(input_field)));
     %2D to 3D field
     [input_field] = h.transform_field_3D(input_field);
@@ -34,9 +34,8 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
     if h.parameters.return_3D
         fields_3D=ones(1+h.ROI(2)-h.ROI(1),1+h.ROI(4)-h.ROI(3),1+h.ROI(6)-h.ROI(5),size(input_field,3),size(input_field,4),'single');
     end
-    
+
     for field_num=1:size(input_field,4)
-        %figure; imagesc(abs(fftshift(ifft2(ifftshift(input_field(:,:,:,field_num))))));error('pause');
         Field=h.solve_forward(input_field(:,:,:,field_num));
         %crop and remove near field (3D to 2D field)
         if h.parameters.return_3D
@@ -53,7 +52,7 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
                     emitter_3D=emitter_3D+Field(:,:,:,j1).*potential(:,:,:,:,j1).*h.utility_border.dV;
                 end
             end
-            
+
             %emitter_3D=Field.*potential.*h.utility_border.dV;
             if ~h.cyclic_boundary_xy
             emitter_3D=h.padd_RI2conv(emitter_3D);
@@ -64,12 +63,12 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
             if h.parameters.use_GPU
                 h.kernel_trans=gpuArray(h.kernel_trans);
             end
-            
+
             field_trans = h.crop_conv2field(fftshift(ifft2(ifftshift(sum(emitter_3D.*h.kernel_trans,3)))));
             field_trans=squeeze(field_trans);
             field_trans=fftshift(fft2(ifftshift(field_trans)));
             field_trans=field_trans+input_field(:,:,:,field_num);
-            
+
             [field_trans] = h.transform_field_2D(field_trans);
             field_trans=fftshift(ifft2(ifftshift(field_trans)));
             fields_trans(:,:,:,field_num)=gather(squeeze(field_trans));
@@ -85,7 +84,7 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
             [field_ref] = h.transform_field_2D_reflection(field_ref);
             field_ref=fftshift(ifft2(ifftshift(field_ref)));
             fields_ref(:,:,:,field_num)=gather(squeeze(field_ref));
-            
+
             h.kernel_ref=gather(h.kernel_ref);
         end
     end

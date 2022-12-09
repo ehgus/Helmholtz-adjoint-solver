@@ -141,7 +141,7 @@ classdef FORWARD_SOLVER_MIE < FORWARD_SOLVER
         function init(h)
             eps_imag = 0;
             warning('off','all');
-            h.utility_border=DERIVE_OPTICAL_TOOL(h.parameters,h.parameters.use_GPU); % the utility for the space with border
+            h.utility=DERIVE_OPTICAL_TOOL(h.parameters,h.parameters.use_GPU); % the utility for the space with border
             warning('on','all');
             
             if h.parameters.verbose && h.parameters.iterations_number>0
@@ -157,20 +157,20 @@ classdef FORWARD_SOLVER_MIE < FORWARD_SOLVER
             end
             
             h.rads=...
-                (h.utility_border.fourier_space.coor{1}./h.utility_border.k0_nm).*reshape([1 0 0],1,1,1,[])+...
-                (h.utility_border.fourier_space.coor{2}./h.utility_border.k0_nm).*reshape([0 1 0],1,1,1,[])+...
-                (h.utility_border.fourier_space.coor{3}./h.utility_border.k0_nm).*reshape([0 0 1],1,1,1,[]);
+                (h.utility.fourier_space.coor{1}./h.utility.k0_nm).*reshape([1 0 0],1,1,1,[])+...
+                (h.utility.fourier_space.coor{2}./h.utility.k0_nm).*reshape([0 1 0],1,1,1,[])+...
+                (h.utility.fourier_space.coor{3}./h.utility.k0_nm).*reshape([0 0 1],1,1,1,[]);
                        
             h.eye_3=reshape(eye(3),1,1,1,3,3);
             if h.parameters.use_GPU
                 h.eye_3=gpuArray(h.eye_3);
             end
             if h.parameters.truncated
-                S=2.*pi.*sqrt(abs(h.utility_border.fourier_space.coor{1}).^2+abs(h.utility_border.fourier_space.coor{2}).^2+abs(h.utility_border.fourier_space.coor{3}).^2);
-                L=norm([h.utility_border.image_space.size{1}.*h.utility_border.image_space.res{1}...
-                    h.utility_border.image_space.size{2}.*h.utility_border.image_space.res{2}...
-                    h.utility_border.image_space.size{3}.*h.utility_border.image_space.res{3}]);
-                K=2.*pi.*h.utility_border.k0_nm;
+                S=2.*pi.*sqrt(abs(h.utility.fourier_space.coor{1}).^2+abs(h.utility.fourier_space.coor{2}).^2+abs(h.utility.fourier_space.coor{3}).^2);
+                L=norm([h.utility.image_space.size{1}.*h.utility.image_space.res{1}...
+                    h.utility.image_space.size{2}.*h.utility.image_space.res{2}...
+                    h.utility.image_space.size{3}.*h.utility.image_space.res{3}]);
+                K=2.*pi.*h.utility.k0_nm;
                 K = sqrt(K^2 + 1i.*eps_imag);
                 h.Greenp=(1 ./(S.^2-K.^2)...
                     -1./2./S...
@@ -183,10 +183,10 @@ classdef FORWARD_SOLVER_MIE < FORWARD_SOLVER
                     );
             else
                 h.Greenp = 1 ./ (4*pi^2.*abs(...
-                    h.utility_border.fourier_space.coor{1}.^2 + ...
-                    h.utility_border.fourier_space.coor{2}.^2 + ...
-                    h.utility_border.fourier_space.coor{3}.^2 ...
-                    )-(2*pi*h.utility_border.k0_nm)^2-1i*eps_imag);
+                    h.utility.fourier_space.coor{1}.^2 + ...
+                    h.utility.fourier_space.coor{2}.^2 + ...
+                    h.utility.fourier_space.coor{3}.^2 ...
+                    )-(2*pi*h.utility.k0_nm)^2-1i*eps_imag);
             end
             
             if h.parameters.use_GPU
@@ -282,7 +282,7 @@ classdef FORWARD_SOLVER_MIE < FORWARD_SOLVER
                 ky = ky * utility.fourier_space.res{2};
             end
             source = reshape(source, [size(source,1),size(source,2),1,size(source,3)]).*...
-                exp(h.utility_border.refocusing_kernel.*h.parameters.resolution(3).*reshape((-floor(h.initial_ZP_3/2)-1)+((1-1-h.parameters.padding_source):1:(h.initial_ZP_3+1)),[1 1 h.initial_ZP_3+2+h.parameters.padding_source]));
+                exp(h.utility.refocusing_kernel.*h.parameters.resolution(3).*reshape((-floor(h.initial_ZP_3/2)-1)+((1-1-h.parameters.padding_source):1:(h.initial_ZP_3+1)),[1 1 h.initial_ZP_3+2+h.parameters.padding_source]));
             source = fftshift(ifft2(ifftshift(source)));
             incident_field = source;
             
@@ -292,12 +292,12 @@ classdef FORWARD_SOLVER_MIE < FORWARD_SOLVER
             h.parameters.blm=h.parameters.alm;
             
             % Obtain T-matrix - The first T is scattered mode, 2nd T is the internal mode.
-            k_m = h.utility_border.k0_nm * 2 * pi;
+            k_m = h.utility.k0_nm * 2 * pi;
             k_s = k_m * h.parameters.n_s / h.parameters.RI_bg;
             
             [h.parameters.T_ext,h.parameters.T_int,h.parameters.A,h.parameters.B,h.parameters.C,h.parameters.D] =...
                 tmatrix_mie_v2(h.parameters.lmax,k_m,k_s,h.parameters.radius,h.parameters.mu0,h.parameters.mu1);
-            [xf0, yf0,zf0] = ndgrid(gather(h.utility_border.image_space.coor{1}), gather(h.utility_border.image_space.coor{2}),gather(h.utility_border.image_space.coor{3})); clear nx ny nz
+            [xf0, yf0,zf0] = ndgrid(gather(h.utility.image_space.coor{1}), gather(h.utility.image_space.coor{2}),gather(h.utility.image_space.coor{3})); clear nx ny nz
             [theta, phi, rad] = xcart2sph(xf0, yf0, zf0);  % Spherical grids
             rad = double(rad(:));phi = double(phi(:));theta = double(theta(:));
             theta(isnan(theta))=0;
@@ -449,8 +449,8 @@ classdef FORWARD_SOLVER_MIE < FORWARD_SOLVER
             field_trans=squeeze(field_trans);
             field_trans=fftshift(fft2(ifftshift(field_trans)));
             [field_trans] = h.transform_field_2D(field_trans);
-            field_trans=field_trans.*exp(h.utility_border.refocusing_kernel.*h.parameters.resolution(3).*(floor(h.initial_ZP_3/2)+1-(h.initial_ZP_3+1)));
-            field_trans=field_trans.*h.utility_border.NA_circle;%crop to the objective NA
+            field_trans=field_trans.*exp(h.utility.refocusing_kernel.*h.parameters.resolution(3).*(floor(h.initial_ZP_3/2)+1-(h.initial_ZP_3+1)));
+            field_trans=field_trans.*h.utility.NA_circle;%crop to the objective NA
             field_trans=fftshift(ifft2(ifftshift(field_trans)));
 
             Field(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)-1-h.parameters.padding_source):(h.ROI(6)+1),:,:) = ...
@@ -459,8 +459,8 @@ classdef FORWARD_SOLVER_MIE < FORWARD_SOLVER
             field_ref=squeeze(field_ref);
             field_ref=fftshift(fft2(ifftshift(field_ref)));
             [field_ref] = h.transform_field_2D_reflection(field_ref);
-            field_ref=field_ref.*exp(h.utility_border.refocusing_kernel.*h.parameters.resolution(3).*(-floor(h.initial_ZP_3/2)-1));
-            field_ref=field_ref.*h.utility_border.NA_circle;%crop to the objective NA
+            field_ref=field_ref.*exp(h.utility.refocusing_kernel.*h.parameters.resolution(3).*(-floor(h.initial_ZP_3/2)-1));
+            field_ref=field_ref.*h.utility.NA_circle;%crop to the objective NA
             field_ref=fftshift(ifft2(ifftshift(field_ref)));
             
         end
