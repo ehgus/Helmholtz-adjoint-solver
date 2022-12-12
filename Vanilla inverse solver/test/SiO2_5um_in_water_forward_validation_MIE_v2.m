@@ -104,24 +104,24 @@ end
 [input_field_scalar,field_ref_multi_test2_scalar]=vector2scalarfield(input_field,field_ref_multi_test2);
 input_field_no_zero=input_field_scalar;zero_part_mask=abs(input_field_no_zero)<=0.01.*mean(abs(input_field_no_zero(:)));input_field_no_zero(zero_part_mask)=0.01.*exp(1i.*angle(input_field_no_zero(zero_part_mask)));
 
-disp_amp_multi_test1=squeeze(abs(field_trans_multi_test1_scalar(:,:,:)));
-disp_ref_multi_test1=squeeze(abs(field_ref_multi_test1_scalar(:,:,:)));
+disp_amp_multi_test1=squeeze(abs(field_trans_multi_test1_scalar(:,:,:).^2));
+disp_ref_multi_test1=squeeze(abs(field_ref_multi_test1_scalar(:,:,:).^2));
 disp_ang_multi_test1=squeeze(angle(field_trans_multi_test1_scalar(:,:,:)./input_field_no_zero(:,:,:)));
 
-disp_amp_multi_test2=squeeze(abs(field_trans_multi_test2_scalar(:,:,:)));
-disp_ref_multi_test2=squeeze(abs(field_ref_multi_test2_scalar(:,:,:)));
+disp_amp_multi_test2=squeeze(abs(field_trans_multi_test2_scalar(:,:,:).^2));
+disp_ref_multi_test2=squeeze(abs(field_ref_multi_test2_scalar(:,:,:).^2));
 disp_ang_multi_test2=squeeze(angle(field_trans_multi_test2_scalar(:,:,:)./input_field_no_zero(:,:,:)));
 
 
-figure;imagesc(cat(2,disp_amp_multi_test1,disp_amp_multi_test2)); colormap gray;
-figure;imagesc(cat(2,disp_ref_multi_test1,disp_ref_multi_test2)); colormap gray;
-figure;imagesc(cat(2,disp_ang_multi_test1,disp_ang_multi_test2)); colormap jet;
+figure('Name','Transmission (Amp): CBS / FDTD');imagesc(cat(2,disp_amp_multi_test1,disp_amp_multi_test2)); colormap gray;
+figure('Name','Transmission (Phase): CBS / FDTD');imagesc(cat(2,disp_ang_multi_test1,disp_ang_multi_test2)); colormap jet;
+figure('Name','Reflection (Amp): CBS / FDTD');imagesc(cat(2,disp_ref_multi_test1,disp_ref_multi_test2)); colormap gray;
 
 vert_intensity_1=sum(abs(field_3D_multi_test1(round(end/2),round(end/2),:,:,1)).^2,4);
 vert_intensity_2=sum(abs(field_3D_multi_test2(round(end/2),round(end/2),:,:,1)).^2,4);
 vert_intensity_3=sum(abs(field_3D_Mie(round(end/2),round(end/2),:,:,1)).^2,4);
 
-figure; hold on;
+figure('Name','Z-axis intensity profile througth the center of a bead'); hold on;
 plot(squeeze(vert_intensity_1),'.');
 plot(squeeze(vert_intensity_2),'--');
 plot(squeeze(vert_intensity_3),'k');
@@ -130,6 +130,6 @@ legend('CBS', 'FDTD', 'Mie scattering'), title('Axial intensity')
 MSE_test1 = mean(abs(field_3D_multi_test1(:,:,:,:,1)-field_3D_Mie).^2, 'all');
 MSE_test2 = mean(abs(field_3D_multi_test2(:,:,:,:,1)-field_3D_Mie).^2, 'all');
 
-figure('Name','CBS / FDTD / Mie scattering');
-orthosliceViewer(abs(cat(2,field_3D_multi_test1(:,:,:,1,1),field_3D_multi_test2(:,:,:,1,1),field_3D_Mie(:,:,:,1,1))));
+figure('Name','Intensity: CBS / FDTD / Mie scattering');
+orthosliceViewer(abs(cat(2,field_3D_multi_test1(:,:,:,1,1),field_3D_multi_test2(:,:,:,1,1),field_3D_Mie(:,:,:,1,1))).^2);
 colormap parula;
