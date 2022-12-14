@@ -41,7 +41,7 @@ forward_MULTI_test2_params.use_cuda=false;
 forward_MULTI_test2_params.return_3D=true;
 forward_MULTI_test2_params.return_reflection=true;
 forward_MULTI_test2_params.verbose=false;
-forward_MULTI_test2_params.boundary_thickness=38;
+forward_MULTI_test2_params.boundary_thickness=[0 0 38];
 forward_MULTI_test2_params.iterations_number=-1;
 forward_MULTI_test2_params.is_plane_wave = true;
 
@@ -49,8 +49,8 @@ forward_MULTI_test2_params.is_plane_wave = true;
 forward_params_Mie=params;
 forward_params_Mie.use_GPU=true;
 forward_params_Mie.truncated = true;
-forward_params_Mie.verbose = true;
-forward_params_Mie.boundary_thickness = 0;
+forward_params_Mie.verbose = false;
+forward_params_Mie.boundary_thickness = [0 0 0.5];
 forward_params_Mie.return_3D = true;
 forward_params_Mie.lmax = 80;
 forward_params_Mie.n_s = RI_sp;
@@ -89,7 +89,6 @@ else
     tic;
     [field_trans_Mie,field_ref_Mie,field_3D_Mie]=forward_solver_Mie.solve(input_field);
     toc;
-    imagesc(abs(field_trans_Mie(:,:,1)))
     save('Mie_field.mat', 'field_trans_Mie','field_ref_Mie','field_3D_Mie','-v7.3')
 end
 

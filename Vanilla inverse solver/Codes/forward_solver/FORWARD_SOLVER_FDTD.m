@@ -44,6 +44,14 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
 
         function h=FORWARD_SOLVER_FDTD(params)
             h@FORWARD_SOLVER(params);
+            % check boundary thickness
+            boundary_thickness = h.parameters.boundary_thickness;
+            if length(boundary_thickness) == 1
+                h.parameters.boundary_thickness = zeros(1,3);
+                h.parameters.boundary_thickness(:) = boundary_thickness;
+            end
+            assert(length(h.parameters.boundary_thickness) == 3, 'boundary_thickness should be either a 3-size vector or a scalar')
+            h.boundary_thickness_pixel = round(h.parameters.boundary_thickness*h.parameters.wavelength/h.parameters.RI_bg./(h.parameters.resolution.*2));
         end
         function set_RI(h,RI)
             RI=single(RI);%single computation are faster
@@ -56,39 +64,49 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
         end
         function condition_RI(h)
             %add boundary to the RI
-            h.RI = cat(3,h.parameters.RI_bg * ones(size(h.RI,1),size(h.RI,2),h.parameters.padding_source+1,size(h.RI,4),size(h.RI,5),'single'),h.RI);%add one slice to put the source and one to get the reflection
-            h.RI = cat(3,h.RI,h.parameters.RI_bg * ones(size(h.RI,1),size(h.RI,2),1,size(h.RI,4),size(h.RI,5),'single'));%add one slice to retrive the RI
+            %h.RI = cat(3,h.parameters.RI_bg * ones(size(h.RI,1),size(h.RI,2),h.parameters.padding_source+1,size(h.RI,4),size(h.RI,5),'single'),h.RI);%add one slice to put the source and one to get the reflection
+            %h.RI = cat(3,h.RI,h.parameters.RI_bg * ones(size(h.RI,1),size(h.RI,2),1,size(h.RI,4),size(h.RI,5),'single'));%add one slice to retrive the RI
             h.create_boundary_RI();
             %update the size in the parameters
             h.parameters.size=size(h.RI);
         end
         function create_boundary_RI(h)
+            %% SHOULD BE REMOVED: boundary_thickness_pixel is the half from the previous definition
+            old_RI_size=size(h.RI);
+            pott=RI2potential(h.RI,h.parameters.wavelength,h.parameters.RI_bg);
+            pott=padarray(pott,h.boundary_thickness_pixel,'replicate');
+            h.RI=potential2RI(pott,h.parameters.wavelength,h.parameters.RI_bg);
             
-            h.boundary_thickness_pixel = round(h.parameters.boundary_thickness*h.parameters.wavelength/h.parameters.RI_bg/h.parameters.resolution(3));
-            if h.boundary_thickness_pixel == 0
-                return
-            end
-            
+            h.ROI = [...
+                h.boundary_thickness_pixel(1)+1 h.boundary_thickness_pixel(1)+old_RI_size(1)...
+                h.boundary_thickness_pixel(2)+1 h.boundary_thickness_pixel(2)+old_RI_size(2)...
+                h.boundary_thickness_pixel(3)+1 h.boundary_thickness_pixel(3)+old_RI_size(3)];
             abs_scatt_pott = RI2potential((h.parameters.RI_bg+1i*h.parameters.boundary_strength),h.parameters.wavelength,h.parameters.RI_bg);
             
-            if (h.parameters.use_GPU)
-                h.RI = gpuArray(h.RI);
-                h.RI = cat(3,h.RI,h.parameters.RI_bg.*ones(size(h.RI,1),size(h.RI,2),h.boundary_thickness_pixel,'single','gpuArray'));
-            else
-                h.RI = cat(3,h.RI,h.parameters.RI_bg.*ones(size(h.RI,1),size(h.RI,2),h.boundary_thickness_pixel,'single'));
+            for j1 = 1:3
+                if h.boundary_thickness_pixel(j1) == 0
+                    continue
+                end
+                x=abs((1:size(h.RI,j1))-(floor(size(h.RI,j1)/2+1))+0.5)-0.5;
+                x=circshift(x,-floor(size(h.RI,j1)/2));
+                x=x/(h.boundary_thickness_pixel(j1)-0.5);
+                %val=exp(1./(abs(x).^(2*round(h.parameters.boundary_sharpness))-1));
+                val=1-x;
+                %val(abs(x)>=1)=0;
+                val(val<0)=0;
+                val(val>h.parameters.boundary_sharpness)=h.parameters.boundary_sharpness;
+                val=val/h.parameters.boundary_sharpness;
+                attenuation_mask=val.*abs_scatt_pott;
+                if j1 == 1
+                    pott=pott+1i*imag(reshape(attenuation_mask,[],1,1));
+                elseif j1 == 2
+                    pott=pott+1i*imag(reshape(attenuation_mask,1,[],1));
+                else
+                    pott=pott+1i*imag(reshape(attenuation_mask,1,1,[]));
+                end
             end
-            V_temp = RI2potential(h.RI,h.parameters.wavelength,h.parameters.RI_bg);
             
-            x=(1:size(V_temp,3))-floor(size(V_temp,3)/2);x=circshift(x,-floor(size(V_temp,3)/2));
-            x=x/(h.boundary_thickness_pixel/2);
-            x=circshift(x,size(V_temp,3)-round(h.boundary_thickness_pixel/2));
-            val=(exp(1./(abs(x).^(2*round(h.parameters.boundary_sharpness))-1)));val(abs(x)>=1)=0;
-            
-            abs_profile=val.*abs_scatt_pott;
-            
-            V_temp=V_temp+1i*imag(reshape((abs_profile),1,1,[]));
-            
-            h.RI = potential2RI(V_temp,h.parameters.wavelength,h.parameters.RI_bg);
+            h.RI = potential2RI(pott,h.parameters.wavelength,h.parameters.RI_bg);
             if (h.parameters.use_GPU)
                 h.RI=gather(h.RI);
             end
@@ -240,12 +258,10 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
                 %crop and remove near field (3D to 2D field)
                 
                 if h.parameters.return_3D
-                    field_3D= Field(:,:,1:end-h.boundary_thickness_pixel,:);
-                    fields_3D(:,:,:,:,field_num)=field_3D;
+                    fields_3D(:,:,:,:,field_num)=Field;
                 end
                 if h.parameters.return_transmission
-                    field_trans= Field(:,:,end-h.boundary_thickness_pixel,:);
-                    field_trans=squeeze(field_trans);
+                    field_trans= squeeze(Field(:,:,end,:));
                     field_trans=fftshift(fft2(ifftshift(field_trans)));
                     [field_trans] = h.transform_field_2D(field_trans);
                     field_trans=field_trans.*exp(h.utility.refocusing_kernel.*h.parameters.resolution(3).*(floor(h.initial_ZP_3/2)+1+h.parameters.padding_source-(h.initial_ZP_3+1+h.parameters.padding_source)));
@@ -254,8 +270,7 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
                     fields_trans(:,:,:,field_num)=squeeze(field_trans);
                 end
                 if h.parameters.return_reflection
-                    field_ref= Field(:,:,1+h.parameters.padding_source,:);
-                    field_ref=squeeze(field_ref);
+                    field_ref= squeeze(Field(:,:,1,:));
                     field_ref=fftshift(fft2(ifftshift(field_ref)));
                     field_ref=field_ref-source_0_3D(:,:,:,field_num).*exp(h.utility.refocusing_kernel.*h.parameters.resolution(3).*(+h.parameters.padding_source));
                     [field_ref] = h.transform_field_2D_reflection(field_ref);
@@ -342,6 +357,7 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
 
             Field=reshape(res_vol.E,length(res_vol.x),length(res_vol.y),length(res_vol.z),3);
             Field=Field(1:end-1,1:end-1,:,:);
+            Field=Field(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6),:);
             if h.parameters.verbose
                 set(gcf,'color','w'), imagesc((abs(squeeze(Field(:,floor(size(Field,2)/2)+1,:))'))),axis image, title(['Iteration: ' num2str(jj) ' / ' num2str(Bornmax)]), colorbar, axis off,drawnow
                 colormap hot

@@ -1,6 +1,5 @@
 function create_boundary_RI(h)
-    
-    % Pad boundary
+    % Pad boundary area for better simulation results
     old_RI_size=size(h.RI);
     
     pott=RI2potential(h.RI,h.parameters.wavelength,h.parameters.RI_bg);
@@ -17,7 +16,6 @@ function create_boundary_RI(h)
         x=single(abs((1:size(h.RI,j1))-(floor(size(h.RI,j1)/2+1))+0.5)-0.5);
         x=circshift(x,-floor(size(h.RI,j1)/2));
         x=x/(h.boundary_thickness_pixel(j1)-0.5);
-        %x=circshift(x,size(V_temp,j1)-round(h.boundary_thickness_pixel(j1)/2));
         val0=x;val0(abs(x)>=1)=1;val0=abs(val0);
         val0=1-val0;
         val0(val0>h.parameters.boundary_sharpness)=h.parameters.boundary_sharpness;
@@ -26,11 +24,11 @@ function create_boundary_RI(h)
             val0(:)=0;
         end
         if j1 == 1
-            h.attenuation_mask=h.attenuation_mask.*(1-reshape(val0,[],1,1).*1);
+            h.attenuation_mask=h.attenuation_mask.*(1-reshape(val0,[],1,1));
         elseif j1 == 2
-            h.attenuation_mask=h.attenuation_mask.*(1-reshape(val0,1,[],1).*1);
+            h.attenuation_mask=h.attenuation_mask.*(1-reshape(val0,1,[],1));
         else
-            h.attenuation_mask=h.attenuation_mask.*(1-reshape(val0,1,1,[]).*1);
+            h.attenuation_mask=h.attenuation_mask.*(1-reshape(val0,1,1,[]));
         end
     end
 end
