@@ -55,10 +55,15 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
 
         function h=FORWARD_SOLVER_CONVERGENT_BORN(params)
             % make the refocusing to volume field(other variable depend on the max RI and as such are created later).
-            
             h@FORWARD_SOLVER(params);
-            assert(length(h.parameters.boundary_thickness) == 3, 'h.boundary_thickness_pixel vector dimension should be 3.')
-            
+            % check boundary thickness
+            boundary_thickness = h.parameters.boundary_thickness;
+            if length(boundary_thickness) == 1
+                h.parameters.boundary_thickness = zeros(1,3);
+                h.parameters.boundary_thickness(:) = boundary_thickness;
+            end
+            assert(length(h.parameters.boundary_thickness) == 3, 'boundary_thickness should be either a 3-size vector or a scalar')
+            h.boundary_thickness_pixel = round((h.parameters.boundary_thickness*h.parameters.wavelength/h.parameters.RI_bg)./(h.parameters.resolution.*2));
             if h.parameters.RI_xy_size(1)==0
                 h.parameters.RI_xy_size(1)=h.parameters.size(1);
             end
@@ -106,18 +111,8 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
                 free_space_green=circshift(free_space_green,[-h.parameters.RI_center(1) -h.parameters.RI_center(2) 0]);
                 free_space_green=fftshift(ifftn(ifftshift(free_space_green)));
             end
-            
-            h.kernel_trans=fftshift(fft2(conj(free_space_green)));
-            h.kernel_ref=  fftshift(fft2(free_space_green));
-            
-            h.kernel_ref=gather(h.kernel_ref);
-            h.kernel_trans=gather(h.kernel_trans);
-            
-            warning('choose a higher size boundary to a size which fft is fast ??');
-            warning('allow to choose a threshold for remaining energy');
-            warning('min boundary size at low RI ??');
-
-            h.boundary_thickness_pixel = round((h.parameters.boundary_thickness*h.parameters.wavelength/h.parameters.RI_bg)./(h.parameters.resolution.*2));
+            h.kernel_trans=gather(fftshift(fft2(conj(free_space_green))));
+            h.kernel_ref=  gather(fftshift(fft2(free_space_green)));
         end
         
     end

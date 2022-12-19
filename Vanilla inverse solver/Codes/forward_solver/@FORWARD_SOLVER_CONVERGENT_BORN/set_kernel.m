@@ -65,13 +65,11 @@ function set_kernel(h)
     if h.parameters.acyclic
         if all(h.boundary_thickness_pixel(1:2)==0)
             x=exp(-1i.*pi.*((1:size(h.V,3))-1)./size(h.V,3)/2);
-            %x=circshift(x,-round(h.boundary_thickness_pixel/2));
             x=x./x(floor(size(x,1)/2)+1,floor(size(x,2)/2)+1,floor(size(x,3)/2)+1);
             h.phase_ramp=reshape(x,1,1,[]);
         else
             for j1 = 1:3
                 x=single(exp(-1i.*pi.*((1:size(h.V,j1))-1)./size(h.V,j1)/2));
-                %x=circshift(x,-round(h.boundary_thickness_pixel(j1)/2));
                 x=x./x(floor(size(x,1)/2)+1,floor(size(x,2)/2)+1,floor(size(x,3)/2)+1);
                 if j1 == 1
                     h.phase_ramp=reshape(x,[],1,1);
