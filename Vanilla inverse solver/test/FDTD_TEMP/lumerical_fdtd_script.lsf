@@ -53,21 +53,25 @@ file_units = "m";
 # import the data from file
 importnk(filename_RI,file_units);
 
-min_x=get("x min");
-max_x=get("x max");
-
-min_y=get("y min");
-max_y=get("y max");
-
-min_z=get("z min");
-max_z=get("z max");
-
 dx=get("dx");
 dy=get("dy");
 dz=get("dz");
 
-x_num=get("data x points");
-y_num=get("data y points");
+min_x=get("x min");
+max_x=(get("x max")+dx)/3;
+min_x=min_x+max_x;
+max_x=2*max_x-dx;
+
+min_y=get("y min");
+max_y=(get("y max")+dx)/3;
+min_y=min_y+max_y;
+max_y=2*max_y-dx;
+
+min_z=get("z min");
+max_z=get("z max");
+
+x_num=get("data x points")/3;
+y_num=get("data y points")/3;
 z_num=get("data z points");
 
 print('min/max x = '+num2str(min_x)+'  /  '+num2str(max_x));
@@ -84,11 +88,27 @@ set("y max",max_y);
 set("z min",min_z);
 set("z max",max_z);
 #boundary
-set('x min bc','Bloch');
-set('y min bc','Bloch');
-set('z min bc','PML');
-set('z max bc','PML');
-set('pml profile',3);
+if(pml_x){
+    set('x min bc','PML');
+    set('x max bc','PML');
+    set('pml profile',3);
+}else{
+    set('x min bc','Bloch');
+}
+if(pml_y){
+    set('y min bc','PML');
+    set('y max bc','PML');
+    set('pml profile',3);
+}else{
+    set('y min bc','Bloch');
+}
+if(pml_z){
+    set('z min bc','PML');
+    set('z max bc','PML');
+    set('pml profile',3);
+}else{
+    set('z min bc','Bloch');
+}
 #base index
 set('index',base_index);
 #mesh size
@@ -147,10 +167,10 @@ if(is_plane_wave)
     set("phase",angle(para_pol)/pi*180);
 
 
-    set("x min",min_x);
-    set("x max",max_x);
-    set("y min",min_y);
-    set("y max",max_y);
+    set("x min",min_x-dx);
+    set("x max",max_x+dx);
+    set("y min",min_y-dy);
+    set("y max",max_y+dx);
     set("polarization angle",0);
     
     set("z",dz);
@@ -166,10 +186,10 @@ if(is_plane_wave)
     set("amplitude",abs(ortho_pol));
     set("phase",angle(ortho_pol)/pi*180);
 
-    set("x min",min_x);
-    set("x max",max_x);
-    set("y min",min_y);
-    set("y max",max_y);
+    set("x min",min_x-dx);
+    set("x max",max_x+dx);
+    set("y min",min_y-dy);
+    set("y max",max_y+dy);
     set("polarization angle",90);
        
     
@@ -205,8 +225,8 @@ set("x max",max_x);
 set("y min",min_y);
 set("y max",max_y);
 
-set("z min",min_z+2*dz);
-set("z max",max_z-dz);
+set("z min",min_z);
+set("z max",max_z);
 
 }
 
