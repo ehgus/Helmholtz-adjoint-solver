@@ -1,4 +1,9 @@
 function Field=eval_scattered_field(h,incident_field)
+    % Convergence Born series
+    % E1 = r*G*S/4
+    % E2 = r*G_flip*S/4
+    % E3 = M * (E1 + E2) + (E1 + E2)
+    % E_(j+1) = M E_j
     size_field=[size(h.V,1),size(h.V,2),size(h.V,3),h.pole_num];
     if (h.parameters.use_GPU)
         h.V=gpuArray(h.V);
@@ -45,9 +50,9 @@ function Field=eval_scattered_field(h,incident_field)
         PSI(:) = 0;
         psi(:) = 0;
         
-        if any(jj == [1,2]) % s
+        if jj <= 2 % s
             Field_n(:)=0;
-            psi(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6),:,:) = (1i./h.eps_imag).*source/2;
+            psi(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6),:,:) = (1i/h.eps_imag/4).*source;
         else % gamma * E
             if size(h.V,4) == 1
                 psi = h.V .* Field_n;
@@ -71,7 +76,7 @@ function Field=eval_scattered_field(h,incident_field)
         for j1 = 1:h.pole_num
             PSI(:,:,:,j1)=ifftn(PSI(:,:,:,j1)).*conj_phase_ramp;
         end
-        if ~any(jj == [1,2])
+        if jj > 2
             Field_n = Field_n - psi;
         end
         if size(h.V,4) == 1
@@ -82,17 +87,15 @@ function Field=eval_scattered_field(h,incident_field)
             end
         end
         % Attenuation
-        Field_n=Field_n.*h.attenuation_mask;
+        %Field_n=Field_n.*h.attenuation_mask;
         
         % add the fields to the total field
-        if jj==2
-            clear source;
-            temp=Field;
+        if jj==3
+            Field_n = Field_n + Field;
         end
         Field = Field + Field_n;
-        if jj==3
-            Field_n=Field_n+temp;
-            clear temp;
+        if jj==2
+            Field_n = Field;
         end
     end
     
