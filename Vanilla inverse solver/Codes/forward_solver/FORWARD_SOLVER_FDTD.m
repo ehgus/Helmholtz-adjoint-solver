@@ -1,5 +1,5 @@
 classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
-    properties (SetAccess = protected, Hidden = true)
+    properties
         Bornmax;
         boundary_thickness_pixel;
         ROI;
@@ -53,7 +53,7 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             h.parameters.dt_stability_factor = 0.99;
             h.parameters.is_plane_wave = false;
             h.parameters.PML_boundary = [false false true];
-            h.fdtd_temp_dir = './FDTD_TEMP';
+            h.fdtd_temp_dir = fullfile('./FDTD_TEMP');
         end
 
         function h=FORWARD_SOLVER_FDTD(params)
@@ -66,15 +66,14 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             end
             assert(length(h.parameters.boundary_thickness) == 3, 'boundary_thickness should be either a 3-size vector or a scalar')
             h.boundary_thickness_pixel = round(h.parameters.boundary_thickness*h.parameters.wavelength/h.parameters.RI_bg./(h.parameters.resolution.*2));
+            h.boundary_thickness_pixel(3) = max(1, h.boundary_thickness_pixel(3)); % make place for source
             % find lumerical solver
             h.lumerical_exe = FORWARD_SOLVER_FDTD.find_lumerical_exe();
         end
         function set_RI(h,RI)
             RI=single(RI);%single computation are faster
             set_RI@FORWARD_SOLVER(h,RI);
-            
             h.initial_ZP_3=size(h.RI,3);%size before adding boundary
-            
             h.condition_RI();%modify the RI (add padding and boundary)
             h.init();%init the parameter for the forward model
         end
@@ -95,31 +94,6 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
                 h.boundary_thickness_pixel(1)+1 h.boundary_thickness_pixel(1)+old_RI_size(1)...
                 h.boundary_thickness_pixel(2)+1 h.boundary_thickness_pixel(2)+old_RI_size(2)...
                 h.boundary_thickness_pixel(3)+1 h.boundary_thickness_pixel(3)+old_RI_size(3)];
-            abs_scatt_pott = RI2potential((h.parameters.RI_bg+1i*h.parameters.boundary_strength),h.parameters.wavelength,h.parameters.RI_bg);
-            
-            for j1 = 1:3
-                if h.boundary_thickness_pixel(j1) == 0
-                    continue
-                end
-                x=abs((1:size(h.RI,j1))-(floor(size(h.RI,j1)/2+1))+0.5)-0.5;
-                x=circshift(x,-floor(size(h.RI,j1)/2));
-                x=x/(h.boundary_thickness_pixel(j1)-0.5);
-                %val=exp(1./(abs(x).^(2*round(h.parameters.boundary_sharpness))-1));
-                val=1-x;
-                %val(abs(x)>=1)=0;
-                val(val<0)=0;
-                val(val>h.parameters.boundary_sharpness)=h.parameters.boundary_sharpness;
-                val=val/h.parameters.boundary_sharpness;
-                attenuation_mask=val.*abs_scatt_pott;
-                if j1 == 1
-                    pott=pott+1i*imag(reshape(attenuation_mask,[],1,1));
-                elseif j1 == 2
-                    pott=pott+1i*imag(reshape(attenuation_mask,1,[],1));
-                else
-                    pott=pott+1i*imag(reshape(attenuation_mask,1,1,[]));
-                end
-            end
-            
             h.RI = potential2RI(pott,h.parameters.wavelength,h.parameters.RI_bg);
             if (h.parameters.use_GPU)
                 h.RI=gather(h.RI);
@@ -140,77 +114,11 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             else
                 h.RI=single(gpuArray(h.RI));
             end
-            h.pole_num=1;
-            if h.parameters.vector_simulation
-                h.pole_num=3;
-            end
-            
-            if ~h.parameters.use_cuda
-                h.rads=...
-                    (h.utility.fourier_space.coor{1}./h.utility.k0_nm).*reshape([1 0 0],1,1,1,[])+...
-                    (h.utility.fourier_space.coor{2}./h.utility.k0_nm).*reshape([0 1 0],1,1,1,[])+...
-                    (h.utility.fourier_space.coor{3}./h.utility.k0_nm).*reshape([0 0 1],1,1,1,[]);
-            end
-
-            h.eps_imag = max(abs(real(h.RI(:)))).*1.01;
-            h.green_absorbtion_correction=((2*pi*h.utility.k0_nm)^2)/((2*pi*h.utility.k0_nm)^2+1i.*h.eps_imag);
-            
-            step = abs(2*(2*pi*h.utility.k0_nm)/h.eps_imag);
-            Bornmax_opt = ceil((h.initial_ZP_3 + h.parameters.padding_source )*h.parameters.resolution(3) / step + 1)*2;
-            h.Bornmax = 0;
-            
-            if h.parameters.iterations_number==0
-                error('set iterations_number to either a positive or negative value');
-            elseif h.parameters.iterations_number<=0
-                h.Bornmax=Bornmax_opt*abs(h.parameters.iterations_number);
-            else
-                h.Bornmax =h.parameters.iterations_number;
-            end
-            
-            if h.parameters.verbose
-                display(['number of step : ' num2str(h.Bornmax)])
-            end
-
-            if ~h.parameters.use_cuda
-                h.eye_3=reshape(eye(3),1,1,1,3,3);
-                if h.parameters.use_GPU
-                    h.eye_3=gpuArray(h.eye_3);
-                end
-                
-                %h.Greenp = 1 ./ (4*pi^2.*abs(...
-                %    h.utility.fourier_space.coor{1}.^2 + ...
-                %    h.utility.fourier_space.coor{2}.^2 + ...
-                %    h.utility.fourier_space.coor{3}.^2 ...
-                %    )-(2*pi*h.utility.k0_nm)^2-1i*h.eps_imag);
-                
-                
-                if h.parameters.use_GPU
-                    h.rads = gpuArray(single(h.rads));
-                    %h.Greenp = gpuArray(single(h.Greenp));
-                end
-                
-                %h.Greenp=ifftshift(ifftshift(ifftshift(h.Greenp,1),2),3);
-                h.rads=ifftshift(ifftshift(ifftshift(h.rads,1),2),3);
-            end
-            
-            if h.parameters.verbose
-                figure('units','normalized','outerposition',[0 0 1 1])
-                colormap hot
-            end
-            
             h.RI=gather(h.RI);
         end
         function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
-            if h.parameters.use_cuda && h.parameters.non_cyclic_conv 
-                error('not implemented');
-            end
-            if ~h.parameters.use_GPU
-                h.parameters.use_cuda=false;
-                input_field=single(input_field);
-            else
-                h.RI=single(gpuArray(h.RI));
-                input_field=single(gpuArray(input_field));
-            end
+            h.parameters.use_cuda=false;
+            input_field=single(input_field);
             
             if size(input_field,3)>1 &&~h.parameters.vector_simulation
                 error('the source is 2D but parameter indicate a vectorial simulation');
@@ -245,7 +153,7 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             source_H=fftshift(ifft2(ifftshift(source_H)));
             %compute
             out_pol=1;
-            if h.pole_num==3
+            if h.parameters.vector_simulation
                 out_pol=2;
             end
             fields_trans=[];
@@ -300,29 +208,11 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             theta=0;
             para_pol=1;
             ortho_pol=0;
-
-%             if h.parameters.is_plane_wave
-%                disp('Simulating using plane wave illumination')
-%                [d1,d2]= ind2sub(size(Field_SPEC_ABS),I);
-%                d1=d1-(1+floor(size(Field_SPEC_ABS,1)/2));
-%                d2=d2-(1+floor(size(Field_SPEC_ABS,2)/2));
-% 
-%                kres2 = h.utility.fourier_space.coor{1};
-%                max_angle = h.parameters.RI_bg/h.parameters.wavelength/kres2;
-% 
-%                phi=angle(d1+1i*d2);
-%                theta=asin(sqrt(d1.^2+d2.^2)./max_angle);
-% 
-%                director=[cos(phi)*cos(theta) sin(phi)*cos(theta) sin(theta)];
-%                norm_director=[cos(phi+pi/2)*cos(theta) sin(phi+pi/2)*cos(theta) 0*sin(theta)];
-%                para_pol=sum(squeeze(source(1,1,:)).*squeeze(director'),'all');
-%                ortho_pol=sum(squeeze(source(1,1,:)).*squeeze(norm_director'),'all');
-% 
-%             end
-            h.RI = padarray(h.RI,[1,1,1],'replicate');
-            lumerical_save_RI_text(h.RI,h.parameters.resolution,fullfile(h.fdtd_temp_dir, 'index.txt'));
+            [RI, roi] = lumerical_pad_RI(h.RI, h.ROI);
+            resolution = h.parameters.resolution .* [1e-6 1e-6 1e-6]; % um to meter (SI unit)
+            roi = reshape(roi,2,3) .* reshape(resolution,1,3);
             lumerical_save_field(source,source_H,h.parameters.resolution, fullfile(h.fdtd_temp_dir, 'field.mat'));
-            %bool is not supported by
+
             return_trans=double(1);
             return_ref=double(1);
             return_vol=double(1);
@@ -339,11 +229,11 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             pml_y = double(h.parameters.PML_boundary(2));
             pml_z = double(h.parameters.PML_boundary(3));
 
-            save(fullfile(h.fdtd_temp_dir, 'optical.mat'),'lambda','base_index','return_trans','return_ref','return_vol',...
+            save(fullfile(h.fdtd_temp_dir, 'optical.mat'),'lambda','base_index', 'RI', 'resolution', ...
+                'roi', 'return_trans','return_ref','return_vol',...
                 'is_plane_wave','phi','theta','para_pol','ortho_pol','shutoff_min','dt_stability_factor','pml_x','pml_y','pml_z');
-            lumerical_script = fullfile(h.fdtd_temp_dir, "lumerical_fdtd_script.lsf");
-            assert(isfile(lumerical_script), "The script you tried to open does not exist")
-            command = sprintf(' "%s" -run -exit "%s" ', h.lumerical_exe, lumerical_script);
+            assert(isfile(fullfile(h.fdtd_temp_dir, "lumerical_fdtd_script.lsf")), sprintf("The script you tried to open does not exist on %s", h.fdtd_temp_dir))
+            command = sprintf('cd %s && "%s" -exit -run "lumerical_fdtd_script.lsf"', h.fdtd_temp_dir, h.lumerical_exe);
             system(command);
 
             % check the result data is still being written
@@ -355,17 +245,23 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             fclose(fid);
             
             %% End of FDTD
-            load(fullfile(h.fdtd_temp_dir, 'result.mat'));
+            load(fullfile(h.fdtd_temp_dir, 'result.mat'),'res_vol');
 
             Field=reshape(res_vol.E,length(res_vol.x),length(res_vol.y),length(res_vol.z),3);
-            Field=Field(2:end-1,2:end-1,2:end-1,:);
-            Field=Field(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6),:);
             if h.parameters.verbose
-                set(gcf,'color','w'), imagesc((abs(squeeze(Field(:,floor(size(Field,2)/2)+1,:))'))),axis image, title(['Iteration: ' num2str(jj) ' / ' num2str(Bornmax)]), colorbar, axis off,drawnow
+                set(gcf,'color','w'), imagesc((abs(squeeze(Field(:,floor(size(Field,2)/2)+1,:))')));axis image; title(['Iteration: ' num2str(jj) ' / ' num2str(h.Bornmax)]); colorbar; axis off;drawnow
                 colormap hot
             end
         end
     end
+end
+
+function [RI_pad, ROI_pad] = lumerical_pad_RI(RI, ROI)
+    RI_pad = padarray(double(RI), [10 10 0], 'circular'); % mitigate the boundary effect
+    RI_pad = padarray(RI_pad, [0 0 1],'replicate');     % prepare a region to place a illumination source
+    ROI_pad = ROI;
+    ROI_pad(1:4) = ROI_pad(1:4) + 10;
+    ROI_pad(5:6)  = ROI_pad(5:6) + 1;
 end
 
 function lumerical_save_RI_text(RI,dx,file_name)
@@ -395,7 +291,6 @@ else
 end
 fclose(fid);
 end
-
 
 function lumerical_save_field(FIELD,FIELD_H,dx,file_name)
 %% Lumerical function: lumerical_save_field

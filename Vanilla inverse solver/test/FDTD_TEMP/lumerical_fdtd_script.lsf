@@ -6,33 +6,22 @@ clear;
 groupscope("::model");#go to the main scope
 um = 10^-6;
 
-dirname = "D:\Dohyeon_Lee\metamaterial_solver\Helmholtz-adjoint-solver\Vanilla inverse solver\test\FDTD_TEMP";
-filename_RI = dirname + "\index.txt";
-filename_FIELD = dirname + "\field.mat";
-filename_save = dirname + "\result.mat";
-filename_fsp= dirname + "\temp.fsp";
-filename_optical= dirname + "\optical.mat";
+filename_RI = "index.txt";
+filename_FIELD = "field.mat";
+filename_save = "result.mat";
+filename_fsp= "temp.fsp";
+filename_optical= "optical.mat";
 
 matlabload(filename_optical);
 
 save(filename_fsp);
 
 ##in the mat file are the following variables
-#base_index=1.336;
-#lambda=0.532;
-#return_trans=true;
-#return_ref=true;
-#return_vol=true;
-#is_plane_wave=true;
-#phi;
-#theta;
-#para_pol;
-#ortho_pol;
-#shutoff_min = 1e-8;
-#dt_stability_factor = 0.999;
-
 ?base_index;
 ?lambda;
+?size(RI);
+?resolution;
+?roi;
 ?return_trans;
 ?return_ref;
 ?return_vol;
@@ -44,34 +33,26 @@ save(filename_fsp);
 ?shutoff_min;
 ?dt_stability_factor;
 
+dx = resolution(1);
+dy = resolution(2);
+dz = resolution(3);
+# import the data from file
 addimport;
 set("name","refractive_index");
+x = (1:size(RI,1))*dx;
+y = (1:size(RI,2))*dy;
+z = (1:size(RI,3))*dz;
+importnk2(RI,x,y,z);
 
-# choose the desired options
-file_units = "m";
-
-# import the data from file
-importnk(filename_RI,file_units);
-
-dx=get("dx");
-dy=get("dy");
-dz=get("dz");
-
-min_x=get("x min");
-max_x=(get("x max")+dx)/3;
-min_x=min_x+max_x;
-max_x=2*max_x-dx;
-
-min_y=get("y min");
-max_y=(get("y max")+dx)/3;
-min_y=min_y+max_y;
-max_y=2*max_y-dx;
-
+min_x=get("x min")+roi(1)-dx;
+max_x=get("x min")+roi(2)-dx;
+min_y=get("y min")+roi(3)-dy;
+max_y=get("y min")+roi(4)-dy;
 min_z=get("z min");
 max_z=get("z max");
 
-x_num=get("data x points")/3;
-y_num=get("data y points")/3;
+x_num=(max_x - min_x + dx)/dx;
+y_num=(max_y - min_y + dy)/dy;
 z_num=get("data z points");
 
 print('min/max x = '+num2str(min_x)+'  /  '+num2str(max_x));
@@ -128,6 +109,64 @@ set("auto shutoff min", shutoff_min);
 set("dt stability factor", dt_stability_factor);
 #mesh_x=getresult("FDTD","x"); #get mesh location
 
+if(is_plane_wave)
+{
+    addplane;
+    set("name","pol1");
+    set("injection axis","z");
+    set("angle theta",theta/pi*180);
+    set("angle phi",phi/pi*180);
+    set("amplitude",abs(para_pol));
+    set("phase",angle(para_pol)/pi*180);
+
+
+    set("x min",min_x);
+    set("x max",max_x);
+    set("y min",min_y);
+    set("y max",max_y);
+    set("polarization angle",0);
+    
+    set("z",min_z);
+    
+    set("center wavelength",lambda*um);
+    set("wavelength span",0);
+    
+    addplane;
+    set("name","pol2");
+    set("injection axis","z");
+    set("angle theta",theta/pi*180);
+    set("angle phi",phi/pi*180);
+    set("amplitude",abs(ortho_pol));
+    set("phase",angle(ortho_pol)/pi*180);
+
+    set("x min",min_x);
+    set("x max",max_x);
+    set("y min",min_y);
+    set("y max",max_y);
+    set("polarization angle",90);
+       
+    
+    set("z",min_z);
+    
+    set("center wavelength",lambda*um);
+    set("wavelength span",0);
+}else{
+    addimportedsource;
+    
+    importdataset(filename_FIELD);
+    #set("injection axis",3);
+    
+    set("x",0);
+    set("y",0);
+    
+    set("x",-get("x min"));
+    set("y",-get("y min"));
+    
+    set("z",min_z);
+    
+    set("center wavelength",lambda*um);
+    set("wavelength span",0);
+}
 
 if(return_trans){
 addpower;
@@ -156,65 +195,6 @@ set("z",min_z);
 
 }
 
-if(is_plane_wave)
-{
-    addplane;
-    set("name","pol1");
-    set("injection axis","z");
-    set("angle theta",theta/pi*180);
-    set("angle phi",phi/pi*180);
-    set("amplitude",abs(para_pol));
-    set("phase",angle(para_pol)/pi*180);
-
-
-    set("x min",min_x-dx);
-    set("x max",max_x+dx);
-    set("y min",min_y-dy);
-    set("y max",max_y+dx);
-    set("polarization angle",0);
-    
-    set("z",dz);
-    
-    set("center wavelength",lambda*um);
-    set("wavelength span",0);
-    
-    addplane;
-    set("name","pol2");
-    set("injection axis","z");
-    set("angle theta",theta/pi*180);
-    set("angle phi",phi/pi*180);
-    set("amplitude",abs(ortho_pol));
-    set("phase",angle(ortho_pol)/pi*180);
-
-    set("x min",min_x-dx);
-    set("x max",max_x+dx);
-    set("y min",min_y-dy);
-    set("y max",max_y+dy);
-    set("polarization angle",90);
-       
-    
-    set("z",dz);
-    
-    set("center wavelength",lambda*um);
-    set("wavelength span",0);
-}else{
-    addimportedsource;
-    
-    importdataset(filename_FIELD);
-    #set("injection axis",3);
-    
-    set("x",0);
-    set("y",0);
-    
-    set("x",-get("x min"));
-    set("y",-get("y min"));
-    
-    set("z",dz);
-    
-    set("center wavelength",lambda*um);
-    set("wavelength span",0);
-}
-
 if(return_vol){
 addpower;
 set("name","field_profile_vol");
@@ -224,10 +204,8 @@ set("x min",min_x);
 set("x max",max_x);
 set("y min",min_y);
 set("y max",max_y);
-
-set("z min",min_z);
-set("z max",max_z);
-
+set("z min",roi(5)+min_z-2*dz);
+set("z max",roi(6)+min_z-2*dz);
 }
 
 
