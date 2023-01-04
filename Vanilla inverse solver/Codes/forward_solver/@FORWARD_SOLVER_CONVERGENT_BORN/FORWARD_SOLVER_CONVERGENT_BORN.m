@@ -4,6 +4,7 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
         Bornmax;
         boundary_thickness_pixel;
         ROI;
+        max_attenuation_width_pixel;
         
         cyclic_boundary_xy;
         
@@ -36,6 +37,7 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
             h.parameters.boundary_sharpness = 1;%2;
             h.parameters.verbose = false;
             h.parameters.acyclic = true;
+            h.parameters.max_attenuation_width = [0 0 0];
             h.parameters.RI_xy_size=[0 0];%if set to 0 the field is the same size as the simulation
             h.parameters.RI_center=[0 0];
         end
@@ -58,12 +60,13 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
             h@FORWARD_SOLVER(params);
             % check boundary thickness
             boundary_thickness = h.parameters.boundary_thickness;
+            attenuation_width = h.parameters.max_attenuation_width;
             if length(boundary_thickness) == 1
-                h.parameters.boundary_thickness = zeros(1,3);
-                h.parameters.boundary_thickness(:) = boundary_thickness;
+                h.parameters.boundary_thickness = ones(1,3) * boundary_thickness;
             end
             assert(length(h.parameters.boundary_thickness) == 3, 'boundary_thickness should be either a 3-size vector or a scalar')
-            h.boundary_thickness_pixel = round((h.parameters.boundary_thickness*h.parameters.wavelength/h.parameters.RI_bg)./(h.parameters.resolution.*2));
+            h.boundary_thickness_pixel = round((h.parameters.boundary_thickness*h.parameters.wavelength/abs(h.parameters.RI_bg))./(h.parameters.resolution.*2));
+            h.max_attenuation_width_pixel = round((attenuation_width*h.parameters.wavelength/abs(h.parameters.RI_bg))./(h.parameters.resolution.*2));
             if h.parameters.RI_xy_size(1)==0
                 h.parameters.RI_xy_size(1)=h.parameters.size(1);
             end
