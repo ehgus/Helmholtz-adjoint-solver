@@ -1,7 +1,7 @@
 clc, clear;
 % load all functions
-cd0 = fileparts(fileparts(matlab.desktop.editor.getActiveFilename));
-addpath(genpath(cd0));
+dirname = fileparts(fileparts(matlab.desktop.editor.getActiveFilename));
+addpath(genpath(dirname));
 
 %% set the simulation parameters
 
@@ -13,11 +13,11 @@ MULTI_GPU=false; % Use Multiple GPU?
 %1 optical parameters
 params.NA=1; % Numerical aperture
 params.wavelength=0.355; % [um]
-params.RI_bg=real(get_RI(cd0,"PDMS", params.wavelength)); % Background RI
+params.RI_bg=real(get_RI(dirname,"PDMS", params.wavelength)); % Background RI
 params.resolution=[1 1 1]*params.wavelength/10/params.NA; % 3D Voxel size [um]
 params.use_abbe_sine=false; % Abbe sine condition according to demagnification condition
 params.vector_simulation=true; % True/false: dyadic/scalar Green's function
-params.size=[81 81 81]; % 3D volume grid
+params.size=[101 101 81]; % 3D volume grid
 
 %2 incident field parameters
 field_generator_params=params;
@@ -32,7 +32,7 @@ phantom_params=PHANTOM.get_default_parameters();
 phantom_params.outer_size = params.size;
 phantom_params.resolution = params.resolution;
 phantom_params.wavelength = params.wavelength;
-phantom_params.cd0 = cd0;
+phantom_params.cd0 = dirname;
 phantom_params.name=["PDMS","TiO2", "Microchem SU-8 2000"];
 phantom_params.thickness = [params.wavelength 0.15 params.size(3)*params.resolution(3)];
 % create phantom RI of target material (PDMS + TiO2 + Microchem SU-8 2000)
@@ -56,18 +56,21 @@ forward_solver.set_RI(RI);
 % Configuration for bulk material
 display_RI_and_E_field(forward_solver,RI,input_field,'before optimization')
 %% Adjoint method
-
+simulation_size = [81 81];
+assert(all(simulation_size <= params.size(1:2)), 'simulation must be smaller than RI map');
+ROI_change_xy = padarray(ones(simulation_size, 'logical'),floor((params.size(1:2)-simulation_size)/2), false, 'pre');
+ROI_change_xy = padarray(ROI_change_xy,ceil((params.size(1:2)-simulation_size)/2), false, 'post');
 %Adjoint solver parameters
 adjoint_params=params;
 adjoint_params.mode = "Intensity";
-adjoint_params.ROI_change = real(RI) > 2;
+adjoint_params.ROI_change = and(real(RI) > 2, ROI_change_xy);
 adjoint_params.step = 0.1;
 adjoint_params.itter_max = 200;
 adjoint_params.steepness = 2;
 adjoint_params.binarization_step = 50;
 adjoint_params.spatial_diameter = 0.2;
-adjoint_params.nmin = get_RI(cd0,"PDMS", params.wavelength);
-adjoint_params.nmax = get_RI(cd0,"TiO2", params.wavelength);
+adjoint_params.nmin = get_RI(dirname, "PDMS", params.wavelength);
+adjoint_params.nmax = get_RI(dirname, "TiO2", params.wavelength);
 
 adjoint_solver = ADJOINT_SOLVER(forward_solver,adjoint_params);
 phantom_params.name="bead";
