@@ -1,27 +1,20 @@
 classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
     properties
-        Bornmax;
+        % scattering object w/ boundary
         boundary_thickness_pixel;
+        padding_source = 1;
+        boundary_thickness = 38;
+        boundary_strength = 0.085;
+        boundary_sharpness = 2;
         ROI;
-        
-        Greenp;
-        rads;
-        psi;
-        PSI;
-        F;
-        eta;
-        eye_3;
-        
-        kern1;
-        kern2;
-        
-        V;
         initial_ZP_3;
-        pole_num;
-        green_absorbtion_correction;
-        eps_imag;
-
-        fdtd_temp_dir;
+        % FDTD option
+        xtol = 1e-5;
+        dt_stability_factor = 0.99;
+        is_plane_wave = false;
+        PML_boundary = [false false true];
+        % acceleration
+        fdtd_temp_dir = fullfile('./FDTD_TEMP');
         lumerical_exe;
     end
     methods (Static)
@@ -37,42 +30,21 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
     end
 
     methods
-        function get_default_parameters(h)
-            get_default_parameters@FORWARD_SOLVER(h);
-            %specific parameters
-            h.parameters.iterations_number=-1;
-            h.parameters.use_GPU=true;
-            h.parameters.use_cuda=false;
-            h.parameters.padding_source=1;
-            h.parameters.boundary_strength =0.085;
-            h.parameters.boundary_thickness = 38;
-            h.parameters.boundary_sharpness = 2;
-            h.parameters.verbose = false;
-            h.parameters.non_cyclic_conv=true;
-            h.parameters.xtol = 1e-5;
-            h.parameters.dt_stability_factor = 0.99;
-            h.parameters.is_plane_wave = false;
-            h.parameters.PML_boundary = [false false true];
-            h.fdtd_temp_dir = fullfile('./FDTD_TEMP');
-        end
-
         function h=FORWARD_SOLVER_FDTD(params)
             h@FORWARD_SOLVER(params);
             % check boundary thickness
-            boundary_thickness = h.parameters.boundary_thickness;
-            if length(boundary_thickness) == 1
-                h.parameters.boundary_thickness = zeros(1,3);
-                h.parameters.boundary_thickness(:) = boundary_thickness;
+            if length(h.boundary_thickness) == 1
+                h.boundary_thickness = zeros(1,3);
+                h.boundary_thickness(:) = h.boundary_thickness;
             end
-            assert(length(h.parameters.boundary_thickness) == 3, 'boundary_thickness should be either a 3-size vector or a scalar')
-            h.boundary_thickness_pixel = round(h.parameters.boundary_thickness*h.parameters.wavelength/h.parameters.RI_bg./(h.parameters.resolution.*2));
+            assert(length(h.boundary_thickness) == 3, 'boundary_thickness should be either a 3-size vector or a scalar')
+            h.boundary_thickness_pixel = round(h.boundary_thickness*h.wavelength/h.RI_bg./(h.resolution.*2));
             h.boundary_thickness_pixel(3) = max(1, h.boundary_thickness_pixel(3)); % make place for source
             % find lumerical solver
             h.lumerical_exe = FORWARD_SOLVER_FDTD.find_lumerical_exe();
         end
         function set_RI(h,RI)
-            RI=single(RI);%single computation are faster
-            set_RI@FORWARD_SOLVER(h,RI);
+            h.RI=single(RI);%single computation are faster
             h.initial_ZP_3=size(h.RI,3);%size before adding boundary
             h.condition_RI();%modify the RI (add padding and boundary)
             h.init();%init the parameter for the forward model
@@ -80,59 +52,44 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
         function condition_RI(h)
             %add boundary to the RI
             h.create_boundary_RI();
-            %update the size in the parameters
-            h.parameters.size=size(h.RI);
         end
         function create_boundary_RI(h)
             %% SHOULD BE REMOVED: boundary_thickness_pixel is the half from the previous definition
             old_RI_size=size(h.RI);
-            pott=RI2potential(h.RI,h.parameters.wavelength,h.parameters.RI_bg);
+            pott=RI2potential(h.RI,h.wavelength,h.RI_bg);
             pott=padarray(pott,h.boundary_thickness_pixel,'replicate');
-            h.RI=potential2RI(pott,h.parameters.wavelength,h.parameters.RI_bg);
+            h.RI=potential2RI(pott,h.wavelength,h.RI_bg);
             
             h.ROI = [...
                 h.boundary_thickness_pixel(1)+1 h.boundary_thickness_pixel(1)+old_RI_size(1)...
                 h.boundary_thickness_pixel(2)+1 h.boundary_thickness_pixel(2)+old_RI_size(2)...
                 h.boundary_thickness_pixel(3)+1 h.boundary_thickness_pixel(3)+old_RI_size(3)];
-            h.RI = potential2RI(pott,h.parameters.wavelength,h.parameters.RI_bg);
-            if (h.parameters.use_GPU)
+            h.RI = potential2RI(pott,h.wavelength,h.RI_bg);
+            if (h.use_GPU)
                 h.RI=gather(h.RI);
             end
         end
         function init(h)
+            Nsize = size(h.RI);
             warning('off','all');
-            h.utility=DERIVE_OPTICAL_TOOL(h.parameters);
+            h.utility=derive_utility(h, Nsize); % the utility for the space with border
             warning('on','all');
-            
-            
-            if h.parameters.verbose && h.parameters.iterations_number>0
-                warning('Best is to set iterations_number to -n for an automatic choice of this so that reflection to the ordern n-1 are taken in accound (transmission n=1, single reflection n=2, higher n=?)');
-            end
-            
-            if ~h.parameters.use_GPU
-                h.parameters.use_cuda=false;
-            else
-                h.RI=single(gpuArray(h.RI));
-            end
-            h.RI=gather(h.RI);
         end
         function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
-            h.parameters.use_cuda=false;
+            h.use_cuda = false;
             input_field=single(input_field);
             
-            if size(input_field,3)>1 &&~h.parameters.vector_simulation
+            if size(input_field,3)>1 &&~h.vector_simulation
                 error('the source is 2D but parameter indicate a vectorial simulation');
-            elseif size(input_field,3)==1 && h.parameters.vector_simulation
+            elseif size(input_field,3)==1 && h.vector_simulation
                 error('the source is 3D but parameter indicate a non-vectorial simulation');
             end
-            if h.parameters.verbose && size(input_field,3)==1
+            if h.verbose && size(input_field,3)==1
                 warning('Input is scalar but scalar equation is less precise');
             end
             if size(input_field,3)>2
                 error('Input field must be either a scalar or a 2D vector');
             end
-            
-            input_field=fftshift(fft2(ifftshift(input_field)));
             source_H = reshape([-1 1],1,1,2).*flip(input_field,3);
             
             
@@ -140,8 +97,8 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             [input_field] = h.transform_field_3D(input_field);
             source_H = h.transform_field_3D(source_H);
             %refocusing
-            input_field=input_field.*exp(h.utility.refocusing_kernel.*h.parameters.resolution(3).*(-floor(h.initial_ZP_3/2)-1-h.parameters.padding_source));
-            source_H=source_H.*exp(h.utility.refocusing_kernel.*h.parameters.resolution(3).*(-floor(h.initial_ZP_3/2)-1-h.parameters.padding_source));
+            input_field=input_field.*exp(h.utility.refocusing_kernel.*h.resolution(3).*(-floor(h.initial_ZP_3/2)-1-h.padding_source));
+            source_H=source_H.*exp(h.utility.refocusing_kernel.*h.resolution(3).*(-floor(h.initial_ZP_3/2)-1-h.padding_source));
             source_0_3D=input_field;%save to remove the reflection
 
             %normalisation needed here only for source terms (term from the helmotz equation in plane source because of double derivative)
@@ -153,19 +110,19 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             source_H=fftshift(ifft2(ifftshift(source_H)));
             %compute
             out_pol=1;
-            if h.parameters.vector_simulation
+            if h.vector_simulation
                 out_pol=2;
             end
             fields_trans=[];
-            if h.parameters.return_transmission
+            if h.return_transmission
                 fields_trans=ones(size(h.RI,1),size(h.RI,2),out_pol,size(input_field,4),'single');
             end
             fields_ref=[];
-            if h.parameters.return_reflection
+            if h.return_reflection
                 fields_ref=ones(size(h.RI,1),size(h.RI,2),out_pol,size(input_field,4),'single');
             end
             fields_3D=[];
-            if h.parameters.return_3D
+            if h.return_3D
                 fields_3D=ones(size(h.RI,1),size(h.RI,2),h.initial_ZP_3,size(input_field,3),size(input_field,4),'single');
             end
             
@@ -173,24 +130,24 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
                 Field=h.solve_forward(input_field(:,:,:,field_num), source_H(:,:,:,field_num));
                 %crop and remove near field (3D to 2D field)
                 
-                if h.parameters.return_3D
+                if h.return_3D
                     fields_3D(:,:,:,:,field_num)=Field;
                 end
-                if h.parameters.return_transmission
+                if h.return_transmission
                     field_trans= squeeze(Field(:,:,end,:));
                     field_trans=fftshift(fft2(ifftshift(field_trans)));
                     [field_trans] = h.transform_field_2D(field_trans);
-                    field_trans=field_trans.*exp(h.utility.refocusing_kernel.*h.parameters.resolution(3).*(floor(h.initial_ZP_3/2)+1+h.parameters.padding_source-(h.initial_ZP_3+1+h.parameters.padding_source)));
+                    field_trans=field_trans.*exp(h.utility.refocusing_kernel.*h.resolution(3).*(floor(h.initial_ZP_3/2)+1+h.padding_source-(h.initial_ZP_3+1+h.padding_source)));
                     field_trans=field_trans.*h.utility.NA_circle;%crop to the objective NA
                     field_trans=fftshift(ifft2(ifftshift(field_trans)));
                     fields_trans(:,:,:,field_num)=squeeze(field_trans);
                 end
-                if h.parameters.return_reflection
+                if h.return_reflection
                     field_ref= squeeze(Field(:,:,1,:));
                     field_ref=fftshift(fft2(ifftshift(field_ref)));
-                    field_ref=field_ref-source_0_3D(:,:,:,field_num).*exp(h.utility.refocusing_kernel.*h.parameters.resolution(3).*(+h.parameters.padding_source));
+                    field_ref=field_ref-source_0_3D(:,:,:,field_num).*exp(h.utility.refocusing_kernel.*h.resolution(3).*(+h.padding_source));
                     [field_ref] = h.transform_field_2D_reflection(field_ref);
-                    field_ref=field_ref.*exp(h.utility.refocusing_kernel.*h.parameters.resolution(3).*(-floor(h.initial_ZP_3/2)-1));
+                    field_ref=field_ref.*exp(h.utility.refocusing_kernel.*h.resolution(3).*(-floor(h.initial_ZP_3/2)-1));
                     field_ref=field_ref.*h.utility.NA_circle;%crop to the objective NA
                     field_ref=fftshift(ifft2(ifftshift(field_ref)));
                     fields_ref(:,:,:,field_num)=squeeze(field_ref);
@@ -209,25 +166,25 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             para_pol=1;
             ortho_pol=0;
             [RI, roi] = lumerical_pad_RI(h.RI, h.ROI);
-            resolution = h.parameters.resolution .* [1e-6 1e-6 1e-6]; % um to meter (SI unit)
+            resolution = h.resolution .* [1e-6 1e-6 1e-6]; % um to meter (SI unit)
             roi = reshape(roi,2,3) .* reshape(resolution,1,3);
-            lumerical_save_field(source,source_H,h.parameters.resolution, fullfile(h.fdtd_temp_dir, 'field.mat'));
+            lumerical_save_field(source,source_H,h.resolution, fullfile(h.fdtd_temp_dir, 'field.mat'));
 
             return_trans=double(1);
             return_ref=double(1);
             return_vol=double(1);
-            base_index = h.parameters.RI_bg;
-            lambda = h.parameters.wavelength;
-            is_plane_wave=double(h.parameters.is_plane_wave);
+            base_index = h.RI_bg;
+            lambda = h.wavelength;
+            is_plane_wave=double(h.is_plane_wave);
             phi=double(phi);
             theta=double(theta);
             para_pol=double(para_pol);
             ortho_pol=double(ortho_pol);
-            shutoff_min = double(h.parameters.xtol);
-            dt_stability_factor = double(h.parameters.dt_stability_factor);
-            pml_x = double(h.parameters.PML_boundary(1));
-            pml_y = double(h.parameters.PML_boundary(2));
-            pml_z = double(h.parameters.PML_boundary(3));
+            shutoff_min = double(h.xtol);
+            dt_stability_factor = double(h.dt_stability_factor);
+            pml_x = double(h.PML_boundary(1));
+            pml_y = double(h.PML_boundary(2));
+            pml_z = double(h.PML_boundary(3));
 
             save(fullfile(h.fdtd_temp_dir, 'optical.mat'),'lambda','base_index', 'RI', 'resolution', ...
                 'roi', 'return_trans','return_ref','return_vol',...
@@ -248,7 +205,7 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             load(fullfile(h.fdtd_temp_dir, 'result.mat'),'res_vol');
 
             Field=reshape(res_vol.E,length(res_vol.x),length(res_vol.y),length(res_vol.z),3);
-            if h.parameters.verbose
+            if h.verbose
                 set(gcf,'color','w'), imagesc((abs(squeeze(Field(:,floor(size(Field,2)/2)+1,:))')));axis image; title(['Iteration: ' num2str(jj) ' / ' num2str(h.Bornmax)]); colorbar; axis off;drawnow
                 colormap hot
             end

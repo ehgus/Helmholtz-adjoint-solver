@@ -5,9 +5,7 @@ function set_RI(h,RI)
         error(['The refractive index does not have the expected size : ' ...
             num2str(h.expected_RI_size(1)) ' ' num2str(h.expected_RI_size(2)) ' ' num2str(h.expected_RI_size(3))]);
     end
-    RI=single(RI);%single computation are faster
-    
-    set_RI@FORWARD_SOLVER(h,RI);%call the parent class function to save the RI
+    h.RI=single(RI);%single computation are faster
     before_eps_imag = h.eps_imag;
     h.condition_RI();%modify the RI (add padding and boundary)
     after_eps_imag = h.eps_imag;

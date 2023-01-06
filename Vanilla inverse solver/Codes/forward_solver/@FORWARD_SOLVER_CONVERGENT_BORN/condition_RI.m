@@ -8,9 +8,6 @@ function condition_RI(h)
     else
         h.eps_imag = max(abs(h.V),[],'all').*1.01;
     end
-    step = abs(2*(2*pi*(h.parameters.RI_bg/h.parameters.wavelength))/h.eps_imag);
-    h.pixel_step_size=round(step./(h.parameters.resolution));
-    
     % h.V = h.V - 1i.*h.eps_imag
     if size(h.V,4)==1
         h.V = h.V - 1i.*h.eps_imag;

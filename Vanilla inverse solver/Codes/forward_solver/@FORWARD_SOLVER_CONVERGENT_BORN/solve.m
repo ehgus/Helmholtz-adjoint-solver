@@ -1,16 +1,16 @@
 function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
-    if ~h.parameters.use_GPU
+    if ~h.use_GPU
         input_field=single(input_field);
     else
         h.RI=single(gpuArray(h.RI));
         input_field=single(gpuArray(input_field));
     end
 
-    assert(size(input_field,3)~=1 || ~h.parameters.vector_simulation, ...
+    assert(size(input_field,3)~=1 || ~h.vector_simulation, ...
     'Scalar simulation requires scalar field: size(input_field,3)==1');
-    assert(size(input_field,3)~=2 || h.parameters.vector_simulation, ...
+    assert(size(input_field,3)~=2 || h.vector_simulation, ...
     'Vectorial simulation requires 2D vector field: size(input_field,3)==2');
-    if h.parameters.verbose && size(input_field,3)==1
+    if h.verbose && size(input_field,3)==1
         warning('Scalar simulation is less precise');
     end
 
@@ -19,7 +19,7 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
     [input_field] = h.transform_field_3D(input_field);
     %compute
     out_pol=1;
-    if h.pole_num==3
+    if h.vector_simulation
         out_pol=2;
     end
     fields_trans=[];
@@ -42,25 +42,25 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
             fields_3D(:,:,:,:,field_num)=gather(Field);
         end
         if h.parameters.return_transmission || h.parameters.return_reflection
-            potential=RI2potential(h.RI(h.ROI(1):h.ROI(2), h.ROI(3):h.ROI(4), h.ROI(5):h.ROI(6),:,:),h.parameters.wavelength,h.parameters.RI_bg);
+            potential=RI2potential(h.RI(h.ROI(1):h.ROI(2), h.ROI(3):h.ROI(4), h.ROI(5):h.ROI(6),:,:),h.wavelength,h.RI_bg);
 
             if size(h.RI,4)==1
-                emitter_3D=Field.*potential.*h.utility_border.dV;
+                emitter_3D=Field.*potential.*h.utility.dV;
             else
                 emitter_3D = 0;
                 for j1 = 1:3
-                    emitter_3D=emitter_3D+Field(:,:,:,j1).*potential(:,:,:,:,j1).*h.utility_border.dV;
+                    emitter_3D=emitter_3D+Field(:,:,:,j1).*potential(:,:,:,:,j1).*h.utility.dV;
                 end
             end
 
-            %emitter_3D=Field.*potential.*h.utility_border.dV;
+            %emitter_3D=Field.*potential.*h.utility.dV;
             if ~h.cyclic_boundary_xy
             emitter_3D=h.padd_RI2conv(emitter_3D);
             end
             emitter_3D=fftshift(fft2(ifftshift(emitter_3D)));
         end
-        if h.parameters.return_transmission
-            if h.parameters.use_GPU
+        if h.return_transmission
+            if h.use_GPU
                 h.kernel_trans=gpuArray(h.kernel_trans);
             end
 
@@ -74,8 +74,8 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
             fields_trans(:,:,:,field_num)=gather(squeeze(field_trans));
             h.kernel_trans=gather(h.kernel_trans);
         end
-        if h.parameters.return_reflection
-            if h.parameters.use_GPU
+        if h.return_reflection
+            if h.use_GPU
                 h.kernel_ref=gpuArray(h.kernel_ref);
             end
             field_ref = h.crop_conv2field(fftshift(ifft2(ifftshift(sum(emitter_3D.*h.kernel_ref,3)))));
