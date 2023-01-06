@@ -1,6 +1,10 @@
 function Field=eval_scattered_field(h,incident_field)
-    size_field=[size(h.V,1),size(h.V,2),size(h.V,3),h.pole_num];
-    if (h.parameters.use_GPU)
+    pole_num = 1;
+    if h.vector_simulation
+        pole_num = 3;
+    end
+    size_field=[size(h.V,1),size(h.V,2),size(h.V,3), pole_num];
+    if (h.use_GPU)
         h.V=gpuArray(h.V);
         h.phase_ramp=gpuArray(h.phase_ramp);
         h.attenuation_mask=gpuArray(h.attenuation_mask);
@@ -28,14 +32,14 @@ function Field=eval_scattered_field(h,incident_field)
     end
     
     Greenp = h.Greenp;
-    if h.parameters.acyclic
+    if h.acyclic
         flip_Greenp = h.flip_Greenp;
     end
     phase_ramp = h.phase_ramp;
     conj_phase_ramp=conj(h.phase_ramp);
     
     for jj = 1:h.Bornmax
-        if h.parameters.acyclic
+        if h.acyclic
             %flip the relevant quantities
             [Greenp, flip_Greenp] = deal(flip_Greenp, Greenp);
             [phase_ramp, conj_phase_ramp] = deal(conj_phase_ramp, phase_ramp);
@@ -60,15 +64,15 @@ function Field=eval_scattered_field(h,incident_field)
         end
         
         % G x
-        for j2 = 1:h.pole_num
+        for j2 = 1:pole_num
             coeff_field=fftn(psi(:,:,:,j2).*phase_ramp);
-            if h.pole_num==3 %dyadic absorptive green function convolution
+            if h.vector_simulation %dyadic absorptive green function convolution
                 PSI = PSI + Greenp(:,:,:,:,j2).* coeff_field;
             else %scalar absorptive green function convolution
                 PSI = Greenp.*coeff_field;
             end
         end
-        for j1 = 1:h.pole_num
+        for j1 = 1:pole_num
             PSI(:,:,:,j1)=ifftn(PSI(:,:,:,j1)).*conj_phase_ramp;
         end
         if ~any(jj == [1,2])

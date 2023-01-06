@@ -1,5 +1,5 @@
 function Field=solve_forward(h,incident_field)
-    if (h.parameters.use_GPU)
+    if (h.use_GPU)
         h.refocusing_util=gpuArray(h.refocusing_util);
         incident_field=gpuArray(single(incident_field));
     end
