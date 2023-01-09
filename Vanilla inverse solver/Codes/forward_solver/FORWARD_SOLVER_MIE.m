@@ -14,10 +14,6 @@ classdef FORWARD_SOLVER_MIE < FORWARD_SOLVER
         mu1 = 1;
         % acceleration
         divide_section = 1;
-        % return values
-        return_3D = true;
-        return_transmission = false;
-        return_reflection = false;
     end
     methods
         function h=FORWARD_SOLVER_MIE(params)

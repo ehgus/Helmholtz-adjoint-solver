@@ -65,9 +65,6 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
                 h.boundary_thickness_pixel(2)+1 h.boundary_thickness_pixel(2)+old_RI_size(2)...
                 h.boundary_thickness_pixel(3)+1 h.boundary_thickness_pixel(3)+old_RI_size(3)];
             h.RI = potential2RI(pott,h.wavelength,h.RI_bg);
-            if (h.use_GPU)
-                h.RI=gather(h.RI);
-            end
         end
         function init(h)
             Nsize = size(h.RI);
@@ -76,7 +73,6 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             warning('on','all');
         end
         function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
-            h.use_cuda = false;
             input_field=single(input_field);
             
             if size(input_field,3)>1 &&~h.vector_simulation

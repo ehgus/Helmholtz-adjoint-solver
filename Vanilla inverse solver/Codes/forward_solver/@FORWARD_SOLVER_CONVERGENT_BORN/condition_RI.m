@@ -22,6 +22,9 @@ function condition_RI(h)
     for dim = 1:3
         thickness = h.boundary_thickness_pixel(dim);
         L = min(thickness, h.max_attenuation_width_pixel(dim));
+        if L == 0
+            continue
+        end
         window = ((1:L) - 0.21)/(L + 0.66);
         filter =[zeros(1, thickness-L) window ones(1, h.ROI(2*(dim-1)+2) - h.ROI(2*(dim-1)+1) + 1) flip(window) zeros(1, thickness-L)];
         filter = reshape(filter, circshift([1, 1, length(filter)], [0 dim]));

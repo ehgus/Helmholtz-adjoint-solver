@@ -1,17 +1,19 @@
 classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
-    properties %(SetAccess = protected, Hidden = true)
+    properties
         % scattering object w/ boundary
         V;
         expected_RI_size;
         boundary_thickness_pixel;
         boundary_thickness = [6 6 6];
         boundary_sharpness = 1;
-        RI_xy_size=[0 0];%if set to 0 the field is the same size as the simulation
+        max_attenuation_width = [0 0 0];
+        max_attenuation_width_pixel;
+        RI_xy_size = [0 0 0];
+        size;
         RI_center=[0 0];
         attenuation_mask;
         phase_ramp;
         ROI;
-        max_attenuation_width_pixel;
         Bornmax;
         % FDTD option
         cyclic_boundary_xy;
@@ -44,7 +46,7 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
             h@FORWARD_SOLVER(params);
             % check boundary thickness
             boundary_thickness = h.boundary_thickness;
-            attenuation_width = h.parameters.max_attenuation_width;
+            attenuation_width = h.max_attenuation_width;
             if length(boundary_thickness) == 1
                 h.boundary_thickness = ones(1,3) * boundary_thickness;
             end
@@ -52,15 +54,16 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
             h.boundary_thickness_pixel = round((h.boundary_thickness*h.wavelength/abs(h.RI_bg))./(h.resolution.*2));
             h.max_attenuation_width_pixel = round((attenuation_width*h.wavelength/abs(h.RI_bg))./(h.resolution.*2));
             if h.RI_xy_size(1)==0
-                h.RI_xy_size(1)=h.parameters.size(1);
+                h.RI_xy_size(1)=h.size(1);
             end
             if h.RI_xy_size(2)==0
-                h.RI_xy_size(2)=h.parameters.size(2);
+                h.RI_xy_size(2)=h.size(2);
             end
-            h.expected_RI_size=[h.RI_xy_size(1) h.RI_xy_size(2) h.parameters.size(3)];
+            h.expected_RI_size=[h.RI_xy_size(1) h.RI_xy_size(2) h.size(3)];
             
             %make the cropped green function (for forward and backward field)
-            h.cyclic_boundary_xy=(all(h.boundary_thickness(1:2)==0) && all(h.expected_RI_size(1:2)==h.parameters.size(1:2)));
+            h.utility = derive_utility(h, h.size);
+            h.cyclic_boundary_xy=(all(h.boundary_thickness(1:2)==0) && all(h.expected_RI_size(1:2)==h.size(1:2)));
             
             if h.cyclic_boundary_xy
                 h.refocusing_util=exp(h.utility.refocusing_kernel.*h.utility.image_space.coor{3});
@@ -72,9 +75,14 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
                 free_space_green=free_space_green./(h.utility.image_space.res{1}*h.utility.image_space.res{2});
                 free_space_green=ifft2(free_space_green);
             else
-                params_truncated_green=h.parameters;
-                params_truncated_green.size=h.parameters.size(:) ...
-                    +[h.expected_RI_size(1) + h.RI_center(1), h.expected_RI_size(2) + h.RI_center(2), 0]';
+                params_truncated_green=struct( ...
+                    'use_GPU', h.use_GPU, ...
+                    'wavelength', h.wavelength, ...
+                    'RI_bg', h.RI_bg, ...
+                    'resolution', h.resolution, ...
+                    'NA', h.NA, ...
+                    'size', h.expected_RI_size(:) + [h.expected_RI_size(1) + h.RI_center(1), h.expected_RI_size(2) + h.RI_center(2), 0]' ...
+                );
                 warning('off','all');
                 h.refocusing_util=truncated_green_plus(params_truncated_green,true);
                 h.refocusing_util=gather(h.refocusing_util);

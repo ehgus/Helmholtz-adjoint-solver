@@ -1,5 +1,5 @@
 classdef ADJOINT_SOLVER < OPTICAL_SIMULATION
-    properties %(SetAccess = protected, Hidden = true)
+    properties
         forward_solver;
         overlap_count;
         filter;
@@ -54,7 +54,7 @@ classdef ADJOINT_SOLVER < OPTICAL_SIMULATION
             
             h.spatial_diameter = params.spatial_diameter;
             spatial_radius = h.spatial_diameter/2;
-            pixel_size = fix(h.spatial_diameter./h.forward_solver.parameters.resolution);
+            pixel_size = fix(h.spatial_diameter./h.forward_solver.resolution);
             x_idx = reshape(linspace(-spatial_radius,spatial_radius,pixel_size(1)),[],1);
             y_idx = reshape(linspace(-spatial_radius,spatial_radius,pixel_size(2)),1,[]);
             h.spatial_filter = spatial_radius - sqrt(x_idx.^2+y_idx.^2);

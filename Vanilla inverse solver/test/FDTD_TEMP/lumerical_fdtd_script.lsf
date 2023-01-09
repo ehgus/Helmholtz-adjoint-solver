@@ -44,12 +44,27 @@ y = (1:size(RI,2))*dy;
 z = (1:size(RI,3))*dz;
 importnk2(RI,x,y,z);
 
-min_x=get("x min")+roi(1)-dx;
-max_x=get("x min")+roi(2)-dx;
-min_y=get("y min")+roi(3)-dy;
-max_y=get("y min")+roi(4)-dy;
-min_z=get("z min");
-max_z=get("z max");
+if(pml_x){
+    min_x=get("x min");
+    max_y=get("x max");
+}else{
+    min_x=get("x min")+roi(1)-dx;
+    max_x=get("x min")+roi(2)-dx;
+}
+if(pml_y){
+    min_y=get("y min");
+    max_y=get("y max");
+}else{
+    min_y=get("y min")+roi(3)-dy;
+    max_y=get("y min")+roi(4)-dy;
+}
+if(pml_z){
+    min_z=get("z min");
+    max_z=get("z max");
+}else{
+    min_y=get("z min")+roi(5)-dz;
+    max_y=get("z min")+roi(6)-dz;
+}
 
 x_num=(max_x - min_x + dx)/dx;
 y_num=(max_y - min_y + dy)/dy;

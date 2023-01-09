@@ -12,6 +12,10 @@ classdef (Abstract) FORWARD_SOLVER < handle
         resolution(1,3) = [1 1 1];           %3D Voxel size [um]
         % acceleration
         use_GPU logical = true;             %GPU acceleration
+        % return values
+        return_3D = true;
+        return_transmission = true;
+        return_reflection = true;
         % configuration
         verbose = false;                    %verbose option for narrative report
     end

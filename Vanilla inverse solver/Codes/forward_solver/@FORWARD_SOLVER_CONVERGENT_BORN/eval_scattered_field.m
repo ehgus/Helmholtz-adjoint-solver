@@ -91,7 +91,7 @@ function Field=eval_scattered_field(h,incident_field)
             end
         end
         % Attenuation
-        %Field_n=Field_n.*h.attenuation_mask;
+        Field_n=Field_n.*h.attenuation_mask;
         
         % add the fields to the total field
         if jj==3

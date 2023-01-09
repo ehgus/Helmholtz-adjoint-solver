@@ -1,5 +1,5 @@
 function Field=solve_adjoint(h,incident_field, intensity_mask)
-    if (h.forward_solver.parameters.use_GPU)
+    if (h.forward_solver.use_GPU)
         incident_field=gpuArray(single(incident_field));
     end
 

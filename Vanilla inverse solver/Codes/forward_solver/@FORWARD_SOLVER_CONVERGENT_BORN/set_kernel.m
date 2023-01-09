@@ -19,17 +19,8 @@ function set_kernel(h)
         shifted_coordinate{3}=shifted_coordinate{3}+h.utility.fourier_space.res{3}/4;
     end
     for i=1:3
-        shifted_coordinate{i}=ifftshift(shifted_coordinate{i});
+        shifted_coordinate{i}=2*pi*ifftshift(shifted_coordinate{i});
     end
-    
-    if h.vector_simulation % need to make true k/4 shift for rad !!!
-        rads=...
-            (shifted_coordinate{1}./h.utility.k0_nm).*reshape([1 0 0],1,1,1,[])+...
-            (shifted_coordinate{2}./h.utility.k0_nm).*reshape([0 1 0],1,1,1,[])+...
-            (shifted_coordinate{3}./h.utility.k0_nm).*reshape([0 0 1],1,1,1,[]);
-    end
-    
-    green_absorbtion_correction=((2*pi*h.utility.k0_nm)^2)/((2*pi*h.utility.k0_nm)^2+1i.*h.eps_imag);
     
     % Maximum size of calculation of convergenent Born series
     h.Bornmax = h.iterations_number;
@@ -46,10 +37,8 @@ function set_kernel(h)
         display(['step pixel size : ' num2str(round(step/h.resolution(3)))])
     end
     
-    eye_3=single(reshape(eye(3),1,1,1,3,3));
-
     % Helmholtz Green function in Fourier space
-    h.Greenp = 1 ./ (4*pi^2.*abs(...
+    h.Greenp = 1 ./ (abs(...
         (shifted_coordinate{1}).^2 + ...
         (shifted_coordinate{2}).^2 + ...
         (shifted_coordinate{3}).^2 ...
@@ -80,6 +69,12 @@ function set_kernel(h)
     
     h.flip_Greenp = fft_flip(h.Greenp,[1 1 1],false);
     if h.vector_simulation % dyadic Green's function
+        eye_3=single(reshape(eye(3),1,1,1,3,3));
+        rads=...
+            shifted_coordinate{1}.*reshape([1 0 0],1,1,1,[])+...
+            shifted_coordinate{2}.*reshape([0 1 0],1,1,1,[])+...
+            shifted_coordinate{3}.*reshape([0 0 1],1,1,1,[]);
+        green_absorbtion_correction=1/((2*pi*h.utility.k0_nm)^2+1i.*h.eps_imag);
         [xsize, ysize, zsize] = size(h.Greenp);
         flip_rads = fft_flip(rads,[1 1 1],false);
         h.Greenp = h.Greenp.*(eye_3-green_absorbtion_correction*(rads).*reshape(rads,xsize,ysize,zsize,1,3));

@@ -23,25 +23,25 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
         out_pol=2;
     end
     fields_trans=[];
-    if h.parameters.return_transmission
+    if h.return_transmission
         fields_trans=ones(1+h.ROI(2)-h.ROI(1),1+h.ROI(4)-h.ROI(3),out_pol,size(input_field,4),'single');
     end
     fields_ref=[];
-    if h.parameters.return_reflection
+    if h.return_reflection
         fields_ref=ones(1+h.ROI(2)-h.ROI(1),1+h.ROI(4)-h.ROI(3),out_pol,size(input_field,4),'single');
     end
     fields_3D=[];
-    if h.parameters.return_3D
+    if h.return_3D
         fields_3D=ones(1+h.ROI(2)-h.ROI(1),1+h.ROI(4)-h.ROI(3),1+h.ROI(6)-h.ROI(5),size(input_field,3),size(input_field,4),'single');
     end
 
     for field_num=1:size(input_field,4)
         Field=h.solve_forward(input_field(:,:,:,field_num));
         %crop and remove near field (3D to 2D field)
-        if h.parameters.return_3D
+        if h.return_3D
             fields_3D(:,:,:,:,field_num)=gather(Field);
         end
-        if h.parameters.return_transmission || h.parameters.return_reflection
+        if h.return_transmission || h.return_reflection
             potential=RI2potential(h.RI(h.ROI(1):h.ROI(2), h.ROI(3):h.ROI(4), h.ROI(5):h.ROI(6),:,:),h.wavelength,h.RI_bg);
 
             if size(h.RI,4)==1
