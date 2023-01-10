@@ -44,6 +44,7 @@ forward_MULTI_test2_params.verbose=false;
 forward_MULTI_test2_params.boundary_thickness=[0 0 38];
 forward_MULTI_test2_params.iterations_number=-1;
 forward_MULTI_test2_params.is_plane_wave = true;
+forward_MULTI_test2_params.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
 
 % forward solver parameters - MIE
 forward_params_Mie=params;
@@ -105,11 +106,11 @@ input_field_no_zero=input_field_scalar;zero_part_mask=abs(input_field_no_zero)<=
 
 disp_amp_multi_test1=squeeze(abs(field_trans_multi_test1_scalar(:,:,:).^2));
 disp_ref_multi_test1=squeeze(abs(field_ref_multi_test1_scalar(:,:,:).^2));
-disp_ang_multi_test1=squeeze(angle(field_trans_multi_test1_scalar(:,:,:)./input_field_no_zero(:,:,:)));
+disp_ang_multi_test1=squeeze(angle(field_trans_multi_test1_scalar(:,:,:)./input_field_no_zero(:,:,:)/field_trans_multi_test1_scalar(1,1,1)));
 
 disp_amp_multi_test2=squeeze(abs(field_trans_multi_test2_scalar(:,:,:).^2));
 disp_ref_multi_test2=squeeze(abs(field_ref_multi_test2_scalar(:,:,:).^2));
-disp_ang_multi_test2=squeeze(angle(field_trans_multi_test2_scalar(:,:,:)./input_field_no_zero(:,:,:)));
+disp_ang_multi_test2=squeeze(angle(field_trans_multi_test2_scalar(:,:,:)./input_field_no_zero(:,:,:)/field_trans_multi_test2_scalar(1,1,1)));
 
 
 figure('Name','Transmission (Amp): CBS / FDTD');imagesc(cat(2,disp_amp_multi_test1,disp_amp_multi_test2)); colormap gray;

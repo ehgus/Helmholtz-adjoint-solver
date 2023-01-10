@@ -210,11 +210,10 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
 end
 
 function [RI_pad, ROI_pad] = lumerical_pad_RI(RI, ROI)
-    RI_pad = padarray(double(RI), [10 10 0], 'circular'); % mitigate the boundary effect
-    RI_pad = padarray(RI_pad, [0 0 1],'replicate');     % prepare a region to place a illumination source
+    RI_pad=double(RI);
+    RI_pad=cat(1,RI_pad,RI_pad,RI_pad);
+    RI_pad=cat(2,RI_pad,RI_pad,RI_pad);
     ROI_pad = ROI;
-    ROI_pad(1:4) = ROI_pad(1:4) + 10;
-    ROI_pad(5:6)  = ROI_pad(5:6) + 1;
 end
 
 function lumerical_save_RI_text(RI,dx,file_name)

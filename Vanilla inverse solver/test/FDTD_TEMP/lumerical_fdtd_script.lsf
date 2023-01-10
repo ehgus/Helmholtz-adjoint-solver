@@ -44,31 +44,40 @@ y = (1:size(RI,2))*dy;
 z = (1:size(RI,3))*dz;
 importnk2(RI,x,y,z);
 
+x_num=get("data x points");
+y_num=get("data y points");
+z_num=get("data z points");
+
 if(pml_x){
     min_x=get("x min");
-    max_y=get("x max");
+    max_x=get("x max");
 }else{
-    min_x=get("x min")+roi(1)-dx;
-    max_x=get("x min")+roi(2)-dx;
+    min_x=get("x min");
+    max_x=(get("x max")+dx)/3;
+    min_x=min_x+max_x;
+    max_x=2*max_x-dx;
+    x_num=x_num/3;
 }
 if(pml_y){
     min_y=get("y min");
     max_y=get("y max");
 }else{
-    min_y=get("y min")+roi(3)-dy;
-    max_y=get("y min")+roi(4)-dy;
+    min_y=get("y min");
+    max_y=(get("y max")+dy)/3;
+    min_y=min_y+max_y;
+    max_y=2*max_y-dy;
+    y_num=y_num/3;
 }
 if(pml_z){
     min_z=get("z min");
     max_z=get("z max");
 }else{
-    min_y=get("z min")+roi(5)-dz;
-    max_y=get("z min")+roi(6)-dz;
+    min_z=get("z min");
+    max_z=(get("z max")+dz)/3;
+    min_z=min_z+max_z;
+    max_z=2*max_z-dx;
+    z_num=z_num/3;
 }
-
-x_num=(max_x - min_x + dx)/dx;
-y_num=(max_y - min_y + dy)/dy;
-z_num=get("data z points");
 
 print('min/max x = '+num2str(min_x)+'  /  '+num2str(max_x));
 print('min/max y = '+num2str(min_y)+'  /  '+num2str(max_y));
@@ -183,15 +192,37 @@ if(is_plane_wave)
     set("wavelength span",0);
 }
 
+if(pml_x){
+    obs_min_x = min_x+roi(1)-2*dx;
+    obs_max_x = min_x+roi(2)-2*dx;
+}else{
+    obs_min_x = min_x;
+    obs_max_x = max_x;
+}
+if(pml_y){
+    obs_min_y = min_y+roi(3)-2*dy;
+    obs_max_y = min_y+roi(4)-2*dy;
+}else{
+    obs_min_y = min_y;
+    obs_max_y = max_y;
+}
+if(pml_z){
+    obs_min_z = min_z+roi(5)-2*dz;
+    obs_max_z = min_z+roi(6)-2*dz;
+}else{
+    obs_min_z = min_z;
+    obs_max_z = max_z;
+}
+
 if(return_trans){
 addpower;
 set("name","field_profile_trans");
 set("monitor type",7);  # 2D z-normal
 
-set("x min",min_x);
-set("x max",max_x);
-set("y min",min_y);
-set("y max",max_y);
+set("x min",obs_min_x);
+set("x max",obs_max_x);
+set("y min",obs_min_y);
+set("y max",obs_max_y);
 
 set("z",max_z);
 
@@ -201,10 +232,10 @@ addpower;
 set("name","field_profile_ref");
 set("monitor type",7);  # 2D z-normal
 
-set("x min",min_x);
-set("x max",max_x);
-set("y min",min_y);
-set("y max",max_y);
+set("x min",obs_min_x);
+set("x max",obs_max_x);
+set("y min",obs_min_y);
+set("y max",obs_max_y);
 
 set("z",min_z);
 
@@ -215,12 +246,12 @@ addpower;
 set("name","field_profile_vol");
 set("monitor type",8);  # 2D z-normal
 
-set("x min",min_x);
-set("x max",max_x);
-set("y min",min_y);
-set("y max",max_y);
-set("z min",roi(5)+min_z-2*dz);
-set("z max",roi(6)+min_z-2*dz);
+set("x min",obs_min_x);
+set("x max",obs_max_x);
+set("y min",obs_min_y);
+set("y max",obs_max_y);
+set("z min",obs_min_z);
+set("z max",obs_max_z);
 }
 
 
