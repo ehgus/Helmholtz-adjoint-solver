@@ -1,78 +1,52 @@
 function utility = DERIVE_OPTICAL_TOOL(params,use_gpu)
-
+% Generate coordinate-relate parameters
+% Any generated arrays will be on GPU if use_gpu is true
 if nargin<2
     use_gpu=false;
 end
-utility=struct;
-%image space
-utility.image_space=struct;
-utility.image_space.res=cell(3);
-utility.image_space.res{1}=params.resolution(1);
-utility.image_space.res{2}=params.resolution(2);
-utility.image_space.res{3}=params.resolution(3);
-utility.image_space.size=cell(3);
-utility.image_space.size{1}=params.size(1);
-utility.image_space.size{2}=params.size(2);
-utility.image_space.size{3}=params.size(3);
-utility.image_space.coor=cell(3);
-utility.image_space.coor{1}=single((1:params.size(1))-(floor(params.size(1)/2)+1));
-utility.image_space.coor{2}=single((1:params.size(2))-(floor(params.size(2)/2)+1));
-utility.image_space.coor{3}=single((1:params.size(3))-(floor(params.size(3)/2)+1));
-utility.image_space.coor{1}=utility.image_space.coor{1}.*params.resolution(1);
-utility.image_space.coor{2}=utility.image_space.coor{2}.*params.resolution(2);
-utility.image_space.coor{3}=utility.image_space.coor{3}.*params.resolution(3);
-utility.image_space.coor{1}=reshape(utility.image_space.coor{1},[],1,1);
-utility.image_space.coor{2}=reshape(utility.image_space.coor{2},1,[],1);
-utility.image_space.coor{3}=reshape(utility.image_space.coor{3},1,1,[]);
-%fourier space
-utility.fourier_space=struct;
-utility.fourier_space.res=cell(3);
-utility.fourier_space.res{1}=1/(params.resolution(1)*params.size(1));
-utility.fourier_space.res{2}=1/(params.resolution(2)*params.size(2));
-utility.fourier_space.res{3}=1/(params.resolution(3)*params.size(3));
-utility.fourier_space.size=cell(3);
-utility.fourier_space.size{1}=params.size(1);
-utility.fourier_space.size{2}=params.size(2);
-utility.fourier_space.size{3}=params.size(3);
-utility.fourier_space.coor=cell(3);
-utility.fourier_space.coor{1}=single((1:params.size(1))-(floor(params.size(1)/2)+1));
-utility.fourier_space.coor{2}=single((1:params.size(2))-(floor(params.size(2)/2)+1));
-utility.fourier_space.coor{3}=single((1:params.size(3))-(floor(params.size(3)/2)+1));
-utility.fourier_space.coor{1}=utility.fourier_space.coor{1}.*utility.fourier_space.res{1};
-utility.fourier_space.coor{2}=utility.fourier_space.coor{2}.*utility.fourier_space.res{2};
-utility.fourier_space.coor{3}=utility.fourier_space.coor{3}.*utility.fourier_space.res{3};
-utility.fourier_space.coor{1}=reshape(utility.fourier_space.coor{1},[],1,1);
-utility.fourier_space.coor{2}=reshape(utility.fourier_space.coor{2},1,[],1);
-utility.fourier_space.coor{3}=reshape(utility.fourier_space.coor{3},1,1,[]);
+%image space / fourier space coordinate information
+utility=struct('image_space',[],'fourier_space',[]);
+
+utility.image_space = struct;
+utility.image_space.res = num2cell(params.resolution);
+utility.image_space.size = num2cell(params.size);
+utility.image_space.coor = cell(1,3);
+
+utility.fourier_space = struct;
+utility.fourier_space.res = num2cell(1./(params.resolution.*params.size));
+utility.fourier_space.size = num2cell(params.size);
+utility.fourier_space.coor = cell(1,3);
+
+space_type_list = {'image_space','fourier_space'};
+for space_type_idx = 1:2
+    space_type = space_type_list{space_type_idx};
+    space_res = utility.(space_type).res;
+    space_size = utility.(space_type).size;
+    for dim = 1:3
+        coor_axis = single(ceil(-space_size{dim}/2):ceil(space_size{dim}/2-1));
+        coor_axis = coor_axis*space_res{dim};
+        coor_axis = reshape(coor_axis, circshift([1 1 space_size{dim}],dim));
+        if use_gpu
+            coor_axis = gpuArray(coor_axis);
+        end
+        utility.(space_type).coor{dim} = coor_axis;
+    end
+end
+
 utility.fourier_space.coorxy=sqrt(...
     (utility.fourier_space.coor{1}).^2+...
     (utility.fourier_space.coor{2}).^2);
 %other
 utility.lambda=params.wavelength;
-utility.k0=1/params.wavelength;
-utility.k0_nm=utility.k0.*params.RI_bg;
 utility.nm=params.RI_bg;
-utility.kmax=params.NA/params.wavelength;
+utility.k0=1/params.wavelength;
+utility.k0_nm=utility.nm*utility.k0;
+utility.kmax=params.NA*utility.k0;
 utility.NA_circle=utility.fourier_space.coorxy<utility.kmax;
-utility.k3=(utility.k0_nm).^2-(utility.fourier_space.coorxy).^2;utility.k3(utility.k3<0)=0;utility.k3=sqrt(utility.k3);
-utility.dV=utility.image_space.res{1}.*utility.image_space.res{2}.*utility.image_space.res{3};
+utility.k3=sqrt(max(0,(utility.k0_nm).^2-(utility.fourier_space.coorxy).^2));
+utility.dV=prod([utility.image_space.res{1:3}]);
 utility.dVk=1/utility.dV;
-utility.refocusing_kernel=1i*2*pi*utility.k3;
+utility.refocusing_kernel=2i*pi*utility.k3;
 utility.cos_theta=utility.k3/utility.k0_nm;
-%move to the gpu the needed arrays (scalar are kept on cpu)
-if use_gpu
-    utility.image_space.coor{1}=gpuArray(utility.image_space.coor{1});
-    utility.image_space.coor{2}=gpuArray(utility.image_space.coor{2});
-    utility.image_space.coor{3}=gpuArray(utility.image_space.coor{3});
-    utility.fourier_space.coor{1}=gpuArray(utility.fourier_space.coor{1});
-    utility.fourier_space.coor{2}=gpuArray(utility.fourier_space.coor{2});
-    utility.fourier_space.coor{3}=gpuArray(utility.fourier_space.coor{3});
-    utility.fourier_space.coorxy=gpuArray(utility.fourier_space.coorxy);
-    utility.NA_circle=gpuArray(utility.NA_circle);
-    utility.k3=gpuArray(utility.k3);
-    utility.refocusing_kernel=gpuArray(utility.refocusing_kernel);
-    utility.cos_theta=gpuArray(utility.cos_theta);
-end
-
 end
 
