@@ -126,7 +126,8 @@ classdef FORWARD_SOLVER_MIE < FORWARD_SOLVER
             k_vector = [kx ky sqrt(k_m^2 - kx^2 - ky^2)]; %%% sqrt(k_m^2 - norm(k_vector)^2); ?? why norm?
             [ktheta,kphi,~] = xcart2sph(k_vector(1),k_vector(2),k_vector(3));
             % generate volumetric source
-            source = reshape(source, size(source, 1), size(source, 2), 1, size(source, 3)) .* exp(h.utility.refocusing_kernel.*h.resolution(3) .* reshape(ceil(-h.initial_Nsize(3)/2)-h.padding_source:ceil(h.initial_Nsize(3)/2-1),1, 1, []));
+            source = reshape(source, size(source, 1), size(source, 2), 1, size(source, 3)) .* ...
+                exp(h.utility.refocusing_kernel.*h.resolution(3) .* reshape(-floor(h.initial_Nsize(3)/2)-h.padding_source-1:ceil(h.initial_Nsize(3)/2),1, 1, []));
             source = fftshift(ifft2(ifftshift(source)));
             incident_field = source;
             % Obtain T-matrix - The first T is scattered mode, 2nd T is the internal mode.
