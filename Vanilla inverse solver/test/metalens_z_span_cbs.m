@@ -33,8 +33,7 @@ params.verbose = false;
 field_generator_params=params;
 field_generator_params.illumination_number=1;
 field_generator_params.illumination_style='circle';
-field_generator=FIELD_GENERATOR(field_generator_params);
-input_field=field_generator.get_fields();
+input_field=FIELD_GENERATOR.get_field(field_generator_params);
 
 %1-1 CBS parameters
 params_CBS=params;

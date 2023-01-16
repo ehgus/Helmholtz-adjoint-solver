@@ -17,15 +17,14 @@ params.RI_bg=real(get_RI(dirname,"PDMS", params.wavelength)); % Background RI
 params.resolution=[1 1 1]*params.wavelength/10/params.NA; % 3D Voxel size [um]
 params.use_abbe_sine=false; % Abbe sine condition according to demagnification condition
 params.vector_simulation=true; % True/false: dyadic/scalar Green's function
-params.size=[101 101 81]; % 3D volume grid
+params.size=[81 81 81]; % 3D volume grid
 
 %2 incident field parameters
 field_generator_params=params;
 field_generator_params.illumination_number=1;
 field_generator_params.illumination_style='circle';%'circle';%'random';%'mesh'
 % create the incident field
-field_generator=FIELD_GENERATOR(field_generator_params);
-input_field=field_generator.get_fields();
+input_field=FIELD_GENERATOR.get_field(field_generator_params);
 
 %3 phantom RI generation parameter
 phantom_params=PHANTOM.get_default_parameters();
@@ -38,7 +37,7 @@ phantom_params.thickness = [params.wavelength 0.15 params.size(3)*params.resolut
 % create phantom RI of target material (PDMS + TiO2 + Microchem SU-8 2000)
 RI = PHANTOM.get_TiO2_mask(phantom_params);
 
-%% Test: Foward solver
+%% Test: Forward solver
 % It displays results of light propagation along the target material
 
 %forward solver parameters
@@ -47,7 +46,7 @@ forward_params.use_GPU=true;
 forward_params.return_3D = true;
 forward_params.boundary_thickness = [0 0 4];
 [minRI, maxRI] = bounds(RI,"all");
-forward_params.RI_bg = double(sqrt((minRI^2+maxRI^2)/2));
+forward_params.RI_bg = double(sqrt((minRI^2+maxRI^2)/2));minRI;
 
 %compute the forward field using convergent Born series
 forward_solver=FORWARD_SOLVER_CONVERGENT_BORN(forward_params);
@@ -62,6 +61,7 @@ ROI_change_xy = padarray(ones(simulation_size, 'logical'),floor((params.size(1:2
 ROI_change_xy = padarray(ROI_change_xy,ceil((params.size(1:2)-simulation_size)/2), false, 'post');
 %Adjoint solver parameters
 adjoint_params=params;
+adjoint_params.forward_solver = forward_solver;
 adjoint_params.mode = "Intensity";
 adjoint_params.ROI_change = and(real(RI) > 2, ROI_change_xy);
 adjoint_params.step = 0.1;
@@ -72,7 +72,7 @@ adjoint_params.spatial_diameter = 0.2;
 adjoint_params.nmin = get_RI(dirname, "PDMS", params.wavelength);
 adjoint_params.nmax = get_RI(dirname, "TiO2", params.wavelength);
 
-adjoint_solver = ADJOINT_SOLVER(forward_solver,adjoint_params);
+adjoint_solver = ADJOINT_SOLVER(adjoint_params);
 phantom_params.name="bead";
 phantom_params.inner_size = [5 5 5];
 Target_intensity = PHANTOM.get(phantom_params);

@@ -2,13 +2,12 @@ function RI_opt=solve(h,input_field,Target_intensity,RI)
 % Adjoint solver targeting PDMS+TiO2+Microchem SU-8 2000 layered material.
 % It is not a universal solver.
 
-assert(mod(size(RI,3),2)==1, 'Length of RI block along z axis should be odd');
-assert(strcmp(h.parameters.mode, "Intensity"),"Transmission mode is not implemented yet")
+assert(mod(size(RI,3),2)==1, 'Length of RI block along z axis should be odd')
 
 % set parameters
 RI_opt=single(RI);
-Figure_of_Merit=zeros(h.parameters.itter_max,1);
-alpha=1/h.parameters.step;
+Figure_of_Merit=zeros(h.itter_max,1);
+alpha=1/h.step;
 
 
 t_n=0;
@@ -30,16 +29,15 @@ gradient_full_size(5) = size(input_field,4);
 h.gradient_full = complex(zeros(gradient_full_size,'single'));
 isRItensor = size(RI,4) == 3;
 
-for ii=1:h.parameters.itter_max
+for ii=1:h.itter_max
     display(['Iteration: ' num2str(ii)]);
     tic;
     
     % Calculated gradient RI based on intensity mode
     h.forward_solver.set_RI(RI_opt);
     [~,~,E_old]=h.forward_solver.solve(input_field);
-    h.forward_solver.set_RI((flip(RI_opt,3))); % flip verison
-    E_adj=h.solve_adjoint(flip(conj(E_old),3),flip(sqrt(Target_intensity),3));
-    E_adj=flip(E_adj,3);
+    h.forward_solver.set_RI(RI_opt); % flip verison
+    E_adj=h.solve_adjoint(conj(E_old),sqrt(Target_intensity));
     Figure_of_Merit(ii) = sum(abs(E_old).^2.*Target_intensity,'all') / sum(abs(E_old).^2,'all');
 
     h.get_gradient(E_adj,E_old,isRItensor);

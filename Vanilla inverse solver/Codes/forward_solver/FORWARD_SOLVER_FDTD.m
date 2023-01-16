@@ -202,7 +202,7 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
 
             Field=reshape(res_vol.E,length(res_vol.x),length(res_vol.y),length(res_vol.z),3);
             if h.verbose
-                set(gcf,'color','w'), imagesc((abs(squeeze(Field(:,floor(size(Field,2)/2)+1,:))')));axis image; title(['Iteration: ' num2str(jj) ' / ' num2str(h.Bornmax)]); colorbar; axis off;drawnow
+                set(gcf,'color','w'), imagesc((abs(squeeze(Field(:,floor(size(Field,2)/2)+1,:))')));axis image; colorbar; axis off;drawnow
                 colormap hot
             end
         end

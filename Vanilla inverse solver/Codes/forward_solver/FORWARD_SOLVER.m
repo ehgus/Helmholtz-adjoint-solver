@@ -1,23 +1,17 @@
-classdef (Abstract) FORWARD_SOLVER < handle
+classdef (Abstract) FORWARD_SOLVER < OPTICAL_SIMULATION
     properties
-        % field information
-        wavelength {mustBePositive} =1;     %wavelength [um]
+        % Additional field information
         NA {mustBePositive} = 1;            %Numerical aperture of input/output waves
-        vector_simulation logical = true;   %True/false: dyadic/scalar Green's function
         use_abbe_sine logical = true;       %Abbe sine condition according to demagnification condition
         utility
-        % scattering object information: set_RI define these properties
-        RI;                                 %Refractive index map
+        % Addtional scattering object information: set_RI define these properties
         RI_bg;                              %The representative refractive index
-        resolution(1,3) = [1 1 1];           %3D Voxel size [um]
         % acceleration
         use_GPU logical = true;             %GPU acceleration
         % return values
         return_3D = true;
         return_transmission = true;
         return_reflection = true;
-        % configuration
-        verbose = false;                    %verbose option for narrative report
     end
     methods(Abstract)
         [E, transmitted_E, reflected_E] = solve(obj, input_field)
@@ -25,16 +19,7 @@ classdef (Abstract) FORWARD_SOLVER < handle
     end
     methods
         function obj=FORWARD_SOLVER(options)
-            obj = obj.update_parameters(options);
-        end
-        function obj=update_parameters(obj, options)
-            % Update parameters from default settings
-            % It ignores unsupported fields
-            instance_properties = intersect(properties(obj),fieldnames(options));
-            for i = 1:length(instance_properties)
-                property = instance_properties{i};
-                obj.(property) = options.(property);
-            end
+            obj@OPTICAL_SIMULATION(options);
         end
         function fft_Field_3pol=transform_field_3D(obj,fft_Field_2pol)
             Nsize = size(fft_Field_2pol);

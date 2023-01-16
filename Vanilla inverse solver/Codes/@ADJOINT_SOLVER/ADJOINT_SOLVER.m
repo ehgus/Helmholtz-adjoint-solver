@@ -1,58 +1,39 @@
 classdef ADJOINT_SOLVER < OPTICAL_SIMULATION
     properties
+        % foward solver
         forward_solver;
-        overlap_count;
-        filter;
-        RI_inter;
-        nmin;
-        nmax;
+        
+        % FoM, weight and RoI
+        mode = "Intensity"; % Transmission
+        ROI_change;
+        
+        % optimization option
+        itter_max = 100;
+        nmin = -inf;
+        nmax = inf;
         density_map;
-        steepness;
-        binarization_step;
-        spatial_diameter;
-        spatial_filter;
+        step = 0.1;
+        tv_param = 1e-3;
+        steepness = 0.5;
+        RI_inter; % no need to be initialized
+
+        % regularization
+        use_non_negativity = false;
+
+        % lithography uncertainty & resolution
+        binarization_step = 100;
+        spatial_diameter = 1;
         spatial_filtering_count = 3;
+        spatial_filter;  % no need to be initialized
 
         % used for solver
         gradient_full;
         gradient;
     end
     methods
-        function get_default_parameters(h)
-            get_default_parameters@OPTICAL_SIMULATION(h);
-            
-            %specific parameters
-            h.parameters.forward_solver= {};
-
-            % Iteration parameters
-            h.parameters.step=0.1;
-            h.parameters.tv_param=0.001;
-            h.parameters.use_non_negativity=false;
-            h.parameters.nmin = -inf;
-            h.parameters.nmax = inf;
-            h.parameters.kappamax = 0; % imaginary RI
-            h.parameters.inner_itt = 100; % imaginary RI
-            h.parameters.itter_max = 100; % imaginary RI
-            h.parameters.num_scan_per_iteration = 0; % 0 -> every scan is used
-            h.parameters.steepness = 0.5;
-            h.parameters.binarization_step = 100;
-            h.parameters.spatial_diameter = 1; % um
-            h.parameters.verbose = true;
-            % Adjoint mode parameters
-            h.parameters.mode = "Intensity"; %"Transmission"
-            h.parameters.ROI_change = [];
-        end
-        Field=solve_adjoint(h,E_old,source)
-
-        function h=ADJOINT_SOLVER(forward_solver, params)
-            h@OPTICAL_SIMULATION(params);
-            h.forward_solver = forward_solver;
-            h.nmin = params.nmin;
-            h.nmax = params.nmax;
-            h.steepness = params.steepness; % it should be nonnegative value
-            h.binarization_step = params.binarization_step;
-            
-            h.spatial_diameter = params.spatial_diameter;
+        function h=ADJOINT_SOLVER(options)
+            h@OPTICAL_SIMULATION(options);
+            assert(strcmp(h.mode, "Intensity"),"Transmission mode is not implemented yet")
             spatial_radius = h.spatial_diameter/2;
             pixel_size = fix(h.spatial_diameter./h.forward_solver.resolution);
             x_idx = reshape(linspace(-spatial_radius,spatial_radius,pixel_size(1)),[],1);
@@ -73,12 +54,12 @@ classdef ADJOINT_SOLVER < OPTICAL_SIMULATION
             end
 
             % 2D gradient for lithography mask design
-            h.gradient(~h.parameters.ROI_change) = nan;
+            h.gradient(~h.ROI_change) = nan;
             mean_2D = mean(h.gradient,3,'omitnan');
             for i = 1:size(h.gradient,3)
                 h.gradient(:,:,i) = mean_2D;
             end
-            h.gradient(~h.parameters.ROI_change) = 0;
+            h.gradient(~h.ROI_change) = 0;
         end
 
         function RI_opt = update_gradient(h,RI_opt,RI,step_size)
@@ -98,20 +79,20 @@ classdef ADJOINT_SOLVER < OPTICAL_SIMULATION
             h.density_map(h.density_map > 1) = 1;
             h.density_map(h.density_map < 0) = 0;
             % adaptive spatial filtering
-            if index +h.spatial_filtering_count > h.parameters.itter_max
+            if index +h.spatial_filtering_count > h.itter_max
                 h.density_map(:) = cconv2(h.density_map,h.spatial_filter);
             end
             % adaptive binarization
             beta = h.steepness*fix(index/h.binarization_step);
             if beta > h.steepness/2
                 tanh_value = tanh(beta/2);
-                ROI_density_map = h.density_map(h.parameters.ROI_change);
+                ROI_density_map = h.density_map(h.ROI_change);
                 ROI_density_map(:) = (tanh_value + tanh(beta*(ROI_density_map-0.5)))/ ...
                                 (tanh_value + tanh(beta/2));
-                h.density_map(h.parameters.ROI_change) = ROI_density_map;
+                h.density_map(h.ROI_change) = ROI_density_map;
             end
             % update
-            RI_opt(h.parameters.ROI_change) = h.density_map(h.parameters.ROI_change)*(h.nmax-h.nmin)+h.nmin;
+            RI_opt(h.ROI_change) = h.density_map(h.ROI_change)*(h.nmax-h.nmin)+h.nmin;
         end
     end
 end

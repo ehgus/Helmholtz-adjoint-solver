@@ -64,8 +64,7 @@ RI=PHANTOM.get(phantom_params);
 RI=params.RI_bg+RI.*(RI_sp-params.RI_bg);
 
 %create the incident field
-field_generator=FIELD_GENERATOR(field_generator_params);
-input_field=field_generator.get_fields();
+input_field=FIELD_GENERATOR.get_field(field_generator_params);
 
 %% solve the forward problem
 %compute the forward field

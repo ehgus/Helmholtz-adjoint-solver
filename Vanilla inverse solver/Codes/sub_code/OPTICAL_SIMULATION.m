@@ -1,33 +1,30 @@
-classdef OPTICAL_SIMULATION < handle
+classdef (Abstract) OPTICAL_SIMULATION < handle
     % Basic optical simulation class
+    % The class contains required parameters to simulate linear system under coherent light source
+    % It also provides basic instance initializer
     properties
-        parameters;
+        % field information
+        wavelength {mustBePositive} = 1;    %wavelength [um]
+        vector_simulation logical = true;   %True/false: Vectorial EM wave or scalar approximated wave
+        % scattering object information: set_RI define these properties
+        RI;                                 %Refractive index map: size(RI, 1:3) = number of grids for each axis, size(RI, 4:5) = if isotropic [1, 1] else [3, 3]
+        impedance;                          %wave impedance: size(RI, 1:3) = number of grids for each axis, size(RI, 4:5) = if isotropic [1, 1] else [3, 3]
+        resolution(1,3) = [1 1 1];          %3D Voxel size [um]
+        % configuration
+        verbose = false;                    %verbose option for narrative report
     end
     methods
-        function h = OPTICAL_SIMULATION(params)
-            h.get_default_parameters();
-            h.update_properties(params);
-        end
-
-        function get_default_parameters(h)
-            % Set default parameters for simulation
-            h.parameters = struct;
-            h.parameters.size=[100 100 100];      %3D volume grid
-            h.parameters.wavelength=0.532;        %wavelength [um]
-            h.parameters.NA=1.2;                  %objective lens NA
-            h.parameters.RI_bg=1.336;             %Background RI
-            h.parameters.resolution=[0.1 0.1 0.1];%3D Voxel size [um]
-            h.parameters.vector_simulation=true;  %True/false: dyadic/scalar Green's function
-            h.parameters.use_abbe_sine=true;      %Abbe sine condition according to demagnification condition
+        function obj = OPTICAL_SIMULATION(options)
+            obj = obj.update_parameters(options);
         end
         
-        function h = update_properties(h, params)
+        function obj=update_parameters(obj, options)
             % Update parameters from default settings
-            % It ignores unsupported fields.
-            fields=intersect(fieldnames(params),fieldnames(h.parameters));
-            for i = 1:length(fields)
-                field=fields{i};
-                h.parameters.(field) = params.(field);
+            % It ignores unsupported fields
+            instance_properties = intersect(properties(obj),fieldnames(options));
+            for i = 1:length(instance_properties)
+                property = instance_properties{i};
+                obj.(property) = options.(property);
             end
         end
     end

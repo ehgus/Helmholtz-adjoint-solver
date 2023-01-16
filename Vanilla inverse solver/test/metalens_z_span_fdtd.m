@@ -8,7 +8,7 @@ wavelength = 0.355;
 resolution = [1 1 1]*wavelength/10/NA;
 
 %% load RI profiles
-RI_metalens = load_RI_data(['optimized_RI_no_pad.h5']);
+RI_metalens = load_RI_data('optimized_RI_no_pad.h5');
 %RI_metalens = padarray(RI_metalens, [0, 0, 10],'replicate','pre');
 %RI_metalens = padarray(RI_metalens, [0, 0, 300],'replicate','post');
 
@@ -33,8 +33,7 @@ params.verbose = false;
 field_generator_params=params;
 field_generator_params.illumination_number=1;
 field_generator_params.illumination_style='circle';
-field_generator=FIELD_GENERATOR(field_generator_params);
-input_field=field_generator.get_fields();
+input_field=FIELD_GENERATOR.get_field(field_generator_params);
 
 %1-2 FDTD parameters
 params_FDTD=params;
