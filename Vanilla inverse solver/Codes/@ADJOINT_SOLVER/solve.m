@@ -1,4 +1,4 @@
-function RI_opt=solve(h,input_field,Target_intensity,RI)
+function RI_opt=solve(h,input_field,RI,options)
 % Adjoint solver targeting PDMS+TiO2+Microchem SU-8 2000 layered material.
 % It is not a universal solver.
 
@@ -14,7 +14,7 @@ t_n=0;
 t_np=1;
 
 s_n=RI_opt;
-x_n=RI_opt; 
+x_n=RI_opt;
 
 % Run!
 
@@ -28,7 +28,9 @@ end
 gradient_full_size(5) = size(input_field,4);
 h.gradient_full = complex(zeros(gradient_full_size,'single'));
 isRItensor = size(RI,4) == 3;
-
+if h.verbose
+    figure;
+end
 for ii=1:h.itter_max
     display(['Iteration: ' num2str(ii)]);
     tic;
@@ -36,9 +38,7 @@ for ii=1:h.itter_max
     % Calculated gradient RI based on intensity mode
     h.forward_solver.set_RI(RI_opt);
     [~,~,E_old]=h.forward_solver.solve(input_field);
-    h.forward_solver.set_RI(RI_opt); % flip verison
-    E_adj=h.solve_adjoint(conj(E_old),sqrt(Target_intensity));
-    Figure_of_Merit(ii) = sum(abs(E_old).^2.*Target_intensity,'all') / sum(abs(E_old).^2,'all');
+    [E_adj, Figure_of_Merit(ii)]=h.solve_adjoint(conj(E_old),options);
 
     h.get_gradient(E_adj,E_old,isRItensor);
     
@@ -55,8 +55,11 @@ for ii=1:h.itter_max
 
     RI_opt=h.post_regularization(RI_opt,ii);
     h.RI_inter=RI_opt;
-
     toc;
+    if h.verbose
+        plot(Figure_of_Merit(1:ii));
+        drawnow;
+    end
 end
 
 RI_opt=gather(RI_opt);

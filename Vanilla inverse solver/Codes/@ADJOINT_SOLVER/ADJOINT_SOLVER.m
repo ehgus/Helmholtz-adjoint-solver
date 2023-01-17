@@ -5,12 +5,12 @@ classdef ADJOINT_SOLVER < OPTICAL_SIMULATION
         
         % FoM, weight and RoI
         mode = "Intensity"; % Transmission
-        ROI_change;
         
         % optimization option
         itter_max = 100;
         nmin = -inf;
         nmax = inf;
+        ROI_change;
         density_map;
         step = 0.1;
         tv_param = 1e-3;

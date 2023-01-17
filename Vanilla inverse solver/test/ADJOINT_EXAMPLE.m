@@ -71,14 +71,16 @@ adjoint_params.binarization_step = 50;
 adjoint_params.spatial_diameter = 0.2;
 adjoint_params.nmin = get_RI(dirname, "PDMS", params.wavelength);
 adjoint_params.nmax = get_RI(dirname, "TiO2", params.wavelength);
+adjoint_params.verbose = true;
 
 adjoint_solver = ADJOINT_SOLVER(adjoint_params);
 phantom_params.name="bead";
 phantom_params.inner_size = [5 5 5];
-Target_intensity = PHANTOM.get(phantom_params);
+options = struct;
+options.intensity_weight = PHANTOM.get(phantom_params);
 
 % Execute the optimization code
-RI_optimized=adjoint_solver.solve(input_field,Target_intensity,RI);
+RI_optimized=adjoint_solver.solve(input_field,RI,options);
 
 % Configuration for optimized metamaterial
 display_RI_and_E_field(forward_solver,RI_optimized,input_field,'after optimization')
