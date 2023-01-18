@@ -8,10 +8,8 @@ function [Field, FoM] =solve_adjoint(h,incident_field, options)
         incident_field = incident_field.*options.intensity_weight;
         FoM = sum(abs(incident_field).^2.*options.intensity_weight,'all') / numel(incident_field);
     elseif h.mode == "Transmission"
-        % Calculate transmission rate of plane wave 
+        % Calculate transmission rate of plane wave
         error("Not implemented")
-        %options.ROI_frequency;
-        %options.XY_frequency;
     end
     % Evaluate output field
     Field = h.forward_solver.eval_scattered_field(incident_field);
