@@ -39,7 +39,7 @@ input_field=FIELD_GENERATOR.get_field(field_generator_params);
 params_FDTD=params;
 params_FDTD.use_GPU=false;
 params_FDTD.boundary_thickness = [0 0 0];
-params_FDTD.RI_bg=real(get_RI(dirname,"PDMS", wavelength));
+params_FDTD.RI_bg=real(get_RI(RI_DB(),"PDMS", wavelength));
 params_FDTD.is_plane_wave = true;
 
 unit_thickness = 2;

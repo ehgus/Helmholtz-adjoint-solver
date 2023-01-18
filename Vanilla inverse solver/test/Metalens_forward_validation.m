@@ -23,17 +23,13 @@ resolution = [1 1 1]*wavelength/10/NA/oversampling_rate;
 %% load RI profiles
 RI_metalens = load_RI_data('optimized_RI_no_pad.h5');
 RI_metalens = imresize3(RI_metalens, oversampling_rate, 'nearest');
-phantom_params=PHANTOM.get_default_parameters();
-phantom_params.outer_size = size(RI_metalens);
-phantom_params.resolution = resolution;
-phantom_params.wavelength = wavelength;
-phantom_params.cd0 = dirname;
-phantom_params.name=["PDMS","TiO2", "Microchem SU-8 2000"];
-phantom_params.thickness = [wavelength 0.15 size(RI_metalens)*resolution(3)];
-RI_flat= PHANTOM.get_TiO2_mask(phantom_params); % PDMS, TiO2, SU-8 layered structure
+
+RI_list = get_RI(RI_DB(), ["PDMS","TiO2", "Microchem SU-8 2000"], wavelength);
+thickness_pixel = round([wavelength 0.15]/resolution(3));
+RI_flat = phantom_plate(size(RI_metalens), RI_list, thickness_pixel);
 
 RI_homogeneous = zeros(size(RI_metalens),'like',RI_metalens);
-RI_homogeneous(:) = real(get_RI(dirname,"PDMS",wavelength));
+RI_homogeneous(:) = real(get_RI(RI_DB(),"PDMS",wavelength));
 
 RI_patterns = struct( ...
     'metalens', RI_metalens, ...
@@ -73,14 +69,14 @@ params_CBS=params;
 params_CBS.use_GPU=true;
 params_CBS.boundary_thickness = [0 0 5];
 [minRI, maxRI] = bounds(RI,"all");
-params_CBS.RI_bg = real(get_RI(dirname,"Microchem SU-8 2000",wavelength));
+params_CBS.RI_bg = real(get_RI(RI_DB(),"Microchem SU-8 2000",wavelength));
 params_CBS.max_attenuation_width = [0 0 5];
 
 %1-2 FDTD parameters
 params_FDTD=params;
 params_FDTD.use_GPU=false;
 params_FDTD.boundary_thickness = [0 0 0];
-params_FDTD.RI_bg=real(get_RI(dirname,"PDMS", wavelength));
+params_FDTD.RI_bg=real(get_RI(RI_DB(),"PDMS", wavelength));
 params_FDTD.is_plane_wave = true;
 params_FDTD.PML_boundary = [false false true];
 params_FDTD.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');

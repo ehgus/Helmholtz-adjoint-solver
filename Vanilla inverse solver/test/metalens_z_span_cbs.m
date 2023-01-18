@@ -40,7 +40,7 @@ params_CBS=params;
 params_CBS.use_GPU=true;
 params_CBS.boundary_thickness = [0 0 50];
 %[minRI, maxRI] = bounds(RI,"all");
-params_CBS.RI_bg = real(get_RI(dirname,"Microchem SU-8 2000",wavelength));%double(sqrt((minRI^2+maxRI^2)/2))
+params_CBS.RI_bg = real(get_RI(RI_DB(),"Microchem SU-8 2000",wavelength));%double(sqrt((minRI^2+maxRI^2)/2))
 params_CBS.max_attenuation_width = [0 0 40];
 
 unit_thickness = 2;

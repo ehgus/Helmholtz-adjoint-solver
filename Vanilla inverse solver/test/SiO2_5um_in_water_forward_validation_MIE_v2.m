@@ -5,6 +5,7 @@ addpath(genpath(dirname));%% set the simulation parameters
 radius = 1.5;
 params.NA=1.2;
 params.RI_bg=1.336;
+RI_sp=1.4609;
 params.wavelength=0.532;
 params.resolution=[1 1 1]*params.wavelength/8/params.NA;
 params.vector_simulation=true;
@@ -12,18 +13,6 @@ params.use_abbe_sine=true;
 params.size= [161 161 81];
 %params.size=[501 501 81];
 %params.size= [171 171 91];
-
-%2 illumination parameters
-field_generator_params=params;
-field_generator_params.illumination_number=1;
-field_generator_params.illumination_style='circle';%'circle';%'circle';%'random';%'mesh
-%3 phantom generation parameter
-phantom_params=PHANTOM.get_default_parameters();
-phantom_params.name='bead';
-RI_sp=1.4609;
-phantom_params.outer_size=params.size;
-phantom_params.inner_size=round(ones(1,3) * 2 * radius ./ params.resolution);
-phantom_params.rotation_angles = [0 0 0];
 
 % forward solver parameters - CBS
 forward_MULTI_test1_params=params;
@@ -60,10 +49,13 @@ forward_params_Mie.divide_section = 10;
 
 %% create phantom RI and field
 % make the phantom
-RI=PHANTOM.get(phantom_params);
-RI=params.RI_bg+RI.*(RI_sp-params.RI_bg);
+RI_after=phantom_bead(params.size, [params.RI_bg, RI_sp], round(radius/params.resolution(3)));
 
 %create the incident field
+%2 illumination parameters
+field_generator_params=params;
+field_generator_params.illumination_number=1;
+field_generator_params.illumination_style='circle';
 input_field=FIELD_GENERATOR.get_field(field_generator_params);
 
 %% solve the forward problem
