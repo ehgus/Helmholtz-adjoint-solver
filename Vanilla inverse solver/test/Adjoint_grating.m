@@ -64,6 +64,7 @@ adjoint_params.binarization_step = 100;
 adjoint_params.nmin = 1.4;
 adjoint_params.nmax = 2.87;
 adjoint_params.verbose = true;
+adjoint_params.averaging_filter = [false true true];
 
 adjoint_solver = ADJOINT_SOLVER(adjoint_params);
 %Adjoint field parameter

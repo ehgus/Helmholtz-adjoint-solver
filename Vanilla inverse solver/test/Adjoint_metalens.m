@@ -66,6 +66,7 @@ adjoint_params.spatial_diameter = 0.2;
 adjoint_params.nmin = get_RI(RI_DB(), "PDMS", params.wavelength);
 adjoint_params.nmax = get_RI(RI_DB(), "TiO2", params.wavelength);
 adjoint_params.verbose = true;
+adjoint_params.averaging_filter = [false false true];
 
 adjoint_solver = ADJOINT_SOLVER(adjoint_params);
 options.intensity_weight  = phantom_bead(params.size, [0 1], 2.5);

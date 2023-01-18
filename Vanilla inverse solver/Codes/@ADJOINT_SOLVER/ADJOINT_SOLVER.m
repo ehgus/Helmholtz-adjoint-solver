@@ -25,6 +25,7 @@ classdef ADJOINT_SOLVER < OPTICAL_SIMULATION
         spatial_diameter = 1;
         spatial_filtering_count = 3;
         spatial_filter;  % no need to be initialized
+        averaging_filter = [false false false]; 
 
         % used for solver
         gradient_full;
@@ -55,9 +56,12 @@ classdef ADJOINT_SOLVER < OPTICAL_SIMULATION
 
             % 2D gradient for lithography mask design
             h.gradient(~h.ROI_change) = nan;
-            mean_2D = mean(h.gradient,3,'omitnan');
-            for i = 1:size(h.gradient,3)
-                h.gradient(:,:,i) = mean_2D;
+            avg_dim = 1:3;
+            avg_dim = avg_dim(h.averaging_filter);
+            if ~isempty(avg_dim)
+                mean_gradient = mean(h.gradient,avg_dim,'omitnan');
+                h.gradient(:) = 0;
+                h.gradient = h.gradient + mean_gradient;
             end
             h.gradient(~h.ROI_change) = 0;
         end
