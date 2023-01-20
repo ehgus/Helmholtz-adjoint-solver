@@ -16,6 +16,7 @@ classdef ADJOINT_SOLVER < OPTICAL_SIMULATION
         tv_param = 1e-3;
         steepness = 0.5;
         RI_inter; % no need to be initialized
+        is_maximization = true; % false for Transmission
 
         % regularization
         use_non_negativity = false;
@@ -34,7 +35,6 @@ classdef ADJOINT_SOLVER < OPTICAL_SIMULATION
     methods
         function h=ADJOINT_SOLVER(options)
             h@OPTICAL_SIMULATION(options);
-            assert(strcmp(h.mode, "Intensity"),"Transmission mode is not implemented yet")
             spatial_radius = h.spatial_diameter/2;
             pixel_size = fix(h.spatial_diameter./h.forward_solver.resolution);
             x_idx = reshape(linspace(-spatial_radius,spatial_radius,pixel_size(1)),[],1);
@@ -43,6 +43,9 @@ classdef ADJOINT_SOLVER < OPTICAL_SIMULATION
             h.spatial_filter(h.spatial_filter < 0) = 0;
             assert(sum(h.spatial_filter,'all') >0, 'The spatial_diameter should be more larger');
             h.spatial_filter = h.spatial_filter/sum(h.spatial_filter,'all');
+            if h.mode == "Transmission"
+                h.is_maximization = false;
+            end
         end
 
         function get_gradient(h,E_adj,E_old,isRItensor)
@@ -74,7 +77,11 @@ classdef ADJOINT_SOLVER < OPTICAL_SIMULATION
             h.gradient(:) = h.gradient./RI;
             h.gradient(:) = real(h.nmax-h.nmin)*real(h.gradient)+imag(h.nmax-h.nmin)*imag(h.gradient);
             h.gradient(:) = step_size/2*(h.nmax-h.nmin)/abs(h.nmax-h.nmin)^2*h.gradient;
-            RI_opt(:) = RI - h.gradient;
+            if h.is_maximization
+                RI_opt(:) = RI - h.gradient;
+            else
+                RI_opt(:) = RI + h.gradient;
+            end
         end
 
         function RI_opt = post_regularization(h,RI_opt,index)
