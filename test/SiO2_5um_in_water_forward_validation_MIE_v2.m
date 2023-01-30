@@ -73,15 +73,16 @@ tic;
 toc;
 
 %compute the forward field - Mie
-if isfile('Mie_field.mat')
-    load('Mie_field.mat')
+mie_field_filename = fullfile(dirname,'test/Mie_field.mat');
+if isfile(mie_field_filename)
+    load(mie_field_filename)
 else
     forward_solver_Mie=MieTheorySolver(forward_params_Mie);
     forward_solver_Mie.set_RI(RI);
     tic;
     [field_trans_Mie,field_ref_Mie,field_3D_Mie]=forward_solver_Mie.solve(input_field);
     toc;
-    save('Mie_field.mat', 'field_trans_Mie','field_ref_Mie','field_3D_Mie','-v7.3')
+    save(mie_field_filename, 'field_trans_Mie','field_ref_Mie','field_3D_Mie','-v7.3')
 end
 
 %% Draw results

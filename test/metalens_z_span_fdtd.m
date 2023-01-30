@@ -4,13 +4,8 @@ addpath(genpath(dirname));
 
 %% basic optical parameters
 NA=1;
-wavelength = 0.355;
-resolution = [1 1 1]*wavelength/10/NA;
-
 %% load RI profiles
-RI_metalens = load_RI_data('optimized_RI_no_pad.h5');
-%RI_metalens = padarray(RI_metalens, [0, 0, 10],'replicate','pre');
-%RI_metalens = padarray(RI_metalens, [0, 0, 300],'replicate','post');
+[RI_metalens, resolution, wavelength] = load_RI('optimized_RI.mat');
 
 %% set optical parameters
 
@@ -63,15 +58,3 @@ for idx = 1:iteration_number
     plot(scale,squeeze(intensity_list{idx}(41,41,:)),'DisplayName',sprintf("%d um padding",(idx-1)* unit_thickness));
 end
 legend;
-%%
-function [volume_RI,RI_params] = load_RI_data(filename)
-    % save volume_RI and simulation condition in file_path (HDF5 format)
-    volume_RI = h5read(filename,'/RI_final/RI');
-    RI_params =struct();
-    
-    attributenames = {'resolution','wavelength'};
-    for i = 1:length(attributenames)
-        attrname = attributenames{i};
-        RI_params.(attrname) = h5readatt(filename,'/RI_final',attrname);
-    end
-end

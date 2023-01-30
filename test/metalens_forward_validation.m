@@ -3,7 +3,7 @@
 % [execution guideline]
 % The following script needs mat file having a optimized RI profile
 % A example profile can be acquired after executing "ADJOINT_EXAMPLE.m"
-% After getting the metalens profile, rename "optimized_RI.h5" to "optimized_RI_no_pad.h5"
+% After getting the metalens profile, rename "optimized_RI.mat" to "optimized_RI.mat"
 %
 % [Result interpretation]
 % Note that the FDTD result will shows a weak light focus compared to the counterpart of CBS when oversampling_rate = 1
@@ -16,12 +16,10 @@ addpath(genpath(dirname));
 
 %% basic optical parameters
 NA=1;
-wavelength = 0.355;
 oversampling_rate = 3;
-resolution = [1 1 1]*wavelength/10/NA/oversampling_rate;
-
 %% load RI profiles
-RI_metalens = load_RI_data('optimized_RI_no_pad.h5');
+[RI_metalens, resolution, wavelength] = load_RI('optimized_RI.mat');
+resolution = resolution/oversampling_rate;
 RI_metalens = imresize3(RI_metalens, oversampling_rate, 'nearest');
 
 RI_list = get_RI(RI_DB(), ["PDMS","TiO2", "Microchem SU-8 2000"], wavelength);
@@ -139,15 +137,3 @@ for i = 1:2
 end
 MSE_test = mean(abs(E_field_rst{1}-E_field_rst{2}).^2, 'all');
 fprintf("MSE test result: %f\n",MSE_test);
-%%
-function [volume_RI,RI_params] = load_RI_data(filename)
-    % save volume_RI and simulation condition in file_path (HDF5 format)
-    volume_RI = h5read(filename,'/RI_final/RI');
-    RI_params =struct();
-    
-    attributenames = {'resolution','wavelength'};
-    for i = 1:length(attributenames)
-        attrname = attributenames{i};
-        RI_params.(attrname) = h5readatt(filename,'/RI_final',attrname);
-    end
-end
