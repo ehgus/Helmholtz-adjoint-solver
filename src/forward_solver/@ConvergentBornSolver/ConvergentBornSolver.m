@@ -1,4 +1,4 @@
-classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
+classdef ConvergentBornSolver < ForwardSolver
     properties
         % scattering object w/ boundary
         V;
@@ -41,9 +41,9 @@ classdef FORWARD_SOLVER_CONVERGENT_BORN < FORWARD_SOLVER
         create_boundary_RI(h);
         set_kernel(h);
 
-        function h=FORWARD_SOLVER_CONVERGENT_BORN(params)
+        function h=ConvergentBornSolver(params)
             % make the refocusing to volume field(other variable depend on the max RI and as such are created later).
-            h@FORWARD_SOLVER(params);
+            h@ForwardSolver(params);
             % check boundary thickness
             boundary_thickness = h.boundary_thickness;
             attenuation_width = h.max_attenuation_width;

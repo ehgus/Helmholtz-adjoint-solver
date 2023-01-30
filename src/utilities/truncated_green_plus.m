@@ -26,7 +26,7 @@ creation_size_pixel(1:2)=ceil(max_size./params.resolution(1:2));
 params.size=creation_size_pixel;
 %create the utility variable
 warning('off','all');
-utility=DERIVE_OPTICAL_TOOL(params,params.use_GPU);
+utility=derive_optical_tool(params,params.use_GPU);
 warning('on','all');
 %compute green
 

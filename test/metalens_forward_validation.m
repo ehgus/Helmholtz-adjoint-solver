@@ -58,7 +58,7 @@ params.verbose = false;
 field_generator_params=params;
 field_generator_params.illumination_number=1;
 field_generator_params.illumination_style='circle';
-input_field=FIELD_GENERATOR.get_field(field_generator_params);
+input_field=FieldGenerator.get_field(field_generator_params);
 
 %% solve the foward problem
 RI_type = 'metalens';
@@ -82,8 +82,8 @@ params_FDTD.PML_boundary = [false false true];
 params_FDTD.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
 
 forward_solver_list = { ...
-    FORWARD_SOLVER_CONVERGENT_BORN(params_CBS), ...
-    FORWARD_SOLVER_FDTD(params_FDTD) ...
+    ConvergentBornSolver(params_CBS), ...
+    FDTDsolver(params_FDTD) ...
 };
 solver_num = length(forward_solver_list);
 

@@ -1,4 +1,4 @@
-classdef FORWARD_SOLVER_MIE < FORWARD_SOLVER
+classdef MieTheorySolver < ForwardSolver
     properties
         % scattering object w/ boundary
         radius = 2.5;
@@ -16,8 +16,8 @@ classdef FORWARD_SOLVER_MIE < FORWARD_SOLVER
         divide_section = 1;
     end
     methods
-        function h=FORWARD_SOLVER_MIE(params)
-            h@FORWARD_SOLVER(params);
+        function h=MieTheorySolver(params)
+            h@ForwardSolver(params);
         end
         function set_RI(h,RI)
             h.RI=single(RI);%single computation are faster

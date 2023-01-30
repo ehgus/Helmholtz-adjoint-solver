@@ -1,4 +1,4 @@
-classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
+classdef FDTDsolver < ForwardSolver
     properties
         % scattering object w/ boundary
         boundary_thickness_pixel;
@@ -30,8 +30,8 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
     end
 
     methods
-        function h=FORWARD_SOLVER_FDTD(params)
-            h@FORWARD_SOLVER(params);
+        function h=FDTDsolver(params)
+            h@ForwardSolver(params);
             % check boundary thickness
             if length(h.boundary_thickness) == 1
                 h.boundary_thickness = zeros(1,3);
@@ -41,7 +41,7 @@ classdef FORWARD_SOLVER_FDTD < FORWARD_SOLVER
             h.boundary_thickness_pixel = round(h.boundary_thickness*h.wavelength/h.RI_bg./(h.resolution.*2));
             h.boundary_thickness_pixel(3) = max(1, h.boundary_thickness_pixel(3)); % make place for source
             % find lumerical solver
-            h.lumerical_exe = FORWARD_SOLVER_FDTD.find_lumerical_exe();
+            h.lumerical_exe = FDTDsolver.find_lumerical_exe();
         end
         function set_RI(h,RI)
             h.RI=single(RI);%single computation are faster

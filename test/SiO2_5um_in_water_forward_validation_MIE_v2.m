@@ -49,24 +49,24 @@ forward_params_Mie.divide_section = 10;
 
 %% create phantom RI and field
 % make the phantom
-RI_after=phantom_bead(params.size, [params.RI_bg, RI_sp], round(radius/params.resolution(3)));
+RI=phantom_bead(params.size, [params.RI_bg, RI_sp], round(radius/params.resolution(3)));
 
 %create the incident field
 %2 illumination parameters
 field_generator_params=params;
 field_generator_params.illumination_number=1;
 field_generator_params.illumination_style='circle';
-input_field=FIELD_GENERATOR.get_field(field_generator_params);
+input_field=FieldGenerator.get_field(field_generator_params);
 
 %% solve the forward problem
 %compute the forward field
-forward_MULTI_test1_solver=FORWARD_SOLVER_CONVERGENT_BORN(forward_MULTI_test1_params);
+forward_MULTI_test1_solver=ConvergentBornSolver(forward_MULTI_test1_params);
 forward_MULTI_test1_solver.set_RI(RI);
 tic;
 [field_trans_multi_test1,field_ref_multi_test1,field_3D_multi_test1]=forward_MULTI_test1_solver.solve(input_field);
 toc;
 
-forward_MULTI_test2_solver=FORWARD_SOLVER_FDTD(forward_MULTI_test2_params);
+forward_MULTI_test2_solver=FDTDsolver(forward_MULTI_test2_params);
 forward_MULTI_test2_solver.set_RI(RI);
 tic;
 [field_trans_multi_test2,field_ref_multi_test2,field_3D_multi_test2]=forward_MULTI_test2_solver.solve(input_field);
@@ -76,7 +76,7 @@ toc;
 if isfile('Mie_field.mat')
     load('Mie_field.mat')
 else
-    forward_solver_Mie=FORWARD_SOLVER_MIE(forward_params_Mie);
+    forward_solver_Mie=MieTheorySolver(forward_params_Mie);
     forward_solver_Mie.set_RI(RI);
     tic;
     [field_trans_Mie,field_ref_Mie,field_3D_Mie]=forward_solver_Mie.solve(input_field);

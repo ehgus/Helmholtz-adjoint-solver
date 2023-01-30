@@ -30,3 +30,13 @@
 [8] Osnabrugge, Gerwin, Saroch Leedumrongwatthanakun, and Ivo M. Vellekoop. "A convergent Born series for solving the inhomogeneous Helmholtz equation in arbitrarily large media." Journal of computational physics 322 (2016): 113-124.
 
 [9] Osnabrugge, Gerwin, Maaike Benedictus, and Ivo M. Vellekoop. "Ultra-thin boundary layer for high-accuracy simulations of light propagation." Optics express 29.2 (2021): 1649-1658.
+
+## Name convention
+
+The name convention refers to julia's reference style guide.
+
+- module, class: capitalization and camel case: `ForwardSimulation`. When a word is next to the abbreivation, you can use small word (`FDTDsolver`).
+- function, method: lowercase with multiple words squashed together (`isequal`,`haskey`). When necessary, use underscores as word separators.
+- conciseness is valued, but avoid abbreviation (`index` rather than `i`).
+- It is allowed to use capital letter exceptionally when using a proper noun or a abbreivation.
+ 

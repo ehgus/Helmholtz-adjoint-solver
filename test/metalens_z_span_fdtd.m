@@ -33,7 +33,7 @@ params.verbose = false;
 field_generator_params=params;
 field_generator_params.illumination_number=1;
 field_generator_params.illumination_style='circle';
-input_field=FIELD_GENERATOR.get_field(field_generator_params);
+input_field=FieldGenerator.get_field(field_generator_params);
 
 %1-2 FDTD parameters
 params_FDTD=params;
@@ -47,7 +47,7 @@ iteration_number = 5;
 E_field_rst = cell(1,iteration_number);
 for idx = 1:iteration_number
     params_FDTD.boundary_thickness = [0 0 (idx-1)* unit_thickness];
-    forward_solver = FORWARD_SOLVER_FDTD(params_FDTD);
+    forward_solver = FDTDsolver(params_FDTD);
     forward_solver.set_RI(RI_metalens);
     [~, ~, E_field_rst{idx}] = forward_solver.solve(input_field);
 end

@@ -1,4 +1,4 @@
-function utility = DERIVE_OPTICAL_TOOL(params,use_gpu)
+function utility = derive_optical_tool(params,use_gpu)
 % Generate coordinate-relate parameters
 % Any generated arrays will be on GPU if use_gpu is true
 if nargin<2

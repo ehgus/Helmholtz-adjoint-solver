@@ -33,7 +33,7 @@ params.verbose = false;
 field_generator_params=params;
 field_generator_params.illumination_number=1;
 field_generator_params.illumination_style='circle';
-input_field=FIELD_GENERATOR.get_field(field_generator_params);
+input_field=FieldGenerator.get_field(field_generator_params);
 
 %1-1 CBS parameters
 params_CBS=params;
@@ -50,7 +50,7 @@ for idx = 1:iteration_number
     thickness_pixel = round((idx-1)*unit_thickness*params_CBS.wavelength/params_CBS.RI_bg./(params_CBS.resolution.*2)); 
     RI_metalens_pad = padarray(RI_metalens, [0 0 (idx-1)*unit_thickness], 'replicate');
     params_CBS.size = size(RI_metalens_pad);
-    forward_solver = FORWARD_SOLVER_CONVERGENT_BORN(params_CBS);
+    forward_solver = ConvergentBornSolver(params_CBS);
     forward_solver.set_RI(RI_metalens_pad);
     [~, ~, E_field_rst{idx}] = forward_solver.solve(input_field);
     E_field_rst{idx} = E_field_rst{idx}(:,:,(1:size(RI_metalens,3))+(idx-1)*unit_thickness,:);

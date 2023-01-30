@@ -1,4 +1,4 @@
-classdef (Abstract) FORWARD_SOLVER < OPTICAL_SIMULATION
+classdef (Abstract) ForwardSolver < OpticalSimulation
     properties
         % Additional field information
         NA {mustBePositive} = 1;            %Numerical aperture of input/output waves
@@ -18,8 +18,8 @@ classdef (Abstract) FORWARD_SOLVER < OPTICAL_SIMULATION
         set_RI(obj, RI) % determine RI and RI_bg
     end
     methods
-        function obj=FORWARD_SOLVER(options)
-            obj@OPTICAL_SIMULATION(options);
+        function obj=ForwardSolver(options)
+            obj@OpticalSimulation(options);
         end
         function fft_Field_3pol=transform_field_3D(obj,fft_Field_2pol)
             Nsize = size(fft_Field_2pol);
@@ -115,7 +115,7 @@ classdef (Abstract) FORWARD_SOLVER < OPTICAL_SIMULATION
                 'RI_bg', obj.RI_bg, ...
                 'NA', obj.NA ...
             );
-            utility = DERIVE_OPTICAL_TOOL(params, obj.use_GPU);
+            utility = derive_optical_tool(params, obj.use_GPU);
         end
     end
 end

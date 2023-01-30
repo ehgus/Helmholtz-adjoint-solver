@@ -24,7 +24,7 @@ field_generator_params=params;
 field_generator_params.illumination_number=1;
 field_generator_params.illumination_style='circle';%'circle';%'random';%'mesh'
 % create the incident field
-input_field=FIELD_GENERATOR.get_field(field_generator_params);
+input_field=FieldGenerator.get_field(field_generator_params);
 
 %3 phantom RI generation parameter
 RI_list = get_RI(RI_DB(), ["PDMS","TiO2", "Microchem SU-8 2000"], params.wavelength);
@@ -43,7 +43,7 @@ forward_params.boundary_thickness = [0 0 4];
 forward_params.RI_bg = double(sqrt((minRI^2+maxRI^2)/2));
 
 %compute the forward field using convergent Born series
-forward_solver=FORWARD_SOLVER_CONVERGENT_BORN(forward_params);
+forward_solver=ConvergentBornSolver(forward_params);
 forward_solver.set_RI(RI);
 
 % Configuration for bulk material
@@ -67,7 +67,7 @@ adjoint_params.nmin = get_RI(RI_DB(), "PDMS", params.wavelength);
 adjoint_params.nmax = get_RI(RI_DB(), "TiO2", params.wavelength);
 adjoint_params.verbose = true;
 
-adjoint_solver = ADJOINT_SOLVER(adjoint_params);
+adjoint_solver = AdjointSolver(adjoint_params);
 options.intensity_weight  = phantom_bead(params.size, [0 1], 2.5);
 
 % Execute the optimization code

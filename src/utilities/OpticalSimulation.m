@@ -1,4 +1,4 @@
-classdef (Abstract) OPTICAL_SIMULATION < handle
+classdef (Abstract) OpticalSimulation < handle
     % Basic optical simulation class
     % The class contains required parameters to simulate linear system under coherent light source
     % It also provides basic instance initializer
@@ -14,7 +14,7 @@ classdef (Abstract) OPTICAL_SIMULATION < handle
         verbose = false;                    %verbose option for narrative report
     end
     methods
-        function obj = OPTICAL_SIMULATION(options)
+        function obj = OpticalSimulation(options)
             obj = obj.update_parameters(options);
         end
         

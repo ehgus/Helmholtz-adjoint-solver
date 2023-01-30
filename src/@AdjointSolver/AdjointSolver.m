@@ -1,4 +1,4 @@
-classdef ADJOINT_SOLVER < OPTICAL_SIMULATION
+classdef AdjointSolver < OpticalSimulation
     properties
         % foward solver
         forward_solver;
@@ -31,8 +31,8 @@ classdef ADJOINT_SOLVER < OPTICAL_SIMULATION
         gradient;
     end
     methods
-        function h=ADJOINT_SOLVER(options)
-            h@OPTICAL_SIMULATION(options);
+        function h=AdjointSolver(options)
+            h@OpticalSimulation(options);
             assert(strcmp(h.mode, "Intensity"),"Transmission mode is not implemented yet")
             spatial_radius = h.spatial_diameter/2;
             pixel_size = fix(h.spatial_diameter./h.forward_solver.resolution);
