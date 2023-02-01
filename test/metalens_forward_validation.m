@@ -22,12 +22,15 @@ oversampling_rate = 3;
 resolution = resolution/oversampling_rate;
 RI_metalens = imresize3(RI_metalens, oversampling_rate, 'nearest');
 
-RI_list = get_RI(RI_DB(), ["PDMS","TiO2", "Microchem SU-8 2000"], wavelength);
+PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
+TiO2 = database.material("main","TiO2","Siefke");
+Microchem_SU8_2000 = database.material("other","resists","Microchem SU-8 2000");
+RI_list = cellfun(@(func) func(params.wavelength), {PDMS TiO2 Microchem_SU8_2000});
 thickness_pixel = round([wavelength 0.15]/resolution(3));
 RI_flat = phantom_plate(size(RI_metalens), RI_list, thickness_pixel);
 
 RI_homogeneous = zeros(size(RI_metalens),'like',RI_metalens);
-RI_homogeneous(:) = real(get_RI(RI_DB(),"PDMS",wavelength));
+RI_homogeneous(:) = real(PDMS(wavelength));
 
 RI_patterns = struct( ...
     'metalens', RI_metalens, ...
@@ -67,14 +70,14 @@ params_CBS=params;
 params_CBS.use_GPU=true;
 params_CBS.boundary_thickness = [0 0 5];
 [minRI, maxRI] = bounds(RI,"all");
-params_CBS.RI_bg = real(get_RI(RI_DB(),"Microchem SU-8 2000",wavelength));
+params_CBS.RI_bg = real(Microchem_SU8_2000(wavelength));
 params_CBS.max_attenuation_width = [0 0 5];
 
 %1-2 FDTD parameters
 params_FDTD=params;
 params_FDTD.use_GPU=false;
 params_FDTD.boundary_thickness = [0 0 0];
-params_FDTD.RI_bg=real(get_RI(RI_DB(),"PDMS", wavelength));
+params_FDTD.RI_bg=real(PDMS(wavelength));
 params_FDTD.is_plane_wave = true;
 params_FDTD.PML_boundary = [false false true];
 params_FDTD.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');

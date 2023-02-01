@@ -34,8 +34,8 @@ input_field=FieldGenerator.get_field(field_generator_params);
 params_CBS=params;
 params_CBS.use_GPU=true;
 params_CBS.boundary_thickness = [0 0 50];
-%[minRI, maxRI] = bounds(RI,"all");
-params_CBS.RI_bg = real(get_RI(RI_DB(),"Microchem SU-8 2000",wavelength));%double(sqrt((minRI^2+maxRI^2)/2))
+Microchem_SU8_2000 = material(RefractiveIndexDB(),"other","resists","Microchem SU-8 2000");
+params_CBS.RI_bg = real(Microchem_SU8_2000(wavelength));
 params_CBS.max_attenuation_width = [0 0 40];
 
 unit_thickness = 2;

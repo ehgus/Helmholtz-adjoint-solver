@@ -34,7 +34,8 @@ input_field=FieldGenerator.get_field(field_generator_params);
 params_FDTD=params;
 params_FDTD.use_GPU=false;
 params_FDTD.boundary_thickness = [0 0 0];
-params_FDTD.RI_bg=real(get_RI(RI_DB(),"PDMS", wavelength));
+PDMS = material(RefractiveIndexDB(),"organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
+params_FDTD.RI_bg=real(PDMS(wavelength));
 params_FDTD.is_plane_wave = true;
 
 unit_thickness = 2;

@@ -13,7 +13,10 @@ MULTI_GPU=false; % Use Multiple GPU?
 %1 optical parameters
 params.NA=1; % Numerical aperture
 params.wavelength=0.355; % [um]
-params.RI_bg=real(get_RI(RI_DB(),"PDMS", params.wavelength)); % Background RI
+database = RefractiveIndexDB();
+H2O = database.material("main","H2O","Daimon-20.0C");
+
+params.RI_bg=H2O(params.wavelength); % Background RI
 params.resolution=[1 1 1]*params.wavelength/10/params.NA; % 3D Voxel size [um]
 params.use_abbe_sine=false; % Abbe sine condition according to demagnification condition
 params.vector_simulation=true; % True/false: dyadic/scalar Green's function
@@ -27,7 +30,10 @@ field_generator_params.illumination_style='circle';%'circle';%'random';%'mesh'
 input_field=FieldGenerator.get_field(field_generator_params);
 
 %3 phantom RI generation parameter
-RI_list = get_RI(RI_DB(), ["PDMS","TiO2", "Microchem SU-8 2000"], params.wavelength);
+PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
+TiO2 = database.material("main","TiO2","Siefke");
+Microchem_SU8_2000 = database.material("other","resists","Microchem SU-8 2000");
+RI_list = cellfun(@(func) func(params.wavelength), {PDMS TiO2 Microchem_SU8_2000});
 thickness_pixel = round([params.wavelength 0.15]/params.resolution(3));
 RI = phantom_plate(params.size, RI_list, thickness_pixel);
 
@@ -63,8 +69,8 @@ adjoint_params.itter_max = 200;
 adjoint_params.steepness = 2;
 adjoint_params.binarization_step = 50;
 adjoint_params.spatial_diameter = 0.2;
-adjoint_params.nmin = get_RI(RI_DB(), "PDMS", params.wavelength);
-adjoint_params.nmax = get_RI(RI_DB(), "TiO2", params.wavelength);
+adjoint_params.nmin = PDMS(params.wavelength);
+adjoint_params.nmax = TiO2(params.wavelength);
 adjoint_params.verbose = true;
 
 adjoint_solver = AdjointSolver(adjoint_params);

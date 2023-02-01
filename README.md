@@ -4,6 +4,13 @@
 - target material: PDMS + TiO2 + Microchem SU-8 2000 layered material
 - test code: Vanilla inverse solver/ADJOINT_EXAMPLE.m
 
+## prerequisite
+
+- matlab (> 2022b but slightly older version probably work)
+- Parallel computering toolbox
+- Optimization toolbox
+- [yaml](https://kr.mathworks.com/matlabcentral/fileexchange/106765-yaml?s_tid=FX_rc3_behav)
+
 ## Brief guideline for the reading material
 
 - Forward solver: Supplemental materials of [1] and [8] - [9]

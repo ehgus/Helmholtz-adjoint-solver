@@ -4,9 +4,12 @@ addpath(genpath(dirname));%% set the simulation parameters
 %% 1 optical parameters
 radius = 1.5;
 params.NA=1.2;
-params.RI_bg=1.336;
-RI_sp=1.4609;
+database = RefractiveIndexDB();
 params.wavelength=0.532;
+H2O = database.material("main","H2O","Daimon-20.0C");
+SiO2 = database.material("main","SiO2","Malitson");
+params.RI_bg=H2O(params.wavelength);
+RI_sp=SiO2(params.wavelength);
 params.resolution=[1 1 1]*params.wavelength/8/params.NA;
 params.vector_simulation=true;
 params.use_abbe_sine=true;
