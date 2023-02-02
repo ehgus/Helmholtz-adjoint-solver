@@ -19,7 +19,7 @@ params.size= [161 161 81];
 
 % forward solver parameters - CBS
 forward_MULTI_test1_params=params;
-forward_MULTI_test1_params.use_GPU=false;
+forward_MULTI_test1_params.use_GPU=true;
 forward_MULTI_test1_params.return_3D=true;
 forward_MULTI_test1_params.return_reflection=true;
 forward_MULTI_test1_params.boundary_thickness=[0 0 6];%[1 1 2];

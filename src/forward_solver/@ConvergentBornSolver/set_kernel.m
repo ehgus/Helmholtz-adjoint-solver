@@ -1,5 +1,5 @@
 function set_kernel(h)
-    Nsize = size(h.RI);
+    Nsize = size(h.V);
     warning('off','all');
     h.utility = derive_utility(h, Nsize); % the utility for the space with border
     warning('on','all');
@@ -9,7 +9,7 @@ function set_kernel(h)
         error('set iterations_number to either a positive or negative value');
     elseif h.iterations_number<0
         step = abs(2*(2*pi*h.utility.k0_nm)/h.eps_imag);
-        Bornmax_opt = ceil(norm(size(h.RI,1:3).*h.resolution) / step / 2 + 1)*2; % -CHANGED
+        Bornmax_opt = ceil(norm(size(h.V,1:3).*h.resolution) / step / 2 + 1)*2;
         h.Bornmax=Bornmax_opt*abs(h.iterations_number);
     else
         warning(['The best is to set iteration_number to negative values for optimal decision of iteration' newline ...
@@ -27,22 +27,17 @@ function set_kernel(h)
         if all(h.boundary_thickness_pixel(1:2)==0)
             x=exp(-1i.*pi.*((1:size(h.V,3))-1)./size(h.V,3)/2);
             x=x./x(floor(size(x,1)/2)+1,floor(size(x,2)/2)+1,floor(size(x,3)/2)+1);
-            h.phase_ramp=reshape(x,1,1,[]);
+            h.phase_ramp={reshape(x,1,1,[])};
         else
-            for j1 = 1:3
-                x=single(exp(-1i.*pi.*((1:size(h.V,j1))-1)./size(h.V,j1)/2));
+            h.phase_ramp=cell(1,3);
+            for dim = 1:3
+                x=single(exp(-1i.*pi.*((1:size(h.V,dim))-1)./size(h.V,dim)/2));
                 x=x./x(floor(size(x,1)/2)+1,floor(size(x,2)/2)+1,floor(size(x,3)/2)+1);
-                if j1 == 1
-                    h.phase_ramp=reshape(x,[],1,1);
-                elseif j1 == 2
-                    h.phase_ramp=h.phase_ramp.*reshape(x,1,[],1);
-                else
-                    h.phase_ramp=h.phase_ramp.*reshape(x,1,1,[]);
-                end
+                h.phase_ramp{dim}=reshape(x,circshift([1 1 length(x)], dim, 2));
             end
         end
     else
-        h.phase_ramp=1;
+        h.phase_ramp=cell(0);
     end
 
     % Helmholtz Green function in Fourier space
@@ -55,7 +50,7 @@ function set_kernel(h)
         shifted_coordinate{3}=shifted_coordinate{3}+h.utility.fourier_space.res{3}/4;
     end
     for i=1:3
-        shifted_coordinate{i}=2*pi*ifftshift(shifted_coordinate{i});
+        shifted_coordinate{i}=2*pi*ifftshift(gather(shifted_coordinate{i}));
     end
 
     if ~h.acyclic
@@ -70,7 +65,7 @@ function set_kernel(h)
     
     h.flip_Greenp = fft_flip(h.Greenp,[1 1 1],false);
     if h.vector_simulation % dyadic Green's function
-        eye_3=single(reshape(eye(3),1,1,1,3,3));
+        eye_3=reshape(eye(3,'single'),1,1,1,3,3);
         rads=...
             shifted_coordinate{1}.*reshape([1 0 0],1,1,1,[])+...
             shifted_coordinate{2}.*reshape([0 1 0],1,1,1,[])+...

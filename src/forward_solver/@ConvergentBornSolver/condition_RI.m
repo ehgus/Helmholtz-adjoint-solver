@@ -2,7 +2,7 @@ function condition_RI(h)
     %add boundary to the RI
     h.create_boundary_RI();
 
-    if size(h.RI,4)>1
+    if size(h.V,4)>1
         S = pagesvd(permute(h.V(:),[4 5 1 2 3]));
         h.eps_imag =  max(abs(S(:)),[],'all').*1.01;
     else

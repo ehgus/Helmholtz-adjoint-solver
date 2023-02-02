@@ -22,10 +22,11 @@ oversampling_rate = 3;
 resolution = resolution/oversampling_rate;
 RI_metalens = imresize3(RI_metalens, oversampling_rate, 'nearest');
 
+database = RefractiveIndexDB();
 PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
 TiO2 = database.material("main","TiO2","Siefke");
 Microchem_SU8_2000 = database.material("other","resists","Microchem SU-8 2000");
-RI_list = cellfun(@(func) func(params.wavelength), {PDMS TiO2 Microchem_SU8_2000});
+RI_list = cellfun(@(func) func(wavelength), {PDMS TiO2 Microchem_SU8_2000});
 thickness_pixel = round([wavelength 0.15]/resolution(3));
 RI_flat = phantom_plate(size(RI_metalens), RI_list, thickness_pixel);
 
