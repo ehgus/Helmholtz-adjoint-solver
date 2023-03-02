@@ -60,9 +60,14 @@ classdef ConvergentBornSolver < ForwardSolver
                 h.RI_xy_size(2)=h.size(2);
             end
             h.expected_RI_size=[h.RI_xy_size(1) h.RI_xy_size(2) h.size(3)];
-            
+            % set ROI
+            h.ROI = [...
+                h.boundary_thickness_pixel(1)+1 h.boundary_thickness_pixel(1)+h.size(1)...
+                h.boundary_thickness_pixel(2)+1 h.boundary_thickness_pixel(2)+h.size(2)...
+                h.boundary_thickness_pixel(3)+1 h.boundary_thickness_pixel(3)+h.size(3)];
             %make the cropped green function (for forward and backward field)
-            h.utility = derive_utility(h, h.size);
+            sim_size = h.size + 2*h.boundary_thickness_pixel;
+            h.utility = derive_utility(h, sim_size);
             h.cyclic_boundary_xy=(all(h.boundary_thickness(1:2)==0) && all(h.expected_RI_size(1:2)==h.size(1:2)));
             
             if h.cyclic_boundary_xy
@@ -104,8 +109,9 @@ classdef ConvergentBornSolver < ForwardSolver
                 free_space_green=circshift(free_space_green,[-h.RI_center(1) -h.RI_center(2) 0]);
                 free_space_green=fftshift(ifftn(ifftshift(free_space_green)));
             end
-            h.kernel_trans=gather(fftshift(fft2(conj(free_space_green))));
-            h.kernel_ref=  gather(fftshift(fft2(free_space_green)));
+            free_space_green = free_space_green(h.ROI(1):h.ROI(2), h.ROI(3):h.ROI(4), h.ROI(5):h.ROI(6));
+            h.kernel_trans=gather(fft2(conj(free_space_green)));
+            h.kernel_ref=  gather(fft2(free_space_green));
         end
         
     end

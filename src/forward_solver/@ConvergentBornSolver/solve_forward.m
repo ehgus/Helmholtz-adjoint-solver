@@ -16,5 +16,5 @@ function Field=solve_forward(h,incident_field)
     
     % Evaluate output field
     Field = eval_scattered_field(h,incident_field);
-    Field = Field + incident_field;
-end   
+    Field = Field + gather(incident_field(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6),:));
+end

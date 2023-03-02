@@ -5,11 +5,6 @@ function create_boundary_RI(h)
     pott=RI2potential(h.RI,h.wavelength,h.RI_bg);
     h.V=padarray(pott,h.boundary_thickness_pixel(1:3),'replicate');
     
-    h.ROI = [...
-        h.boundary_thickness_pixel(1)+1 h.boundary_thickness_pixel(1)+old_RI_size(1)...
-        h.boundary_thickness_pixel(2)+1 h.boundary_thickness_pixel(2)+old_RI_size(2)...
-        h.boundary_thickness_pixel(3)+1 h.boundary_thickness_pixel(3)+old_RI_size(3)];
-    
     h.attenuation_mask=cell(0);
     for dim = 1:3
         if h.boundary_thickness_pixel(dim)==0

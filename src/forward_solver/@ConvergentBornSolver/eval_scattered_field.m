@@ -36,11 +36,11 @@ function Field=eval_scattered_field(h,incident_field)
     Field_n = zeros(size_field,array_option{:});
     
     if is_isotropic
-        source = h.V(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6)).*incident_field;
+        source = h.V .* incident_field;
     else % tensor
         source = zeros('like',incident_field);
         for j1 = 1:3
-            source = source + h.V(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6),:,j1) .* incident_field(:,:,:,j1);
+            source = source + h.V(:,:,:,:,j1) .* incident_field(:,:,:,j1);
         end
     end
     source = source + 1i*h.eps_imag * incident_field;
@@ -58,7 +58,7 @@ function Field=eval_scattered_field(h,incident_field)
         
         if jj <= 2 % source
             Field_n(:)=0;
-            psi(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),h.ROI(5):h.ROI(6),:,:) = (1i/h.eps_imag/4)*source;
+            psi(:) = (1i/h.eps_imag/4)*source;
         else % gamma * E
             if is_isotropic
                 psi = h.V .* Field_n;
