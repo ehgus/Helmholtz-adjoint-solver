@@ -1,14 +1,4 @@
-% Metalens simulator for optimized lens
-%
-% [execution guideline]
-% The following script needs mat file having a optimized RI profile
-% A example profile can be acquired after executing "ADJOINT_EXAMPLE.m"
-% After getting the metalens profile, rename "optimized_RI.mat" to "optimized_RI.mat"
-%
-% [Result interpretation]
-% Note that the FDTD result will shows a weak light focus compared to the counterpart of CBS when oversampling_rate = 1
-% It is expected because FDTD does not have enough grid to simulate accurately
-% To get more precise results, you need to increase oversampling rate to at least 3
+% modulated grating simulator
 
 clc, clear;close all
 dirname = fileparts(fileparts(matlab.desktop.editor.getActiveFilename));
@@ -16,28 +6,16 @@ addpath(genpath(dirname));
 
 %% basic optical parameters
 NA=1;
-oversampling_rate = 3;
+oversampling_rate = 2;
 %% load RI profiles
-[RI_metalens, resolution, wavelength] = load_RI('optimized_RI.mat');
+[RI_grating, ~, wavelength] = load_RI('modulated_grating.mat');
+resolution = [0.01 0.01 0.01];
+RI_bg = 1.4;
+RI_grating = padarray(reshape(RI_grating,1,[]),[numel(RI_grating)-1 0 15],'replicate','post');
+RI_grating = padarray(RI_grating,[0 0 10],RI_bg,'pre');
+RI_grating = padarray(RI_grating,[0 0 80],RI_bg,'post');
 resolution = resolution/oversampling_rate;
-RI_metalens = imresize3(RI_metalens, oversampling_rate, 'nearest');
-
-database = RefractiveIndexDB();
-PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
-TiO2 = database.material("main","TiO2","Siefke");
-Microchem_SU8_2000 = database.material("other","resists","Microchem SU-8 2000");
-RI_list = cellfun(@(func) func(wavelength), {PDMS TiO2 Microchem_SU8_2000});
-thickness_pixel = round([wavelength 0.15]/resolution(3));
-RI_flat = phantom_plate(size(RI_metalens), RI_list, thickness_pixel);
-
-RI_homogeneous = zeros(size(RI_metalens),'like',RI_metalens);
-RI_homogeneous(:) = real(PDMS(wavelength));
-
-RI_patterns = struct( ...
-    'metalens', RI_metalens, ...
-    'flat', RI_flat, ...
-    'homogen', RI_homogeneous ...
-);
+RI_grating = imresize3(RI_grating, oversampling_rate, 'nearest');
 
 %% set optical parameters
 
@@ -52,7 +30,7 @@ params.wavelength=wavelength; % [um]
 params.resolution=resolution; % 3D Voxel size [um]
 params.use_abbe_sine=false; % Abbe sine condition according to demagnification condition
 params.vector_simulation=true; % True/false: dyadic/scalar Green's function
-params.size=size(RI_metalens); % 3D volume grid
+params.size=size(RI_grating); % 3D volume grid
 params.return_3D = true;
 params.verbose = false;
 
@@ -62,23 +40,18 @@ field_generator_params.illumination_number=1;
 field_generator_params.illumination_style='circle';
 input_field=FieldGenerator.get_field(field_generator_params);
 
-%% solve the foward problem
-RI_type = 'metalens';
-RI = RI_patterns.(RI_type);
-
 %1-1 CBS parameters
 params_CBS=params;
 params_CBS.use_GPU=true;
 params_CBS.boundary_thickness = [0 0 5];
-[minRI, maxRI] = bounds(RI,"all");
-params_CBS.RI_bg = real(PDMS(wavelength));
+params_CBS.RI_bg = RI_bg;
 params_CBS.max_attenuation_width = [0 0 0];
 
 %1-2 FDTD parameters
 params_FDTD=params;
 params_FDTD.use_GPU=false;
 params_FDTD.boundary_thickness = [0 0 0];
-params_FDTD.RI_bg=real(PDMS(wavelength));
+params_FDTD.RI_bg= RI_bg;
 params_FDTD.is_plane_wave = true;
 params_FDTD.PML_boundary = [false false true];
 params_FDTD.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
@@ -92,13 +65,13 @@ solver_num = length(forward_solver_list);
 E_field_rst = cell(solver_num,1);
 for isolver = 1:solver_num
     forward_solver = forward_solver_list{isolver};
-    save_title = sprintf("%s_pattern_%s_oversample_%d.mat",RI_type, class(forward_solver), oversampling_rate);
+    save_title = sprintf("grating_pattern_%s_oversample_%d.mat",class(forward_solver), oversampling_rate);
     if isfile(save_title)
         load(save_title)
         E_field_rst{isolver} = E_field_3D;
         continue
     end
-    forward_solver.set_RI(RI);
+    forward_solver.set_RI(RI_grating);
     tic;
     [~, ~, E_field_rst{isolver}] = forward_solver.solve(input_field);
     E_field_3D = E_field_rst{isolver};
@@ -130,14 +103,3 @@ plot(scale_z,squeeze(intensity_list{1}(center_RI(1),center_RI(2),:)));
 plot(scale_z,squeeze(intensity_list{2}(center_RI(1),center_RI(2),:)));
 legend('CBS','FDTD')
 ylim([0 max_val]);
-
-% MSE value
-% Set center of phase to be the same
-center_position = floor(size(E_field_rst{1},1:3)/2)+1;
-for i = 1:2
-    center_field = E_field_rst{i}(center_position(1), center_position(2), center_position(3),1);
-    center_field = center_field./abs(center_field);
-    E_field_rst{i} = E_field_rst{i}./center_field;
-end
-MSE_test = mean(abs(E_field_rst{1}-E_field_rst{2}).^2, 'all');
-fprintf("MSE test result: %f\n",MSE_test);
