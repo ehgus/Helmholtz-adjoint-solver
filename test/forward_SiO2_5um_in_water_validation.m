@@ -1,3 +1,5 @@
+% forward validation by simulating 5um SiO2 bead in water
+
 clc, clear;close all
 dirname = fileparts(fileparts(matlab.desktop.editor.getActiveFilename));
 addpath(genpath(dirname));%% set the simulation parameters
