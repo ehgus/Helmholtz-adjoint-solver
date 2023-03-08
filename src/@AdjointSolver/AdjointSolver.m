@@ -74,7 +74,7 @@ classdef AdjointSolver < OpticalSimulation
             h.gradient(:) = h.gradient./RI;
             h.gradient(:) = real(h.nmax-h.nmin)*real(h.gradient)+imag(h.nmax-h.nmin)*imag(h.gradient);
             h.gradient(:) = step_size/2*(h.nmax-h.nmin)/abs(h.nmax-h.nmin)^2*h.gradient;
-            RI_opt(:) = RI - h.gradient;
+            RI_opt(:) = RI + h.gradient;
         end
 
         function RI_opt = post_regularization(h,RI_opt,index)
