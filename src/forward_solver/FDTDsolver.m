@@ -16,6 +16,8 @@ classdef FDTDsolver < ForwardSolver
         % acceleration
         fdtd_temp_dir = fullfile('./FDTD_TEMP');
         lumerical_exe;
+        % interative GUI
+        hide_GUI = true;
     end
     methods (Static)
         function lumerical_exe = find_lumerical_exe()
@@ -181,12 +183,15 @@ classdef FDTDsolver < ForwardSolver
             pml_x = double(h.PML_boundary(1));
             pml_y = double(h.PML_boundary(2));
             pml_z = double(h.PML_boundary(3));
-
+            GUI_option = "";
+            if h.hide_GUI
+                GUI_option = "-nw";
+            end
             save(fullfile(h.fdtd_temp_dir, 'optical.mat'),'lambda','base_index', 'RI', 'resolution', ...
                 'roi', 'return_trans','return_ref','return_vol',...
                 'is_plane_wave','phi','theta','para_pol','ortho_pol','shutoff_min','dt_stability_factor','pml_x','pml_y','pml_z');
             assert(isfile(fullfile(h.fdtd_temp_dir, "lumerical_fdtd_script.lsf")), sprintf("The script you tried to open does not exist on %s", h.fdtd_temp_dir))
-            command = sprintf('cd %s && "%s" -exit -run "lumerical_fdtd_script.lsf"', h.fdtd_temp_dir, h.lumerical_exe);
+            command = sprintf('cd %s && "%s" -exit -run "lumerical_fdtd_script.lsf" %s', h.fdtd_temp_dir, h.lumerical_exe, GUI_option);
             system(command);
 
             % check the result data is still being written
