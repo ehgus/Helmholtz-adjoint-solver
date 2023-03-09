@@ -11,6 +11,21 @@
 - Optimization toolbox
 - [yaml](https://kr.mathworks.com/matlabcentral/fileexchange/106765-yaml?s_tid=FX_rc3_behav)
 
+## installation
+
+[git](https://git-scm.com/downloads) is required to download and call database. Then, type the following commands in powershell(windows) or terminal(linux): 
+
+```bash
+cd "~~~" # type the absolute path of directory to store the repository
+# loading main repository
+git clone https://github.com/ehgus/Helmholtz-adjoint-solver.git
+cd Helmholtz-adjoint-solver
+# loading refractive index database
+git submodule init 
+git submodule update
+```
+You should have matlab and required packages to execute test suites.
+
 ## Brief guideline for the reading material
 
 - Forward solver: Supplemental materials of [1] and [8] - [9]
