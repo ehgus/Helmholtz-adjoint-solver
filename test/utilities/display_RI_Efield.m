@@ -21,7 +21,7 @@ function display_RI_Efield(forward_solver,RI,input_field,figure_name)
     subplot(2,1,2);imagesc(squeeze(angle(relative_complex_trans_field)));title('Phase of transmitted light');
     figure('Name',[figure_name '- intensity map']);orthosliceViewer(intensity_map);title('amplitude in material');colormap gray
     figure('Name',[figure_name '- real RI map']);orthosliceViewer(real(RI));title('RI of material');colormap gray
-    figure('Name',[figure_name '- intensity and RI']);hold on;
+    figure('Name',[figure_name '- E field and RI']);hold on;
     plot(squeeze(real(field_3D(floor(end/2),floor(end/2),:,1))), 'r');
     plot(squeeze(real(RI(floor(end/2),floor(end/2),:))),'b');legend('E field','RI');title('Values along z aixs');
 end
