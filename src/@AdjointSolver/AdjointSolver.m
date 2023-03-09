@@ -34,7 +34,6 @@ classdef AdjointSolver < OpticalSimulation
     methods
         function h=AdjointSolver(options)
             h@OpticalSimulation(options);
-            assert(strcmp(h.mode, "Intensity"),"Transmission mode is not implemented yet")
             spatial_radius = h.spatial_diameter/2;
             pixel_size = fix(h.spatial_diameter./h.forward_solver.resolution);
             x_idx = reshape(linspace(-spatial_radius,spatial_radius,pixel_size(1)),[],1);
@@ -97,6 +96,26 @@ classdef AdjointSolver < OpticalSimulation
             end
             % update
             RI_opt(h.ROI_change) = h.density_map(h.ROI_change)*(h.nmax-h.nmin)+h.nmin;
+        end
+        function options = preprocess_params(obj, options)
+            if obj.mode == "Transmission"
+                diffraction_order = options.diffraction_order;
+                Nsize = obj.forward_solver.size;
+                z_padding = obj.forward_solver.boundary_thickness_pixel(3);
+                Nsize(3) = Nsize(3) + 2*z_padding;
+                % generated index of interest
+                options.x_idx = diffraction_order.x(1) + 1:diffraction_order.x(2) + 1;
+                options.x_idx(options.x_idx<=0) = options.x_idx(options.x_idx<=0) + obj.forward_solver.size(1);
+                options.y_idx = diffraction_order.y(1) + 1:diffraction_order.y(2) + 1;
+                options.y_idx(options.y_idx<=0) = options.y_idx(options.y_idx<=0) + obj.forward_solver.size(2);
+                % refocusing kernel & subpixel correction array
+                x_freq = reshape(diffraction_order.x(1):diffraction_order.x(2),[],1)/(obj.resolution(1)*Nsize(1));
+                y_freq = reshape(diffraction_order.y(1):diffraction_order.y(1),1,[])/(obj.resolution(2)*Nsize(2));
+                kz = 2*pi*sqrt((obj.forward_solver.RI_bg/obj.wavelength)^2 - (x_freq.^2 + y_freq.^2));
+                options.axial_propagation = conj(exp(-1i*obj.resolution(3).*kz.*reshape(1:Nsize(3),1,1,[])));
+                % reshape relative intensity
+                options.relative_intensity = reshape(options.relative_intensity, numel(options.x_idx), numel(options.y_idx), 1, []);
+            end
         end
     end
 end

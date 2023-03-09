@@ -16,6 +16,9 @@ t_np=1;
 s_n=RI_opt;
 x_n=RI_opt;
 
+% preprocess update parameter
+options = h.preprocess_params(options);
+
 % Run!
 
 h.gradient = complex(zeros(size(RI,1:4),'single'));
