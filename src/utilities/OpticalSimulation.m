@@ -7,8 +7,8 @@ classdef (Abstract) OpticalSimulation < handle
         wavelength {mustBePositive} = 1;    %wavelength [um]
         vector_simulation logical = true;   %True/false: Vectorial EM wave or scalar approximated wave
         % scattering object information: set_RI define these properties
-        RI;                                 %Refractive index map: size(RI, 1:3) = number of grids for each axis, size(RI, 4:5) = if isotropic [1, 1] else [3, 3]
-        impedance;                          %wave impedance: size(RI, 1:3) = number of grids for each axis, size(RI, 4:5) = if isotropic [1, 1] else [3, 3]
+        RI = 1;                             %Refractive index map: size(RI, 1:3) = number of grids for each axis, size(RI, 4:5) = if isotropic [1, 1] else [3, 3]
+        impedance = 120*pi;                 %wave impedance: size(RI, 1:3) = number of grids for each axis, size(RI, 4:5) = if isotropic [1, 1] else [3, 3]
         resolution(1,3) = [1 1 1];          %3D Voxel size [um]
         % configuration
         verbose = false;                    %verbose option for narrative report

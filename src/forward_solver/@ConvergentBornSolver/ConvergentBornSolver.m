@@ -27,20 +27,6 @@ classdef ConvergentBornSolver < ForwardSolver
         refocusing_util;
     end
     methods
-        [fields_trans,fields_ref,fields_3D]=solve(h,input_field);
-        Field=solve_forward(h,source);
-
-        matt=padd_RI2conv(h,matt);
-        matt=padd_field2conv(h,matt);
-        matt=crop_conv2field(h,matt);
-        matt=crop_conv2RI(h,matt);
-        matt=crop_field2RI(h,matt);
-
-        set_RI(h,RI);
-        condition_RI(h);
-        create_boundary_RI(h);
-        set_kernel(h);
-
         function h=ConvergentBornSolver(params)
             % make the refocusing to volume field(other variable depend on the max RI and as such are created later).
             h@ForwardSolver(params);

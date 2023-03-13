@@ -74,7 +74,7 @@ classdef FDTDsolver < ForwardSolver
             h.utility=derive_utility(h, Nsize); % the utility for the space with border
             warning('on','all');
         end
-        function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
+        function [fields_trans,fields_ref,fields_3D,Hfields]=solve(h,input_field)
             input_field=single(input_field);
             
             if size(input_field,3)>1 &&~h.vector_simulation
@@ -123,13 +123,18 @@ classdef FDTDsolver < ForwardSolver
             if h.return_3D
                 fields_3D=ones(size(h.RI,1),size(h.RI,2),h.initial_ZP_3,size(input_field,3),size(input_field,4),'single');
             end
+            Hfields=[];
+            if h.return_3D
+                Hfields=ones(size(h.RI,1),size(h.RI,2),h.initial_ZP_3,size(input_field,3),size(input_field,4),'single');
+            end
             
             for field_num=1:size(input_field,4)
-                Field=h.solve_forward(input_field(:,:,:,field_num), source_H(:,:,:,field_num));
+                [Field, Hfield] = h.solve_forward(input_field(:,:,:,field_num), source_H(:,:,:,field_num));
                 %crop and remove near field (3D to 2D field)
                 
                 if h.return_3D
                     fields_3D(:,:,:,:,field_num)=Field;
+                    Hfields(:,:,:,:,field_num)=Hfield;
                 end
                 if h.return_transmission
                     field_trans= squeeze(Field(:,:,end,:));
@@ -153,7 +158,7 @@ classdef FDTDsolver < ForwardSolver
             end
             
         end
-        function Field=solve_forward(h,source,source_H)
+        function [Field, Hfield] = solve_forward(h,source,source_H)
             assert(isequal(size(source,1:2),size(h.RI,1:2)),'Field and RI sizes are not consistent')
             assert(isfolder(h.fdtd_temp_dir), 'FDTD temp folder is not valid')
             %find the main component of the field
@@ -206,6 +211,7 @@ classdef FDTDsolver < ForwardSolver
             load(fullfile(h.fdtd_temp_dir, 'result.mat'),'res_vol');
 
             Field=reshape(res_vol.E,length(res_vol.x),length(res_vol.y),length(res_vol.z),3);
+            Hfield=reshape(res_vol_H.E,length(res_vol_H.x),length(res_vol_H.y),length(res_vol_H.z),3);
             if h.verbose
                 set(gcf,'color','w'), imagesc((abs(squeeze(Field(:,floor(size(Field,2)/2)+1,:))')));axis image; colorbar; axis off;drawnow
                 colormap hot

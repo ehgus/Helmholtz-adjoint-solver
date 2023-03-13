@@ -264,14 +264,16 @@ t_code = now - t_start;
 ? 'Total elapsed time: ' + num2str(t_code/1000) + 's';
 #collect result
 res_vol = 0;
+res_vol_H = 0;
 res_trans = 0;
 res_ref = 0;
 
 if(return_vol){res_vol = getresult("field_profile_vol", "E");}
+if(return_vol){res_vol_H = getresult("field_profile_vol", "H");}
 if(return_trans){res_trans = getresult("field_profile_trans", "E");}
 if(return_ref){res_ref = getresult("field_profile_ref", "E");}
 
 
-matlabsave(filename_save,res_vol,res_trans,res_ref);
+matlabsave(filename_save,res_vol,res_vol_H,res_trans,res_ref);
 
 

@@ -1,4 +1,4 @@
-function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
+function [fields_trans,fields_ref,fields_3D,Hfields]=solve(h,input_field)
     if ~h.use_GPU
         input_field=single(input_field);
     else
@@ -33,12 +33,19 @@ function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
     if h.return_3D
         fields_3D=ones(1+h.ROI(2)-h.ROI(1),1+h.ROI(4)-h.ROI(3),1+h.ROI(6)-h.ROI(5),size(input_field,3),size(input_field,4),'single');
     end
+    Hfields=[];
+    if h.return_3D && h.vector_simulation
+        Hfields=ones(1+h.ROI(2)-h.ROI(1),1+h.ROI(4)-h.ROI(3),1+h.ROI(6)-h.ROI(5),size(input_field,3),size(input_field,4),'single');
+    end
 
     for field_num=1:size(input_field,4)
-        Field=h.solve_forward(input_field(:,:,:,field_num));
+        [Field, Hfield]=h.solve_forward(input_field(:,:,:,field_num));
         %crop and remove near field (3D to 2D field)
         if h.return_3D
             fields_3D(:,:,:,:,field_num)=gather(Field);
+            if h.vector_simulation
+                Hfields(:,:,:,:,field_num)=gather(Hfield);
+            end
         end
         if h.return_transmission || h.return_reflection
             potential = h.V(h.ROI(1):h.ROI(2), h.ROI(3):h.ROI(4), h.ROI(5):h.ROI(6),:,:);
