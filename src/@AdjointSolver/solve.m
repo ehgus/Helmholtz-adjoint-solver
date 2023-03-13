@@ -2,8 +2,6 @@ function RI_opt=solve(h,input_field,RI,options)
 % Adjoint solver targeting PDMS+TiO2+Microchem SU-8 2000 layered material.
 % It is not a universal solver.
 
-assert(mod(size(RI,3),2)==1, 'Length of RI block along z axis should be odd')
-
 % set parameters
 RI_opt=single(RI);
 Figure_of_Merit=zeros(h.itter_max,1);
