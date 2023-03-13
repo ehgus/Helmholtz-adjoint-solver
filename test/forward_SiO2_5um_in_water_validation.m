@@ -20,25 +20,25 @@ params.size= [161 161 81];
 %params.size= [171 171 91];
 
 % forward solver parameters - CBS
-forward_MULTI_test1_params=params;
-forward_MULTI_test1_params.use_GPU=true;
-forward_MULTI_test1_params.return_3D=true;
-forward_MULTI_test1_params.return_reflection=true;
-forward_MULTI_test1_params.boundary_thickness=[0 0 6];%[1 1 2];
-forward_MULTI_test1_params.verbose=false;
-forward_MULTI_test1_params.iterations_number=-1;
+forward_CBS_params=params;
+forward_CBS_params.use_GPU=true;
+forward_CBS_params.return_3D=true;
+forward_CBS_params.return_reflection=true;
+forward_CBS_params.boundary_thickness=[0 0 6];%[1 1 2];
+forward_CBS_params.verbose=false;
+forward_CBS_params.iterations_number=-1;
 
 % forward solver parameters - FDTD
-forward_MULTI_test2_params=params;
-forward_MULTI_test2_params.use_GPU=false;
-forward_MULTI_test2_params.use_cuda=false;
-forward_MULTI_test2_params.return_3D=true;
-forward_MULTI_test2_params.return_reflection=true;
-forward_MULTI_test2_params.verbose=false;
-forward_MULTI_test2_params.boundary_thickness=[0 0 38];
-forward_MULTI_test2_params.iterations_number=-1;
-forward_MULTI_test2_params.is_plane_wave = true;
-forward_MULTI_test2_params.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
+forward_FDTD_params=params;
+forward_FDTD_params.use_GPU=false;
+forward_FDTD_params.use_cuda=false;
+forward_FDTD_params.return_3D=true;
+forward_FDTD_params.return_reflection=true;
+forward_FDTD_params.verbose=false;
+forward_FDTD_params.boundary_thickness=[0 0 38];
+forward_FDTD_params.iterations_number=-1;
+forward_FDTD_params.is_plane_wave = true;
+forward_FDTD_params.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
 
 % forward solver parameters - MIE
 forward_params_Mie=params;
@@ -65,16 +65,16 @@ input_field=FieldGenerator.get_field(field_generator_params);
 
 %% solve the forward problem
 %compute the forward field
-forward_MULTI_test1_solver=ConvergentBornSolver(forward_MULTI_test1_params);
-forward_MULTI_test1_solver.set_RI(RI);
+forward_solver_CBS=ConvergentBornSolver(forward_CBS_params);
+forward_solver_CBS.set_RI(RI);
 tic;
-[field_trans_multi_test1,field_ref_multi_test1,field_3D_multi_test1]=forward_MULTI_test1_solver.solve(input_field);
+[field_trans_CBS,field_ref_CBS,field_CBS,Hfield_CBS]=forward_solver_CBS.solve(input_field);
 toc;
 
-forward_MULTI_test2_solver=FDTDsolver(forward_MULTI_test2_params);
-forward_MULTI_test2_solver.set_RI(RI);
+forward_solver_FDTD=FDTDsolver(forward_FDTD_params);
+forward_solver_FDTD.set_RI(RI);
 tic;
-[field_trans_multi_test2,field_ref_multi_test2,field_3D_multi_test2]=forward_MULTI_test2_solver.solve(input_field);
+[field_trans_FDTD,field_ref_FDTD,field_FDTD,Hfield_FDTD]=forward_solver_FDTD.solve(input_field);
 toc;
 
 %compute the forward field - Mie
@@ -91,42 +91,43 @@ else
 end
 
 %% Draw results
-% field_3D_multi_test1 = field_3D_multi_test1/median(field_3D_multi_test1,'all');
-% field_3D_multi_test2 = field_3D_multi_test2/median(field_3D_multi_test2,'all');
-% field_3D_Mie = field_3D_Mie/median(field_3D_Mie,'all');
-
-[~,field_trans_multi_test1_scalar]=vector2scalarfield(input_field,field_trans_multi_test1);
-[~,field_trans_multi_test2_scalar]=vector2scalarfield(input_field,field_trans_multi_test2);
-[~,field_ref_multi_test1_scalar]=vector2scalarfield(input_field,field_ref_multi_test1);
-[input_field_scalar,field_ref_multi_test2_scalar]=vector2scalarfield(input_field,field_ref_multi_test2);
+[~,field_trans_CBS_scalar]=vector2scalarfield(input_field,field_trans_CBS);
+[~,field_trans_FDTD_scalar]=vector2scalarfield(input_field,field_trans_FDTD);
+[~,field_ref_CBS_scalar]=vector2scalarfield(input_field,field_ref_CBS);
+[input_field_scalar,field_ref_FDTD_scalar]=vector2scalarfield(input_field,field_ref_FDTD);
 input_field_no_zero=input_field_scalar;zero_part_mask=abs(input_field_no_zero)<=0.01.*mean(abs(input_field_no_zero(:)));input_field_no_zero(zero_part_mask)=0.01.*exp(1i.*angle(input_field_no_zero(zero_part_mask)));
 
-disp_amp_multi_test1=squeeze(abs(field_trans_multi_test1_scalar(:,:,:).^2));
-disp_ref_multi_test1=squeeze(abs(field_ref_multi_test1_scalar(:,:,:).^2));
-disp_ang_multi_test1=squeeze(angle(field_trans_multi_test1_scalar(:,:,:)./input_field_no_zero(:,:,:)/field_trans_multi_test1_scalar(1,1,1)));
+amp_CBS=squeeze(abs(field_trans_CBS_scalar(:,:,:).^2));
+ref_CBS=squeeze(abs(field_ref_CBS_scalar(:,:,:).^2));
+ang_CBS=squeeze(angle(field_trans_CBS_scalar(:,:,:)./input_field_no_zero(:,:,:)/field_trans_CBS_scalar(1,1,1)));
 
-disp_amp_multi_test2=squeeze(abs(field_trans_multi_test2_scalar(:,:,:).^2));
-disp_ref_multi_test2=squeeze(abs(field_ref_multi_test2_scalar(:,:,:).^2));
-disp_ang_multi_test2=squeeze(angle(field_trans_multi_test2_scalar(:,:,:)./input_field_no_zero(:,:,:)/field_trans_multi_test2_scalar(1,1,1)));
+amp_FDTD=squeeze(abs(field_trans_FDTD_scalar(:,:,:).^2));
+ref_FDTD=squeeze(abs(field_ref_FDTD_scalar(:,:,:).^2));
+ang_FDTD=squeeze(angle(field_trans_FDTD_scalar(:,:,:)./input_field_no_zero(:,:,:)/field_trans_FDTD_scalar(1,1,1)));
 
+figure('Name','Transmission (Amp): CBS / FDTD');imagesc(cat(2,amp_CBS,amp_FDTD)); colormap gray;
+figure('Name','Transmission (Phase): CBS / FDTD');imagesc(cat(2,ang_CBS,ang_FDTD)); colormap jet;
+figure('Name','Reflection (Amp): CBS / FDTD');imagesc(cat(2,ref_CBS,ref_FDTD)); colormap gray;
 
-figure('Name','Transmission (Amp): CBS / FDTD');imagesc(cat(2,disp_amp_multi_test1,disp_amp_multi_test2)); colormap gray;
-figure('Name','Transmission (Phase): CBS / FDTD');imagesc(cat(2,disp_ang_multi_test1,disp_ang_multi_test2)); colormap jet;
-figure('Name','Reflection (Amp): CBS / FDTD');imagesc(cat(2,disp_ref_multi_test1,disp_ref_multi_test2)); colormap gray;
-
-vert_intensity_1=sum(abs(field_3D_multi_test1(round(end/2),round(end/2),:,:,1)).^2,4);
-vert_intensity_2=sum(abs(field_3D_multi_test2(round(end/2),round(end/2),:,:,1)).^2,4);
-vert_intensity_3=sum(abs(field_3D_Mie(round(end/2),round(end/2),:,:,1)).^2,4);
+intensity_CBS=sum(abs(field_CBS(round(end/2),round(end/2),:,:,1)).^2,4);
+intensity_FDTD=sum(abs(field_FDTD(round(end/2),round(end/2),:,:,1)).^2,4);
+intensity_Mie=sum(abs(field_3D_Mie(round(end/2),round(end/2),:,:,1)).^2,4);
 
 figure('Name','Z-axis intensity profile througth the center of a bead'); hold on;
-plot(squeeze(vert_intensity_1),'.');
-plot(squeeze(vert_intensity_2),'--');
-plot(squeeze(vert_intensity_3),'k');
+plot(squeeze(intensity_CBS),'.');
+plot(squeeze(intensity_FDTD),'--');
+plot(squeeze(intensity_Mie),'k');
 legend('CBS', 'FDTD', 'Mie scattering'), title('Axial intensity')
 %refractive index
-MSE_test1 = mean(abs(field_3D_multi_test1(:,:,:,:,1)-field_3D_Mie).^2, 'all');
-MSE_test2 = mean(abs(field_3D_multi_test2(:,:,:,:,1)-field_3D_Mie).^2, 'all');
+MSE_CBS = mean(abs(field_CBS(:,:,:,:,1)-field_3D_Mie).^2, 'all');
+MSE_FDTD = mean(abs(field_FDTD(:,:,:,:,1)-field_3D_Mie).^2, 'all');
 
 figure('Name','Intensity: CBS / FDTD / Mie scattering');
-orthosliceViewer(abs(cat(2,field_3D_multi_test1(:,:,:,1,1),field_3D_multi_test2(:,:,:,1,1),field_3D_Mie(:,:,:,1,1))).^2);
+orthosliceViewer(abs(cat(2,field_CBS(:,:,:,1,1),field_FDTD(:,:,:,1,1),field_3D_Mie(:,:,:,1,1))).^2);
+colormap parula;
+%H field
+H_intensity_CBS=sum(abs(Hfield_CBS(:,:,:,:,1)).^2,4);
+H_intensity_FDTD=sum(abs(Hfield_FDTD(:,:,:,:,1)).^2,4);
+figure('Name','H field Intensity: CBS / FDTD');
+orthosliceViewer(cat(2,H_intensity_CBS, H_intensity_FDTD));
 colormap parula;

@@ -208,10 +208,10 @@ classdef FDTDsolver < ForwardSolver
             fclose(fid);
             
             %% End of FDTD
-            load(fullfile(h.fdtd_temp_dir, 'result.mat'),'res_vol');
+            load(fullfile(h.fdtd_temp_dir, 'result.mat'),'res_vol','res_vol_H');
 
             Field=reshape(res_vol.E,length(res_vol.x),length(res_vol.y),length(res_vol.z),3);
-            Hfield=reshape(res_vol_H.E,length(res_vol_H.x),length(res_vol_H.y),length(res_vol_H.z),3);
+            Hfield=reshape(res_vol_H.H,length(res_vol_H.x),length(res_vol_H.y),length(res_vol_H.z),3);
             if h.verbose
                 set(gcf,'color','w'), imagesc((abs(squeeze(Field(:,floor(size(Field,2)/2)+1,:))')));axis image; colorbar; axis off;drawnow
                 colormap hot

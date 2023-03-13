@@ -112,7 +112,7 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
     if obj.vector_simulation
         % -i/k_0 * (n_0/impedance_0) * curl(E)
         Hfield = obj.curl_field(Field);
-        Hfield = -1i * (obj.wavelength/2/pi)./(120*pi) .* gather(Hfield(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),obj.ROI(5):obj.ROI(6),:,:));
+        Hfield = -1i * (obj.wavelength/2/pi)/(120*pi) .* gather(Hfield(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),obj.ROI(5):obj.ROI(6),:,:));
     end
     Field = gather(Field(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),obj.ROI(5):obj.ROI(6),:,:));
     obj.V=gather(obj.V);

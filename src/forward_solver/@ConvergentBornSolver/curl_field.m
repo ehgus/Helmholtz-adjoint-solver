@@ -1,6 +1,17 @@
 function rst = curl_field(obj, field)
     % curl operator
-    assert(size(field,4)==3,"The field should be vectorial");
-    [X,Y,Z] = meshgrid(obj.utility.image_space.coor{:});
-    rst = curl(X,Y,Z,field(:,:,:,1),field(:,:,:,2),field(:,:,:,3));
+    rst = zeros(size(field),'like',field);
+    fourier_coord = cellfun(@ifftshift,obj.utility.fourier_space.coor,'UniformOutput',false);
+    for i = 1:3
+        fourier_coord{i} = 2i*pi*fourier_coord{i};
+    end
+    for axis = 1:3
+        cross_fft = fftn(field(:,:,:,axis));
+        ordered_axis = circshift([1,2,3],-axis);
+        rst(:,:,:,ordered_axis(1)) = rst(:,:,:,ordered_axis(1)) +  fourier_coord{ordered_axis(2)} .* cross_fft;
+        rst(:,:,:,ordered_axis(2)) = rst(:,:,:,ordered_axis(2)) -  fourier_coord{ordered_axis(1)} .* cross_fft;
+    end
+    for axis = 1:3
+        rst(:,:,:,axis) = ifftn(rst(:,:,:,axis));
+    end
 end

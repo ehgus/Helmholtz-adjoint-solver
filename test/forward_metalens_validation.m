@@ -90,44 +90,58 @@ forward_solver_list = { ...
 solver_num = length(forward_solver_list);
 
 E_field_rst = cell(solver_num,1);
+H_field_rst = cell(solver_num,1);
+
 for isolver = 1:solver_num
     forward_solver = forward_solver_list{isolver};
     save_title = sprintf("%s_pattern_%s_oversample_%d.mat",RI_type, class(forward_solver), oversampling_rate);
     if isfile(save_title)
         load(save_title)
         E_field_rst{isolver} = E_field_3D;
+        H_field_rst{isolver} = H_field_3D;
         continue
     end
     forward_solver.set_RI(RI);
     tic;
-    [~, ~, E_field_rst{isolver}] = forward_solver.solve(input_field);
-    E_field_3D = E_field_rst{isolver};
+    [~, ~, E_field_rst{isolver}, H_field_rst{isolver}] = forward_solver.solve(input_field);
     toc;
-    save(save_title, 'E_field_3D');
+    E_field_3D = E_field_rst{isolver};
+    H_field_3D = H_field_rst{isolver};
+    save(save_title, 'E_field_3D', 'H_field_3D');
 end
 
 %% draw results
-intensity_list = arrayfun(@(x)(sum(abs(x{1}).^2,4)), E_field_rst,'UniformOutput',false);
-concat_intensity = cat(2,intensity_list{:});
-figure('Name','Intensity: CBS / FDTD');
-orthosliceViewer(concat_intensity);
-colormap parula
-center_RI = round(size(intensity_list{1},1:2)/2);
-scale_xy = (1:size(intensity_list{1},1))*resolution(1);
-scale_z = (1:size(intensity_list{1},3))*resolution(3);
+E_intensity_list = arrayfun(@(x)(sum(abs(x{1}).^2,4)), E_field_rst,'UniformOutput',false);
+H_intensity_list = arrayfun(@(x)(sum(abs(x{1}).^2,4)), H_field_rst,'UniformOutput',false);
+E_concat_intensity = cat(2,E_intensity_list{:});
+H_concat_intensity = cat(2,H_intensity_list{:});
 
-max_val = max(concat_intensity, [], 'all')*1.1; 
+% E intensity 
+figure('Name','|E|^2: CBS / FDTD');
+orthosliceViewer(E_concat_intensity);
+colormap parula
+
+% H intensity
+figure('Name','|H|^2: CBS / FDTD');
+orthosliceViewer(H_concat_intensity);
+colormap parula
+
+center_RI = round(size(E_intensity_list{1},1:2)/2);
+scale_xy = (1:size(E_intensity_list{1},1))*resolution(1);
+scale_z = (1:size(E_intensity_list{1},3))*resolution(3);
+
+max_val = max(E_concat_intensity, [], 'all')*1.1; 
 figure;
 for i = 1:2
     subplot(2,2,i);
-    imagesc(scale_xy, scale_xy, squeeze(intensity_list{i}(center_RI(1),:,:))',[0 max_val]);
+    imagesc(scale_xy, scale_xy, squeeze(E_intensity_list{i}(center_RI(1),:,:))',[0 max_val]);
     xline(center_RI(1),'--yellow');
     colormap parula;
 end
 subplot(2,2,[3 4]);
 hold on;
-plot(scale_z,squeeze(intensity_list{1}(center_RI(1),center_RI(2),:)));
-plot(scale_z,squeeze(intensity_list{2}(center_RI(1),center_RI(2),:)));
+plot(scale_z,squeeze(E_intensity_list{1}(center_RI(1),center_RI(2),:)));
+plot(scale_z,squeeze(E_intensity_list{2}(center_RI(1),center_RI(2),:)));
 legend('CBS','FDTD')
 ylim([0 max_val]);
 
@@ -140,4 +154,7 @@ for i = 1:2
     E_field_rst{i} = E_field_rst{i}./center_field;
 end
 MSE_test = mean(abs(E_field_rst{1}-E_field_rst{2}).^2, 'all');
-fprintf("MSE test result: %f\n",MSE_test);
+fprintf("MSE test result(E): %f\n",MSE_test);
+MSE_test = mean(abs(H_field_rst{1}-H_field_rst{2}).^2, 'all');
+fprintf("MSE test result(H): %f\n",MSE_test);
+
