@@ -113,7 +113,6 @@ classdef ConvergentBornSolver < ForwardSolver
             h.kernel_trans=gather(fft2(conj(free_space_green)));
             h.kernel_ref=  gather(fft2(free_space_green));
         end
-        
     end
 end
 

@@ -119,7 +119,7 @@ set('index',base_index);
 #mesh size
 set('min mesh step',0);
 
-set('mesh type',2);
+set('mesh type',3);
 
 set('define x mesh by',4);
 set('mesh cells x',x_num-1);
