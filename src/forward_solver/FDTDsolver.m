@@ -139,7 +139,7 @@ classdef FDTDsolver < ForwardSolver
                 if h.return_transmission
                     field_trans= squeeze(Field(:,:,end,:));
                     field_trans=fftshift(fft2(ifftshift(field_trans)));
-                    [field_trans] = h.transform_field_2D(field_trans);
+                    field_trans = h.transform_field_2D(field_trans);
                     field_trans=field_trans.*exp(h.utility.refocusing_kernel.*h.resolution(3).*(floor(h.initial_ZP_3/2)+1+h.padding_source-(h.initial_ZP_3+1+h.padding_source)));
                     field_trans=field_trans.*h.utility.NA_circle;%crop to the objective NA
                     field_trans=fftshift(ifft2(ifftshift(field_trans)));
@@ -149,7 +149,7 @@ classdef FDTDsolver < ForwardSolver
                     field_ref= squeeze(Field(:,:,1,:));
                     field_ref=fftshift(fft2(ifftshift(field_ref)));
                     field_ref=field_ref-source_0_3D(:,:,:,field_num).*exp(h.utility.refocusing_kernel.*h.resolution(3).*(+h.padding_source));
-                    [field_ref] = h.transform_field_2D_reflection(field_ref);
+                    field_ref = h.transform_field_2D_reflection(field_ref);
                     field_ref=field_ref.*exp(h.utility.refocusing_kernel.*h.resolution(3).*(-floor(h.initial_ZP_3/2)-1));
                     field_ref=field_ref.*h.utility.NA_circle;%crop to the objective NA
                     field_ref=fftshift(ifft2(ifftshift(field_ref)));

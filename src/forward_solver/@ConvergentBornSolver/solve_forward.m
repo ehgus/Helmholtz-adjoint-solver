@@ -5,11 +5,11 @@ function [Field, Hfield] = solve_forward(obj,incident_field)
     end
     
     % generate incident field
-    incident_field = fftshift(ifft2(ifftshift(incident_field)));
+    incident_field = ifft2(incident_field);
     incident_field = obj.padd_field2conv(incident_field);
-    incident_field = fft2(ifftshift(incident_field));
+    incident_field = fft2(incident_field);
     incident_field = reshape(incident_field, [size(incident_field,1),size(incident_field,2),1,size(incident_field,3)]).*obj.refocusing_util;
-    incident_field = fftshift(ifft2(incident_field));
+    incident_field = ifft2(incident_field);
     incident_field = obj.crop_conv2RI(incident_field);
     if obj.vector_simulation
         incident_field_h = -1i * (obj.wavelength/2/pi)/(120*pi) * obj.curl_field(incident_field);
