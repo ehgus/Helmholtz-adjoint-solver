@@ -33,7 +33,7 @@ classdef (Abstract) ForwardSolver < OpticalSimulation
                 fft_Field_2pol=fft_Field_2pol.*filter;
             end
             if Nsize(3)==2
-                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(Nsize, obj.RI_bg, obj.wavelength, obj.resolution);
+                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(h.utility);
                 
                 fft_Field_2pol=fft_Field_2pol.*K_mask;
                 
@@ -64,7 +64,7 @@ classdef (Abstract) ForwardSolver < OpticalSimulation
                     error('Near field has three polarisation');
                 end
                 
-                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(Nsize, obj.RI_bg, obj.wavelength, obj.resolution);
+                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(h.utility);
                 
                 fft_Field_3pol=fft_Field_3pol.*K_mask;
                 
@@ -90,7 +90,7 @@ classdef (Abstract) ForwardSolver < OpticalSimulation
             end
             if size(fft_Field_3pol,3)>1
                 assert(Nsize(3)==3, 'Near field has three polarisation')
-                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(Nsize, obj.RI_bg, obj.wavelength,obj.resolution);
+                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(h.utility);
                 
                 ewald_TanVec(:,:,3)=-ewald_TanVec(:,:,3);%because reflection invers k3
                 
@@ -120,42 +120,32 @@ classdef (Abstract) ForwardSolver < OpticalSimulation
     end
 end
 
-function [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(Nsize,n_m,lambda,dx)
-    k0_nm =n_m/lambda; % [um-1, spatial wavenumber @ medium ]
-    kres=1./dx(1:2)./Nsize(1:2);
-    K_1=single(kres(1)/k0_nm*(-floor(Nsize(1)/2):Nsize(1)-floor(Nsize(1)/2)-1));%normalised to diffraction limit k1
-    K_2=single(kres(2)/k0_nm*(-floor(Nsize(2)/2):Nsize(1)-floor(Nsize(2)/2)-1));%normalised to diffraction limit k2
-    K_1=reshape(K_1,[],1);
-    K_2=reshape(K_2,1,[]);
-    K_3=sqrt(max(0,1-(K_1.^2+K_2.^2)));
-    K_mask = K_3~=0;
+function [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(utility)
+    % utility to convert (r, theta) -> (x,y,z)
+    K_1=utility.fourier_space.coor{1};
+    K_2=utility.fourier_space.coor{2};
+    K_3=utility.k3;
+    K_mask = K_3 > 0;
+    Nsize = utility.size;
+    % need to consider k0_nm coefficient 
+    Radial_2D =    zeros(Nsize(1),Nsize(2),2,'single');
+    Perp_2D =      zeros(Nsize(1),Nsize(2),2,'single');
+    Radial_3D =    zeros(Nsize(1),Nsize(2),3,'single');
+    ewald_TanVec = zeros(Nsize(1),Nsize(2),3,'single');
+    norm_rad=utility.fourier_space.coorxy;
 
-    Radial_2D=zeros(Nsize(1),Nsize(2),2,'single');
-    Perp_2D=zeros(Nsize(1),Nsize(2),2,'single');
-    norm_rad=sqrt(K_1.^2+K_2.^2);
-
-    temp1=K_1./norm_rad;
-    temp2=K_2./norm_rad;
-    temp1(norm_rad==0)=1;
-    temp2(norm_rad==0)=0;
-
-    Radial_2D(:,:,1)=temp1;
-    Radial_2D(:,:,2)=temp2;
-    clear temp1;
-    clear temp2;
+    Radial_2D(:,:,1)=K_1./norm_rad;
+    Radial_2D(:,:,2)=K_2./norm_rad;
+    Radial_2D(K_1 == 0,K_2 == 0,:) = [1 0]; % define the center of radial
 
     Perp_2D(:,:,1)=Radial_2D(:,:,2);
     Perp_2D(:,:,2)=-Radial_2D(:,:,1);
 
-    Radial_3D=zeros(Nsize(1),Nsize(2),3,'single');
-    norm_sph=sqrt(K_1.^2+K_2.^2+K_3.^2);
-    Radial_3D(:,:,1)=K_1./norm_sph;
-    Radial_3D(:,:,2)=K_2./norm_sph;
-    Radial_3D(:,:,3)=K_3./norm_sph;
+    Radial_3D(:,:,1)=K_1/utility.k0_nm.*K_mask;
+    Radial_3D(:,:,2)=K_2/utility.k0_nm.*K_mask;
+    Radial_3D(:,:,3)=K_3/utility.k0_nm.*K_mask;
 
     ewald_TanProj=sum(Radial_3D(:,:,1:2).*Radial_2D,3);
-    ewald_TanVec=zeros(Nsize(1),Nsize(2),3,'single');
-
     ewald_TanVec(:,:,1:2)=Radial_2D(:,:,:);
     ewald_TanVec=ewald_TanVec-ewald_TanProj.*Radial_3D;
     ewald_TanVec_norm=sqrt(sum(ewald_TanVec.^2,3));

@@ -6,26 +6,23 @@ if nargin<2
 end
 %image space / fourier space coordinate information
 utility=struct('image_space',[],'fourier_space',[]);
-
+utility.size = params.size;
 utility.image_space = struct;
 utility.image_space.res = num2cell(params.resolution);
-utility.image_space.size = num2cell(params.size);
 utility.image_space.coor = cell(1,3);
 
 utility.fourier_space = struct;
 utility.fourier_space.res = num2cell(1./(params.resolution.*params.size));
-utility.fourier_space.size = num2cell(params.size);
 utility.fourier_space.coor = cell(1,3);
 
 space_type_list = {'image_space','fourier_space'};
 for space_type_idx = 1:2
     space_type = space_type_list{space_type_idx};
     space_res = utility.(space_type).res;
-    space_size = utility.(space_type).size;
     for dim = 1:3
-        coor_axis = single(ceil(-space_size{dim}/2):ceil(space_size{dim}/2-1));
+        coor_axis = single(ceil(-utility.size(dim)/2):ceil(utility.size(dim)/2-1));
         coor_axis = coor_axis*space_res{dim};
-        coor_axis = reshape(coor_axis, circshift([1 1 space_size{dim}],dim));
+        coor_axis = reshape(coor_axis, circshift([1 1 utility.size(dim)],dim));
         if use_gpu
             coor_axis = gpuArray(coor_axis);
         end
