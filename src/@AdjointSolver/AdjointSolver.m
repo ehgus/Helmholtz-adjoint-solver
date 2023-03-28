@@ -99,22 +99,18 @@ classdef AdjointSolver < OpticalSimulation
         end
         function options = preprocess_params(obj, options)
             if obj.mode == "Transmission"
-                diffraction_order = options.diffraction_order;
-                Nsize = obj.forward_solver.size;
-                z_padding = obj.forward_solver.boundary_thickness_pixel(3);
-                Nsize(3) = Nsize(3) + 2*z_padding;
-                % generated index of interest
-                options.x_idx = diffraction_order.x(1) + 1:diffraction_order.x(2) + 1;
-                options.x_idx(options.x_idx<=0) = options.x_idx(options.x_idx<=0) + obj.forward_solver.size(1);
-                options.y_idx = diffraction_order.y(1) + 1:diffraction_order.y(2) + 1;
-                options.y_idx(options.y_idx<=0) = options.y_idx(options.y_idx<=0) + obj.forward_solver.size(2);
-                % refocusing kernel & subpixel correction array
-                x_freq = reshape(diffraction_order.x(1):diffraction_order.x(2),[],1)/(obj.resolution(1)*Nsize(1));
-                y_freq = reshape(diffraction_order.y(1):diffraction_order.y(1),1,[])/(obj.resolution(2)*Nsize(2));
-                kz = 2*pi*sqrt((obj.forward_solver.RI_bg/obj.wavelength)^2 - (x_freq.^2 + y_freq.^2));
-                options.axial_propagation = conj(exp(-1i*obj.resolution(3).*kz.*reshape(1:Nsize(3),1,1,[])));
-                % reshape relative intensity
-                options.relative_intensity = reshape(options.relative_intensity, numel(options.x_idx), numel(options.y_idx), 1, []);
+                % required: bunch of EM wave profiles on a plane, ROI
+                % phase is not important
+                assert(isfield(options, 'surface_vector'));
+                assert(isfield(options, 'target_transmission'));
+                assert(isfield(options, 'E_field')); % {x,y,z,direction}
+                assert(isfield(options, 'H_field')); % {x,y,z,direction}: B_field is consistant with E_field
+                options.normal_transmission = zeros(1,length(options.E_field));
+                for i = 1:length(options.E_field)
+                    normal_S = 2 * real(poynting_vector(options.E_field{i}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:), ...
+                        options.H_field{i}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)));
+                    options.normal_transmission(i) = sum(normal_S .* options.surface_vector,'all');
+                end
             end
         end
     end

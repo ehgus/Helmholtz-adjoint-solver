@@ -59,7 +59,7 @@ classdef ConvergentBornSolver < ForwardSolver
             if h.cyclic_boundary_xy
                 h.refocusing_util=exp(h.utility.refocusing_kernel.*h.utility.image_space.coor{3});
                 h.refocusing_util=ifftshift(gather(h.refocusing_util));
-                shifted_NA_circle = ifftshift(h.utility.NA_circle);
+                shifted_NA_circle = ifftshift(h.utility.fourier_space.coorxy  < h.utility.k0_nm);
                 h.refocusing_util= h.refocusing_util.*shifted_NA_circle;
                 free_space_green=h.refocusing_util/(4i*pi);
                 free_space_green=free_space_green.*shifted_NA_circle./(ifftshift(h.utility.k3)+~shifted_NA_circle);

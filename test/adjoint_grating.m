@@ -30,10 +30,10 @@ field_generator_params.illumination_style='circle';%'circle';%'random';%'mesh'
 input_field=FieldGenerator.get_field(field_generator_params);
 
 %3 phantom RI generation parameter
-material_RI = [min_RI min_RI min_RI];
+material_RI = [min_RI max_RI min_RI];
 thickness_pixel = [0.25 0.15]/params.resolution(1); % 350 um, 150 um, ...
 RI = phantom_plate(params.size, material_RI, thickness_pixel);
-RI(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))) = RI(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))) + rand([1 101],'single')*(max_RI-min_RI);
+RI(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))) = RI(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))) + rand([1 101],'single')*(min_RI-max_RI);
 
 
 %% forward solver
@@ -67,24 +67,75 @@ adjoint_params.averaging_filter = [true false true];
 
 adjoint_solver = AdjointSolver(adjoint_params);
 %Adjoint field parameter
-diffraction_order = struct;
-diffraction_order.x = [0 0];
-diffraction_order.y = [-3 3];
-x_length = diffraction_order.x(2) - diffraction_order.x(1) + 1;
-y_length = diffraction_order.y(2) - diffraction_order.y(1) + 1;
-relative_intensity = NaN(x_length, y_length, 3);
-relative_intensity(floor(x_length/2)+1,:, 1) = sqrt([0 0 0.17 0 0.64 0 0.17]);
-ROI_field = [1, 1, sum(thickness_pixel)+1; size(RI)];
 options = struct;
-options.relative_intensity = relative_intensity;
-options.diffraction_order = diffraction_order;
-options.ROI_field = ROI_field;
+options.target_transmission = [0 0 0.17 0 0.64 0 0.17];
+options.surface_vector = zeros(adjoint_params.size(1),adjoint_params.size(2),adjoint_params.size(3),3);
+options.surface_vector(:,:,end,:) = options.surface_vector(:,:,end,:) + reshape([0 0 1],1,1,1,3);
+options.E_field = cell(1,length(options.target_transmission));
+options.H_field = cell(1,length(options.target_transmission));
+
+Nsize = forward_solver.size + 2*forward_solver.boundary_thickness_pixel;
+Nsize(4) = 3;
+for i = 1:length(options.E_field)
+    illum_order = i - 3;
+    sin_theta = (illum_order-1)*params.wavelength/(params.size(2)*params.resolution(2)*forward_solver.RI_bg);
+    cos_theta = sqrt(1-sin_theta^2);
+    if illum_order < 1
+        illum_order = illum_order + Nsize(1);
+    end
+    incident_field = zeros(Nsize([1 2 4]));
+    incident_field(illum_order,1,1) = prod(Nsize(1:2));
+    incident_field = ifft2(incident_field);
+    incident_field = forward_solver.padd_field2conv(incident_field);
+    incident_field = fft2(incident_field);
+    incident_field = reshape(incident_field, [size(incident_field,1),size(incident_field,2),1,size(incident_field,3)]).*forward_solver.refocusing_util;
+    incident_field = ifft2(incident_field);
+    options.E_field{i} = forward_solver.crop_conv2RI(incident_field);
+    % H field
+    
+    %method 2
+    incident_field_H = zeros(Nsize,'like',incident_field);
+    incident_field_H(:,:,:,2) = incident_field(:,:,:,1) * cos_theta;
+    incident_field_H(:,:,:,3) = incident_field(:,:,:,1) * sin_theta;
+    incident_field_H = forward_solver.RI_bg/(120*pi)*incident_field_H;
+    options.H_field{i} = incident_field_H;
+    %method 1
+%     incident_field_H = zeros(Nsize([1 2 4]));
+%     incident_field_H(illum_order,1,2) = prod(Nsize(1:2)) * cos_theta;
+%     incident_field_H(illum_order,1,3) = prod(Nsize(1:2)) * sin_theta;
+%     incident_field_H = params.RI_bg/(120*pi)*incident_field_H;
+%     incident_field_H = ifft2(incident_field_H);
+%     incident_field_H = forward_solver.padd_field2conv(incident_field_H);
+%     incident_field_H = fft2(incident_field_H);
+%     incident_field_H = reshape(incident_field_H, [size(incident_field_H,1),size(incident_field_H,2),1,size(incident_field_H,3)]).*forward_solver.refocusing_util;
+%     incident_field_H = ifft2(incident_field_H);
+%     options.H_field{i} = forward_solver.crop_conv2RI(incident_field_H);
+    options.H_field{i} = -1i * (forward_solver.wavelength/2/pi)/(120*pi) * forward_solver.curl_field(options.E_field{i});
+end
 
 % Execute the optimization code
 RI_optimized=adjoint_solver.solve(input_field,RI,options);
 
 % Configuration for optimized metamaterial
 display_RI_Efield(forward_solver,RI_optimized,input_field,'after optimization')
+%% deocmposition test
+field = 0.17*options.E_field{3} + 0.64*options.E_field{5} + 0.17*options.E_field{7};
+Hfield = 0.17*options.H_field{3} + 0.64*options.H_field{5} + 0.17*options.H_field{7};
+% same as Hfield = -1i * (forward_solver.wavelength/2/pi)/(120*pi) * forward_solver.curl_field(field);
+relative_transmission = zeros(1,7);
+relative_transmission_ref = zeros(1,7);
+for i = 1:7
+    eigen_S = poynting_vector(field, options.H_field{i}) + poynting_vector(conj(options.E_field{i}), conj(Hfield));
+    relative_transmission(i) = sum(eigen_S(:,:,forward_solver.ROI(6),3),'all');
+    eigen_S_ref = 2*real(poynting_vector(options.E_field{i}, options.H_field{i}));
+    %eigen_S_ref = eigen_S_ref(forward_solver.ROI(1):forward_solver.ROI(2),forward_solver.ROI(3):forward_solver.ROI(4),forward_solver.ROI(5):forward_solver.ROI(6),:);
+    relative_transmission_ref(i) = sum(eigen_S_ref(:,:,forward_solver.ROI(6),3),'all');
+    disp(eigen_S_ref(2,2,2,2)/eigen_S_ref(2,2,2,3))
+end
+disp(abs(relative_transmission./relative_transmission_ref));
+
+
+
 %% compare with the result from adjoint FDTD solver
 RI_grating_CBS = RI_optimized(1,:,thickness_pixel(1)+1);
 [RI_grating, ~, ~] = load_RI('modulated_grating.mat');

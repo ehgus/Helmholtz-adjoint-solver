@@ -1,10 +1,7 @@
 function rst = curl_field(obj, field)
     % curl operator
     rst = zeros(size(field),'like',field);
-    fourier_coord = cellfun(@ifftshift,obj.utility.fourier_space.coor,'UniformOutput',false);
-    for i = 1:3
-        fourier_coord{i} = 2i*pi*fourier_coord{i};
-    end
+    fourier_coord = cellfun(@(x) 2i*pi*ifftshift(x),obj.utility.fourier_space.coor,'UniformOutput',false);
     for axis = 1:3
         cross_fft = fftn(field(:,:,:,axis));
         ordered_axis = circshift([1,2,3],-axis);
