@@ -26,7 +26,8 @@ function [Field, FoM] =solve_adjoint(obj,conjugate_Efield, conjugate_Hfield, opt
                     + poynting_vector(conj(options.E_field{i}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)), conjugate_Hfield);
             relative_transmission(i) = mean(sum(eigen_S(:,:,end-10:end,3),1:2)./options.normal_transmission{i},'all');
         end
-        adjoint_source_weight = (abs(relative_transmission).^2 - options.target_transmission).*(relative_transmission/abs(relative_transmission));
+        adjoint_source_weight = (abs(relative_transmission).^2 - options.target_transmission).*(relative_transmission./abs(relative_transmission));
+        disp(abs(relative_transmission).^2)
         for i = 1:length(options.E_field)
             adjoint_field = adjoint_field - 1i * conj(options.E_field{i}* adjoint_source_weight(i));
         end

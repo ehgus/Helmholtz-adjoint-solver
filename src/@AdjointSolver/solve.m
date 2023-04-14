@@ -27,9 +27,7 @@ end
 gradient_full_size(5) = size(input_field,4);
 h.gradient_full = complex(zeros(gradient_full_size,'single'));
 isRItensor = size(RI,4) == 3;
-if h.verbose
-    figure;
-end
+
 for ii=1:h.itter_max
     display(['Iteration: ' num2str(ii)]);
     tic;
