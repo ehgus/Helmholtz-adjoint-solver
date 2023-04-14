@@ -23,16 +23,15 @@ function [Field, FoM] =solve_adjoint(obj,conjugate_Efield, conjugate_Hfield, opt
         relative_transmission = zeros(1,length(options.E_field));
         for i = 1:length(options.E_field)
             eigen_S = poynting_vector(conj(conjugate_Efield), options.H_field{i}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)) ...
-                   +  poynting_vector(conj(options.E_field{i}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)), conjugate_Hfield);
-            relative_transmission(i) = sum(eigen_S .* options.surface_vector,'all');
+                    + poynting_vector(conj(options.E_field{i}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)), conjugate_Hfield);
+            relative_transmission(i) = mean(sum(eigen_S(:,:,end-10:end,3),1:2)./options.normal_transmission{i},'all');
         end
-        relative_transmission = relative_transmission./options.normal_transmission;
         adjoint_source_weight = (abs(relative_transmission).^2 - options.target_transmission).*(relative_transmission/abs(relative_transmission));
         for i = 1:length(options.E_field)
-            adjoint_field = adjoint_field + conj(options.E_field{i})*1i* adjoint_source_weight(i);
+            adjoint_field = adjoint_field - 1i * conj(options.E_field{i}* adjoint_source_weight(i));
         end
         % figure of merit
-        FoM = -mean(abs(adjoint_source_weight).^2,'all');
+        FoM = mean(abs(adjoint_source_weight).^2,'all');
     end
     % Evaluate output field
     Field = obj.forward_solver.eval_scattered_field(adjoint_field);

@@ -6,9 +6,9 @@ addpath(genpath(dirname));
 
 %% basic optical parameters
 NA=1;
-oversampling_rate = 2;
-%% load RI profiles
-[RI_grating, ~, wavelength] = load_RI('modulated_grating.mat');
+oversampling_rate = 1;
+% load RI profiles
+[RI_grating, ~, wavelength] = load_RI(fullfile(fileparts(matlab.desktop.editor.getActiveFilename),'modulated_grating.mat'));
 resolution = [0.01 0.01 0.01];
 RI_bg = 1.4;
 RI_grating = padarray(reshape(RI_grating,1,[]),[numel(RI_grating)-1 0 15],'replicate','post');
@@ -43,9 +43,12 @@ input_field=FieldGenerator.get_field(field_generator_params);
 %1-1 CBS parameters
 params_CBS=params;
 params_CBS.use_GPU=true;
-params_CBS.boundary_thickness = [0 0 5];
+params_CBS.boundary_thickness = [0 0 15];
+params_CBS.field_attenuation = [0 0 15];
+params_CBS.field_attenuation_sharpness = 1;
+params_CBS.potential_attenuation = [0 0 4];
+params_CBS.potential_attenuation_sharpness = 1;
 params_CBS.RI_bg = RI_bg;
-params_CBS.max_attenuation_width = [0 0 0];
 
 %1-2 FDTD parameters
 params_FDTD=params;
@@ -63,20 +66,23 @@ forward_solver_list = { ...
 solver_num = length(forward_solver_list);
 
 E_field_rst = cell(solver_num,1);
+H_field_rst = cell(solver_num,1);
 for isolver = 1:solver_num
     forward_solver = forward_solver_list{isolver};
     save_title = sprintf("grating_pattern_%s_oversample_%d.mat",class(forward_solver), oversampling_rate);
     if isfile(save_title)
         load(save_title)
         E_field_rst{isolver} = E_field_3D;
+        H_field_rst{isolver} = H_field_3D;
         continue
     end
     forward_solver.set_RI(RI_grating);
     tic;
-    [~, ~, E_field_rst{isolver}] = forward_solver.solve(input_field);
+    [~, ~, E_field_rst{isolver}, H_field_rst{isolver}] = forward_solver.solve(input_field);
     E_field_3D = E_field_rst{isolver};
+    H_field_3D = H_field_rst{isolver};
     toc;
-    save(save_title, 'E_field_3D');
+    save(save_title, 'E_field_3D','H_field_3D');
 end
 
 %% draw results
@@ -103,3 +109,15 @@ plot(scale_z,squeeze(intensity_list{1}(center_RI(1),center_RI(2),:)));
 plot(scale_z,squeeze(intensity_list{2}(center_RI(1),center_RI(2),:)));
 legend('CBS','FDTD')
 ylim([0 max_val]);
+%H field
+H_intensity_list = arrayfun(@(x)(sum(abs(x{1}(:,:,:,3)).^2,4)), H_field_rst,'UniformOutput',false);
+figure('Name','H field Intensity: CBS / FDTD');
+orthosliceViewer(cat(2,H_intensity_list{1}, H_intensity_list{2}));
+colormap parula;
+%% H field for each axis
+H_intensity_diff=abs(abs(H_field_rst{2})-abs(H_field_rst{1}));
+for axis = 1:3
+    disp(num2str(median(H_intensity_diff(:,:,:,axis),'all')))
+end
+orthosliceViewer(cat(2,H_intensity_diff(:,:,:,1),H_intensity_diff(:,:,:,2),H_intensity_diff(:,:,:,3)));
+colormap parula;

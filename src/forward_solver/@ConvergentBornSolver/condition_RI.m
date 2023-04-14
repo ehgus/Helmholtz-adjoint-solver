@@ -21,13 +21,15 @@ function condition_RI(h)
     % apply edge filter
     % See appendix B of "Ultra-thin boundary layer for high-accuracy simulation of light propagation"
     for dim = 1:3
-        thickness = h.boundary_thickness_pixel(dim);
-        L = min(thickness, h.max_attenuation_width_pixel(dim));
+        max_L = h.boundary_thickness_pixel(dim);
+        L = min(max_L, h.potential_attenuation_pixel(dim));
         if L == 0
             continue
         end
-        window = ((1:L) - 0.21)/(L + 0.66);
-        filter =[zeros(1, thickness-L) window ones(1, h.ROI(2*(dim-1)+2) - h.ROI(2*(dim-1)+1) + 1) flip(window) zeros(1, thickness-L)];
+        window = (tanh(linspace(-3,3,L))/tanh(3)-tanh(-3))/2;
+        window = window*h.potential_attenuation_sharpness + (1-h.potential_attenuation_sharpness);
+
+        filter =[window ones(1, h.ROI(2*(dim-1)+2) - h.ROI(2*(dim-1)+1) + 1 + 2*(max_L-L)) flip(window)];
         filter = reshape(filter, circshift([1, 1, length(filter)], [0 dim]));
         h.V = h.V .* filter;
     end

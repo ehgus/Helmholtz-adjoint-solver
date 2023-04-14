@@ -16,7 +16,7 @@ addpath(genpath(dirname));
 
 %% basic optical parameters
 NA=1;
-oversampling_rate = 3;
+oversampling_rate = 2;
 %% load RI profiles
 [RI_metalens, resolution, wavelength] = load_RI('optimized_RI.mat');
 resolution = resolution/oversampling_rate;
@@ -26,9 +26,11 @@ database = RefractiveIndexDB();
 PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
 TiO2 = database.material("main","TiO2","Siefke");
 Microchem_SU8_2000 = database.material("other","resists","Microchem SU-8 2000");
-RI_list = cellfun(@(func) func(wavelength), {PDMS TiO2 Microchem_SU8_2000});
-thickness_pixel = round([wavelength 0.15]/resolution(3));
+RI_list = cellfun(@(func) func(wavelength), {PDMS TiO2 PDMS});
+
+thickness_pixel = round([wavelength 0.30]/resolution(3));
 RI_flat = phantom_plate(size(RI_metalens), RI_list, thickness_pixel);
+RI_flat = real(RI_flat);
 
 RI_homogeneous = zeros(size(RI_metalens),'like',RI_metalens);
 RI_homogeneous(:) = real(PDMS(wavelength));
@@ -62,17 +64,20 @@ field_generator_params.illumination_number=1;
 field_generator_params.illumination_style='circle';
 input_field=FieldGenerator.get_field(field_generator_params);
 
-%% solve the foward problem
-RI_type = 'metalens';
+%% solve the forward problem
+RI_type = 'flat';
 RI = RI_patterns.(RI_type);
 
 %1-1 CBS parameters
 params_CBS=params;
 params_CBS.use_GPU=true;
 params_CBS.boundary_thickness = [0 0 5];
+params_CBS.field_attenuation = [0 0 4];
+params_CBS.field_attenuation_sharpness = 0.5;
+params_CBS.potential_attenuation = [0 0 2];
+params_CBS.potential_attenuation_sharpness = 1;
 [minRI, maxRI] = bounds(RI,"all");
-params_CBS.RI_bg = real(PDMS(wavelength));
-params_CBS.max_attenuation_width = [0 0 0];
+params_CBS.RI_bg = real(minRI);
 
 %1-2 FDTD parameters
 params_FDTD=params;
@@ -109,7 +114,6 @@ for isolver = 1:solver_num
     H_field_3D = H_field_rst{isolver};
     save(save_title, 'E_field_3D', 'H_field_3D');
 end
-
 %% draw results
 E_intensity_list = arrayfun(@(x)(sum(abs(x{1}).^2,4)), E_field_rst,'UniformOutput',false);
 H_intensity_list = arrayfun(@(x)(sum(abs(x{1}).^2,4)), H_field_rst,'UniformOutput',false);
@@ -130,7 +134,7 @@ center_RI = round(size(E_intensity_list{1},1:2)/2);
 scale_xy = (1:size(E_intensity_list{1},1))*resolution(1);
 scale_z = (1:size(E_intensity_list{1},3))*resolution(3);
 
-max_val = max(E_concat_intensity, [], 'all')*1.1; 
+max_val = max(E_concat_intensity, [], 'all')*1.1;
 figure;
 for i = 1:2
     subplot(2,2,i);

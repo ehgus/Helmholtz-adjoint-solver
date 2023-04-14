@@ -5,14 +5,30 @@ function [Field, Hfield] = solve_forward(obj,incident_field)
     end
     
     % generate incident field
+    fourier_coord = cellfun(@(x) 2*pi*ifftshift(x),obj.utility.fourier_space.coor,'UniformOutput',false);
+    fourier_coord_k3 = 2*pi*ifftshift(obj.utility.k3); 
+
     incident_field = ifft2(incident_field);
     incident_field = obj.padd_field2conv(incident_field);
     incident_field = fft2(incident_field);
+    if obj.vector_simulation
+        incident_field_h = zeros(size(incident_field),'like',incident_field);
+        incident_field_h(:,:,1) = fourier_coord{2} .* incident_field(:,:,3) - fourier_coord_k3 .* incident_field(:,:,2);
+        incident_field_h(:,:,2) = fourier_coord_k3 .* incident_field(:,:,1) - fourier_coord{1} .* incident_field(:,:,3);
+        incident_field_h(:,:,3) = fourier_coord{1} .* incident_field(:,:,2) - fourier_coord{2} .* incident_field(:,:,1);
+        incident_field_h = incident_field_h./(2*pi*obj.utility.nm/obj.wavelength);
+    end
     incident_field = reshape(incident_field, [size(incident_field,1),size(incident_field,2),1,size(incident_field,3)]).*obj.refocusing_util;
     incident_field = ifft2(incident_field);
     incident_field = obj.crop_conv2RI(incident_field);
     if obj.vector_simulation
-        incident_field_h = -1i * (obj.wavelength/2/pi)/(120*pi) * obj.curl_field(incident_field);
+        incident_field_h = reshape(incident_field_h, [size(incident_field_h,1),size(incident_field_h,2),1,size(incident_field_h,3)]).*obj.refocusing_util;
+        incident_field_h = ifft2(incident_field_h);
+        incident_field_h = obj.crop_conv2RI(incident_field_h);
+    end
+    impedance = 377/obj.utility.nm;
+    if obj.vector_simulation
+        incident_field_h = incident_field_h/impedance;
     end
 
     obj.refocusing_util=gather(obj.refocusing_util);

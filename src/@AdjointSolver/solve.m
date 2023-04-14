@@ -5,8 +5,6 @@ function RI_opt=solve(h,input_field,RI,options)
 % set parameters
 RI_opt=single(RI);
 Figure_of_Merit=zeros(h.itter_max,1);
-alpha=1/h.step;
-
 
 t_n=0;
 t_np=1;
@@ -48,7 +46,7 @@ for ii=1:h.itter_max
     t_n=t_np;
     t_np=(1+sqrt(1+4*t_n^2))/2;
     % maximization (negative sign)
-    s_n=h.update_gradient(s_n,RI_opt,1/alpha);
+    s_n=h.update_gradient(s_n,RI_opt,h.step);
     s_n=gather(s_n);
 
     RI_opt=s_n+(t_n-1)/t_np*(s_n-x_n);
@@ -58,6 +56,7 @@ for ii=1:h.itter_max
     h.RI_inter=RI_opt;
     toc;
     if h.verbose
+        figure(201)
         plot(Figure_of_Merit(1:ii));
         drawnow;
     end

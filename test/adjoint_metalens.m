@@ -45,6 +45,7 @@ forward_params=params;
 forward_params.use_GPU=true;
 forward_params.return_3D = true;
 forward_params.boundary_thickness = [0 0 4];
+forward_params.field_attenuation_thickness = [0 0 4];
 [minRI, maxRI] = bounds(RI,"all");
 forward_params.RI_bg = double(sqrt((minRI^2+maxRI^2)/2));
 

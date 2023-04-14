@@ -25,6 +25,7 @@ forward_CBS_params.use_GPU=true;
 forward_CBS_params.return_3D=true;
 forward_CBS_params.return_reflection=true;
 forward_CBS_params.boundary_thickness=[0 0 6];%[1 1 2];
+forward_CBS_params.field_attenuation=[0 0 6];
 forward_CBS_params.verbose=false;
 forward_CBS_params.iterations_number=-1;
 
@@ -71,12 +72,17 @@ tic;
 [field_trans_CBS,field_ref_CBS,field_CBS,Hfield_CBS]=forward_solver_CBS.solve(input_field);
 toc;
 
-forward_solver_FDTD=FDTDsolver(forward_FDTD_params);
-forward_solver_FDTD.set_RI(RI);
-tic;
-[field_trans_FDTD,field_ref_FDTD,field_FDTD,Hfield_FDTD]=forward_solver_FDTD.solve(input_field);
-toc;
-
+fdtd_file = "SiO2_5um_bead_FDTD.mat";
+if isfile(fdtd_file)
+    load field_trans_FDTD field_ref_FDTD field_FDTD Hfield_FDTD
+else
+    forward_solver_FDTD=FDTDsolver(forward_FDTD_params);
+    forward_solver_FDTD.set_RI(RI);
+    tic;
+    [field_trans_FDTD,field_ref_FDTD,field_FDTD,Hfield_FDTD]=forward_solver_FDTD.solve(input_field);
+    toc;
+    save(fdtd_file,'field_trans_FDTD','field_ref_FDTD','field_FDTD','Hfield_FDTD');
+end
 %compute the forward field - Mie
 mie_field_filename = fullfile(dirname,'test/Mie_field.mat');
 if isfile(mie_field_filename)
@@ -130,4 +136,11 @@ H_intensity_CBS=sum(abs(Hfield_CBS(:,:,:,:,1)).^2,4);
 H_intensity_FDTD=sum(abs(Hfield_FDTD(:,:,:,:,1)).^2,4);
 figure('Name','H field Intensity: CBS / FDTD');
 orthosliceViewer(cat(2,H_intensity_CBS, H_intensity_FDTD));
+colormap parula;
+%% H field along z axis
+H_intensity_diff=abs(abs(Hfield_CBS)-abs(Hfield_FDTD))./abs(Hfield_CBS);
+for axis = 1:3
+    disp(num2str(median(H_intensity_diff(:,:,:,axis),'all')))
+end
+orthosliceViewer(cat(2,H_intensity_diff(:,:,:,1),H_intensity_diff(:,:,:,2),H_intensity_diff(:,:,:,3)));
 colormap parula;

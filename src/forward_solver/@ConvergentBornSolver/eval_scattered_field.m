@@ -19,8 +19,8 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         array_option = {'single'};
     end
     obj.V = array_func(obj.V);
-    for idx = 1:length(obj.attenuation_mask)
-        obj.attenuation_mask{idx}=array_func(obj.attenuation_mask{idx});
+    for idx = 1:length(obj.field_attenuation_mask)
+        obj.field_attenuation_mask{idx}=array_func(obj.field_attenuation_mask{idx});
     end
     Greenp = array_func(obj.Greenp);
     flip_Greenp = array_func(obj.flip_Greenp);
@@ -44,7 +44,10 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         end
     end
     source = source + 1i*obj.eps_imag * incident_field;
-    
+    % Attenuation
+    for idx = 1:length(obj.field_attenuation_mask)
+        source=source.*obj.field_attenuation_mask{idx};
+    end
     for jj = 1:obj.Bornmax
         if obj.acyclic
             %flip the relevant quantities
@@ -70,7 +73,7 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
             psi = (1i/obj.eps_imag)*psi;
             Field_n = Field_n - psi;
         end
-        % G x
+        % multiply G
         for idx = 1:length(phase_ramp)
             psi = psi.*phase_ramp{idx};
         end
@@ -88,7 +91,7 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         for idx = 1:length(phase_ramp)
             PSI = PSI.*conj_phase_ramp{idx};
         end
-        
+        % multiply V
         if is_isotropic
             Field_n = Field_n + obj.V .* PSI;
         else
@@ -97,8 +100,8 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
             end
         end
         % Attenuation
-        for idx = 1:length(obj.attenuation_mask)
-            Field_n=Field_n.*obj.attenuation_mask{idx};
+        for idx = 1:length(obj.field_attenuation_mask)
+            Field_n=Field_n.*obj.field_attenuation_mask{idx};
         end
         % add the fields to the total field
         if jj==3
@@ -108,13 +111,16 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         if jj==2
             Field_n = Field;
         end
+%         figure(101)
+%         imagesc(squeeze(gather(abs(Field(1,:,:,1)))))
+%         drawnow
     end
     if obj.vector_simulation
         % -i/k_0 * (n_0/impedance_0) * curl(E)
         Hfield = obj.curl_field(Field);
-        Hfield = -1i * (obj.wavelength/2/pi)/(120*pi) .* gather(Hfield(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),obj.ROI(5):obj.ROI(6),:,:));
+        Hfield = -1i * obj.wavelength/(2*pi*377) .* gather(Hfield(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),obj.ROI(5):obj.ROI(6),:,:));
     end
     Field = gather(Field(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),obj.ROI(5):obj.ROI(6),:,:));
     obj.V=gather(obj.V);
-    obj.attenuation_mask=gather(obj.attenuation_mask);
+    obj.field_attenuation_mask=gather(obj.field_attenuation_mask);
 end
