@@ -3,19 +3,24 @@ classdef ConvergentBornSolver < ForwardSolver
         % scattering object w/ boundary
         V;
         expected_RI_size;
-        boundary_thickness_pixel;
-        boundary_thickness = [6 6 6];
-        boundary_sharpness = 1;
-        max_attenuation_width = [0 0 0];
-        max_attenuation_width_pixel;
+        % grid size
         RI_xy_size = [0 0 0];
         size;
         RI_center=[0 0];
-        attenuation_mask;
-        phase_ramp;
+        % boundary condition
+        boundary_thickness = [0 0 0];
+        boundary_thickness_pixel;
+        field_attenuation = [0 0 0];
+        field_attenuation_pixel;
+        field_attenuation_sharpness = 1;
+        field_attenuation_mask;
+        potential_attenuation = [0 0 0];
+        potential_attenuation_pixel;
+        potential_attenuation_sharpness = 1;
         ROI;
+        % CBS simulation option
         Bornmax;
-        % FDTD option
+        phase_ramp;
         cyclic_boundary_xy;
         acyclic logical = true;
         Greenp;
@@ -31,14 +36,13 @@ classdef ConvergentBornSolver < ForwardSolver
             % make the refocusing to volume field(other variable depend on the max RI and as such are created later).
             h@ForwardSolver(params);
             % check boundary thickness
-            boundary_thickness = h.boundary_thickness;
-            attenuation_width = h.max_attenuation_width;
-            if length(boundary_thickness) == 1
-                h.boundary_thickness = ones(1,3) * boundary_thickness;
+            if length(h.boundary_thickness) == 1
+                h.boundary_thickness = ones(1,3) * h.boundary_thickness;
             end
             assert(length(h.boundary_thickness) == 3, 'boundary_thickness should be either a 3-size vector or a scalar')
             h.boundary_thickness_pixel = double(round((h.boundary_thickness*h.wavelength/abs(h.RI_bg))./(h.resolution.*2)));
-            h.max_attenuation_width_pixel = double(round((attenuation_width*h.wavelength/abs(h.RI_bg))./(h.resolution.*2)));
+            h.field_attenuation_pixel = double(round((h.field_attenuation*h.wavelength/abs(h.RI_bg))./(h.resolution.*2)));
+            h.potential_attenuation_pixel = double(round((h.potential_attenuation*h.wavelength/abs(h.RI_bg))./(h.resolution.*2)));
             if h.RI_xy_size(1)==0
                 h.RI_xy_size(1)=h.size(1);
             end
@@ -51,6 +55,21 @@ classdef ConvergentBornSolver < ForwardSolver
                 h.boundary_thickness_pixel(1)+1 h.boundary_thickness_pixel(1)+h.size(1)...
                 h.boundary_thickness_pixel(2)+1 h.boundary_thickness_pixel(2)+h.size(2)...
                 h.boundary_thickness_pixel(3)+1 h.boundary_thickness_pixel(3)+h.size(3)];
+            % set field_attenuation_mask
+            h.field_attenuation_mask=cell(0);
+            for dim = 1:3
+                max_L = h.boundary_thickness_pixel(dim);
+                L = min(max_L, h.field_attenuation_pixel(dim));
+                roi_region = h.ROI(2*(dim-1)+2) - h.ROI(2*(dim-1)+1) + 1 + 2*max_L;
+                if h.boundary_thickness_pixel(dim)==0
+                    continue;
+                end
+                %window = (tanh(linspace(-3,3,L))/tanh(3)-tanh(-3))/2;
+                %window = window*h.field_attenuation_sharpness + (1-h.field_attenuation_sharpness);
+                %x = [window ones(1, h.ROI(2*(dim-1)+2) - h.ROI(2*(dim-1)+1) + 1 + 2*(max_L-L)) flip(window)];
+                x = tukeywin(roi_region, 2*L/roi_region);
+                h.field_attenuation_mask{end+1} = reshape(x,circshift([1 1 length(x)],dim,2));
+            end
             %make the cropped green function (for forward and backward field)
             sim_size = h.size + 2*h.boundary_thickness_pixel;
             h.utility = derive_utility(h, sim_size);
@@ -59,7 +78,7 @@ classdef ConvergentBornSolver < ForwardSolver
             if h.cyclic_boundary_xy
                 h.refocusing_util=exp(h.utility.refocusing_kernel.*h.utility.image_space.coor{3});
                 h.refocusing_util=ifftshift(gather(h.refocusing_util));
-                shifted_NA_circle = ifftshift(h.utility.NA_circle);
+                shifted_NA_circle = ifftshift(h.utility.fourier_space.coorxy  < h.utility.k0_nm);
                 h.refocusing_util= h.refocusing_util.*shifted_NA_circle;
                 free_space_green=h.refocusing_util/(4i*pi);
                 free_space_green=free_space_green.*shifted_NA_circle./(ifftshift(h.utility.k3)+~shifted_NA_circle);

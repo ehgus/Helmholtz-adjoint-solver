@@ -1,60 +1,40 @@
-function [Field, FoM] =solve_adjoint(h,conjugate_field, options)
+function [Field, FoM] =solve_adjoint(obj,conjugate_Efield, conjugate_Hfield, options)
+    % minimize FoM
     % Generate adjoint source and calculate adjoint field
-    if (h.forward_solver.use_GPU)
-        conjugate_field = gpuArray(conjugate_field);
+    if (obj.forward_solver.use_GPU)
+        conjugate_Efield = gpuArray(conjugate_Efield);
     end
     % pre-allocate empty array
-    Nsize = h.forward_solver.size + 2 * h.forward_solver.boundary_thickness_pixel;
-    if h.forward_solver.vector_simulation
+    Nsize = obj.forward_solver.size + 2 * obj.forward_solver.boundary_thickness_pixel;
+    if obj.forward_solver.vector_simulation
         Nsize(4) = 3;
     end
-    if h.forward_solver.use_GPU
+    if obj.forward_solver.use_GPU
         adjoint_field = zeros(Nsize,'single','gpuArray');
     else
         adjoint_field = zeros(Nsize,'single');
     end
-    if h.mode == "Intensity"
-        FoM = - sum(abs(conjugate_field).^2.*options.intensity_weight,'all') / numel(conjugate_field);
-        adjoint_field(h.forward_solver.ROI(1):h.forward_solver.ROI(2),h.forward_solver.ROI(3):h.forward_solver.ROI(4),h.forward_solver.ROI(5):h.forward_solver.ROI(6),:) = - conjugate_field.*options.intensity_weight;
-    elseif h.mode == "Transmission"
+    if obj.mode == "Intensity"
+        FoM = - sum(abs(conjugate_Efield).^2.*options.intensity_weight,'all') / numel(conjugate_Efield);
+        adjoint_field(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:) = conjugate_Efield.*options.intensity_weight;
+    elseif obj.mode == "Transmission"
         % Calculate transmission rate of plane wave
         % relative intensity: Matrix of relative intensity
-        %   - NaN: do not consider in calculation
-        %   - value: desired phase and intensity
-        % diffraction_order: the range of diffraction order of interest
-        %   - diffraction_order.x: the range of diffraction order of interest in x axis
-        %   - diffraction_order.y: the range of diffraction order of interest in y axis
-        % ROI_field: area that will decompose field
-        ROI_field = options.ROI_field;
-        field_interest = conjugate_field(ROI_field(1):ROI_field(2), ROI_field(3):ROI_field(4), ROI_field(5):ROI_field(6), :);
-        field_interest = ifft2(field_interest);
-        Nsize = size(conjugate_field);
-        z_padding = h.forward_solver.boundary_thickness_pixel(3);
-        Nsize(3) = Nsize(3) + 2*z_padding;
-        % find ROI of field
-        x_idx = options.x_idx;
-        y_idx = options.y_idx;
-        field_of_range = field_interest(x_idx, y_idx, :, :);
-        % calculate transmission profile
-        % kx^2 + ky^2 + kz^2 = k^2 = (2pi*n/wavelength)^2
-        % axial_propagation  = exp(1i*kz*z) = exp(1i*kz*dz*n)
-        axial_propagation = options.axial_propagation;
-        field_of_range = field_of_range .* axial_propagation(:,:,z_padding+ROI_field(5):z_padding+ROI_field(6));
-        %subpixel correction is requried: future
-        sub_pixel_phase = exp(-1i .* reshape(1:Nsize(3),1,1,[]) .* angle(mean(field_of_range(:,:,2:end,:)./field_of_range(:,:,1:end-1,:),3)));
-        field_of_range = field_of_range.*sub_pixel_phase(:,:,z_padding+ROI_field(5):z_padding+ROI_field(6),:);
-        % get value
-        transmission_profile = sum(field_of_range, 3)/size(field_of_range, 3);
-        phase = exp(1i * angle(transmission_profile));
-        % generate adjoint source
-        transmission_profile = options.relative_intensity.*phase - transmission_profile;
-        transmission_profile(isnan(transmission_profile)) = 0;
-        adjoint_field(x_idx, y_idx, :, :) = transmission_profile.*conj(axial_propagation.*sub_pixel_phase);
-        adjoint_field = fft2(adjoint_field);
+        relative_transmission = zeros(1,length(options.E_field));
+        for i = 1:length(options.E_field)
+            eigen_S = poynting_vector(conj(conjugate_Efield), options.H_field{i}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)) ...
+                    + poynting_vector(conj(options.E_field{i}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)), conjugate_Hfield);
+            relative_transmission(i) = mean(sum(eigen_S(:,:,end-10:end,3),1:2)./options.normal_transmission{i},'all');
+        end
+        adjoint_source_weight = (abs(relative_transmission).^2 - options.target_transmission).*(relative_transmission./abs(relative_transmission));
+        disp(abs(relative_transmission).^2)
+        for i = 1:length(options.E_field)
+            adjoint_field = adjoint_field - 1i * conj(options.E_field{i}* adjoint_source_weight(i));
+        end
         % figure of merit
-        FoM = sum(abs(transmission_profile).^2,'all');
+        FoM = mean(abs(adjoint_source_weight).^2,'all');
     end
     % Evaluate output field
-    Field = h.forward_solver.eval_scattered_field(adjoint_field);
-    Field = Field + gather(adjoint_field(h.forward_solver.ROI(1):h.forward_solver.ROI(2),h.forward_solver.ROI(3):h.forward_solver.ROI(4),h.forward_solver.ROI(5):h.forward_solver.ROI(6),:));
+    Field = obj.forward_solver.eval_scattered_field(adjoint_field);
+    Field = Field + gather(adjoint_field(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:));
 end

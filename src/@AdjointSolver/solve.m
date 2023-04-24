@@ -5,8 +5,6 @@ function RI_opt=solve(h,input_field,RI,options)
 % set parameters
 RI_opt=single(RI);
 Figure_of_Merit=zeros(h.itter_max,1);
-alpha=1/h.step;
-
 
 t_n=0;
 t_np=1;
@@ -29,17 +27,15 @@ end
 gradient_full_size(5) = size(input_field,4);
 h.gradient_full = complex(zeros(gradient_full_size,'single'));
 isRItensor = size(RI,4) == 3;
-if h.verbose
-    figure;
-end
+
 for ii=1:h.itter_max
     display(['Iteration: ' num2str(ii)]);
     tic;
     
     % Calculated gradient RI based on intensity mode
     h.forward_solver.set_RI(RI_opt);
-    [~,~,E_old]=h.forward_solver.solve(input_field);
-    [E_adj, Figure_of_Merit(ii)]=h.solve_adjoint(conj(E_old),options);
+    [~,~,E_old, H_old]=h.forward_solver.solve(input_field);
+    [E_adj, Figure_of_Merit(ii)]=h.solve_adjoint(conj(E_old),conj(H_old),options);
 
     h.get_gradient(E_adj,E_old,isRItensor);
     
@@ -48,7 +44,7 @@ for ii=1:h.itter_max
     t_n=t_np;
     t_np=(1+sqrt(1+4*t_n^2))/2;
     % maximization (negative sign)
-    s_n=h.update_gradient(s_n,RI_opt,1/alpha);
+    s_n=h.update_gradient(s_n,RI_opt,h.step);
     s_n=gather(s_n);
 
     RI_opt=s_n+(t_n-1)/t_np*(s_n-x_n);
@@ -58,6 +54,7 @@ for ii=1:h.itter_max
     h.RI_inter=RI_opt;
     toc;
     if h.verbose
+        figure(201)
         plot(Figure_of_Merit(1:ii));
         drawnow;
     end
