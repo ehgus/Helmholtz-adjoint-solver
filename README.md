@@ -9,6 +9,7 @@
 - matlab (> 2022b but slightly older version probably work)
 - Parallel computering toolbox
 - Optimization toolbox
+- Signal Processing toolbox
 - [yaml](https://kr.mathworks.com/matlabcentral/fileexchange/106765-yaml?s_tid=FX_rc3_behav)
 
 ## installation
