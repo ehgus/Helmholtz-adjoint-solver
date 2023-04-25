@@ -16,7 +16,7 @@ function [Field, FoM] =solve_adjoint(obj,conjugate_Efield, conjugate_Hfield, opt
     end
     if obj.mode == "Intensity"
         FoM = - sum(abs(conjugate_Efield).^2.*options.intensity_weight,'all') / numel(conjugate_Efield);
-        adjoint_field(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:) = conjugate_Efield.*options.intensity_weight;
+        adjoint_field(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:) = -conjugate_Efield.*options.intensity_weight;
     elseif obj.mode == "Transmission"
         % Calculate transmission rate of plane wave
         % relative intensity: Matrix of relative intensity

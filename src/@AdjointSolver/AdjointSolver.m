@@ -23,7 +23,7 @@ classdef AdjointSolver < OpticalSimulation
         % lithography uncertainty & resolution
         binarization_step = 100;
         spatial_diameter = 1;
-        spatial_filtering_count = 3;
+        spatial_filter_range = [1 Inf];
         spatial_filter;  % no need to be initialized
         averaging_filter = [false false false]; 
 
@@ -34,14 +34,19 @@ classdef AdjointSolver < OpticalSimulation
     methods
         function h=AdjointSolver(options)
             h@OpticalSimulation(options);
-            spatial_radius = h.spatial_diameter/2;
             pixel_size = fix(h.spatial_diameter./h.forward_solver.resolution);
-            x_idx = reshape(linspace(-spatial_radius,spatial_radius,pixel_size(1)),[],1);
-            y_idx = reshape(linspace(-spatial_radius,spatial_radius,pixel_size(2)),1,[]);
-            h.spatial_filter = spatial_radius - sqrt(x_idx.^2+y_idx.^2);
-            h.spatial_filter(h.spatial_filter < 0) = 0;
-            assert(sum(h.spatial_filter,'all') >0, 'The spatial_diameter should be more larger');
-            h.spatial_filter = h.spatial_filter/sum(h.spatial_filter,'all');
+            % gaussian spatial filtering
+            x_idx = linspace(-h.spatial_diameter,h.spatial_diameter,pixel_size(1));
+            y_idx = linspace(-h.spatial_diameter,h.spatial_diameter,pixel_size(2));
+            x_idx = reshape(x_idx,[],1); 
+            y_idx = reshape(y_idx,1,[]); 
+            h.spatial_filter = exp(-(x_idx.^2+y_idx.^2)/(2*h.spatial_diameter^2));
+            if length(h.spatial_filter) > 1
+                h.spatial_filter = h.spatial_filter/sum(h.spatial_filter,'all');
+            else
+                h.spatial_filter = 1;
+                warning('The spatial_diameter should be more larger than the resolution');
+            end
         end
 
         function get_gradient(h,E_adj,E_old,isRItensor)
@@ -65,26 +70,28 @@ classdef AdjointSolver < OpticalSimulation
             h.gradient(~h.ROI_change) = 0;
         end
 
-        function RI_opt = update_gradient(h,RI_opt,RI,step_size)
+        function RI_opt = update_gradient(h,RI_opt,RI,step_size, index)
             % update gradient based on the density-based 
             % (RI + RI_gradient)^2 ~ V + gradient => RI_gradient = gradient/(2RI)
             % TO project the RI_gradient on density,
             % RI_porjected_gradient = inner_product(RI_gradient,unit_RI_vector)*unit_RI_vector
             h.gradient(:) = h.gradient./RI;
-            h.gradient(:) = real(h.nmax-h.nmin)*real(h.gradient)+imag(h.nmax-h.nmin)*imag(h.gradient);
+            h.density_map(:) = real(h.nmax-h.nmin)*real(h.gradient)+imag(h.nmax-h.nmin)*imag(h.gradient);
+            % adaptive spatial filtering
+            if h.spatial_filter_range(1) < index && index < h.spatial_filter_range(2)
+                h.density_map(:) = cconv2(h.density_map,h.spatial_filter);
+                h.gradient(h.ROI_change) = h.density_map(h.ROI_change);
+            end
             h.gradient(:) = step_size/2*(h.nmax-h.nmin)/abs(h.nmax-h.nmin)^2*h.gradient;
             RI_opt(:) = RI + h.gradient;
         end
 
         function RI_opt = post_regularization(h,RI_opt,index)
-            h.density_map(:) = real(RI_opt-h.nmin)/real(h.nmax-h.nmin); 
+            h.density_map(h.ROI_change) = real(RI_opt(h.ROI_change)-h.nmin)/real(h.nmax-h.nmin); 
             % Min, Max regularization
             h.density_map(h.density_map > 1) = 1;
             h.density_map(h.density_map < 0) = 0;
-            % adaptive spatial filtering
-            if index +h.spatial_filtering_count > h.itter_max
-                h.density_map(:) = cconv2(h.density_map,h.spatial_filter);
-            end
+
             % adaptive binarization
             beta = h.steepness*fix(index/h.binarization_step);
             if beta > h.steepness/2

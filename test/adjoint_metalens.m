@@ -1,26 +1,48 @@
 clc, clear;
-% load all functions
 dirname = fileparts(fileparts(matlab.desktop.editor.getActiveFilename));
 addpath(genpath(dirname));
 
-%% set the simulation parameters
+%% Basic optical parameters
 
-%0 gpu accelerator
-target_gpu_device=1;
-gpu_device=gpuDevice(target_gpu_device);
-MULTI_GPU=false; % Use Multiple GPU?
+% user-defined optical parameter
+use_GPU = true; % accelerator option
+
+NA = 1;             % numerical aperature
+wavelength = 0.355; % unit: micron
+resolution = 0.025;  % unit: micron
+diameter = 3;       % unit: micron
+focal_length = 1; % unit: micron
+z_padding = 0.5;    % padding along z direction
+substrate_type = 'SU8';  % substrate type: 'SU8' or 'air'
+verbose = false;
+
+% refractive index profile
+database = RefractiveIndexDB();
+if strcmp(substrate_type,'SU8')
+    substrate = database.material("other","resists","Microchem SU-8 2000");
+    plate_thickness = 0.15;
+elseif strcmp(substrate_type, 'air')
+    substrate = @(x)1;
+    plate_thickness = 0.35;
+else
+    error(['The substrate "' substrate_type '" is not supported'])
+end
+PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
+TiO2 = database.material("main","TiO2","Siefke");
+RI_list = cellfun(@(func) func(wavelength), {PDMS TiO2 substrate});
+thickness_pixel = round([wavelength plate_thickness (focal_length + z_padding)]/resolution);
+diameter_pixel = ceil(diameter/resolution);
+RImap = phantom_plate([diameter_pixel diameter_pixel sum(thickness_pixel)], RI_list, thickness_pixel);
 
 %1 optical parameters
-params.NA=1; % Numerical aperture
-params.wavelength=0.355; % [um]
-database = RefractiveIndexDB();
-H2O = database.material("main","H2O","Daimon-20.0C");
-
-params.RI_bg=H2O(params.wavelength); % Background RI
-params.resolution=[1 1 1]*params.wavelength/10/params.NA; % 3D Voxel size [um]
-params.use_abbe_sine=false; % Abbe sine condition according to demagnification condition
-params.vector_simulation=true; % True/false: dyadic/scalar Green's function
-params.size=[81 81 81]; % 3D volume grid
+params.NA=NA;                   % Numerical aperture
+params.wavelength=wavelength;   % unit: micron
+[minRI, maxRI] = bounds(RI_list);
+params.RI_bg=minRI;            % Background RI
+params.resolution=ones(1,3) * resolution;         % 3D Voxel size [um]
+params.use_abbe_sine=false;     % Abbe sine condition according to demagnification condition
+params.vector_simulation=true;  % True/false: dyadic/scalar Green's function
+params.size=size(RImap);        % 3D volume grid
 
 %2 incident field parameters
 field_generator_params=params;
@@ -29,61 +51,65 @@ field_generator_params.illumination_style='circle';%'circle';%'random';%'mesh'
 % create the incident field
 input_field=FieldGenerator.get_field(field_generator_params);
 
-%3 phantom RI generation parameter
-PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
-TiO2 = database.material("main","TiO2","Siefke");
-Microchem_SU8_2000 = database.material("other","resists","Microchem SU-8 2000");
-RI_list = cellfun(@(func) func(params.wavelength), {PDMS TiO2 Microchem_SU8_2000});
-thickness_pixel = round([params.wavelength 0.15]/params.resolution(3));
-RI = phantom_plate(params.size, RI_list, thickness_pixel);
+%% Forward solver
 
-%% Test: Forward solver
-% It displays results of light propagation along the target material
-
-%forward solver parameters
 forward_params=params;
-forward_params.use_GPU=true;
+forward_params.use_GPU=use_GPU;
 forward_params.return_3D = true;
 forward_params.boundary_thickness = [0 0 4];
-forward_params.field_attenuation_thickness = [0 0 4];
-[minRI, maxRI] = bounds(RI,"all");
+forward_params.field_attenuation = [0 0 4];
+forward_params.field_attenuation_sharpness = 0.5;
 forward_params.RI_bg = double(sqrt((minRI^2+maxRI^2)/2));
 
 %compute the forward field using convergent Born series
 forward_solver=ConvergentBornSolver(forward_params);
-forward_solver.set_RI(RI);
+forward_solver.set_RI(RImap);
 
 % Configuration for bulk material
-display_RI_Efield(forward_solver,RI,input_field,'before optimization')
+if verbose
+    display_RI_Efield(forward_solver,RImap,input_field,'before optimization')
+end
 %% Adjoint method
-simulation_size = [81 81];
-assert(all(simulation_size <= params.size(1:2)), 'simulation must be smaller than RI map');
-ROI_change_xy = padarray(ones(simulation_size, 'logical'),floor((params.size(1:2)-simulation_size)/2), false, 'pre');
-ROI_change_xy = padarray(ROI_change_xy,ceil((params.size(1:2)-simulation_size)/2), false, 'post');
+x_pixel_coord = transpose((1:size(RImap,1))-diameter_pixel/2);
+y_pixel_coord = (1:size(RImap,2))-diameter_pixel/2;
+ROI_change_xy = x_pixel_coord.^2 + y_pixel_coord.^2 < diameter_pixel^2/4;
+ROI_change = and(real(RImap) > 2, ROI_change_xy);
+forward_solver.return_transmission = false;
+forward_solver.return_reflection = false;
 %Adjoint solver parameters
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;
 adjoint_params.mode = "Intensity";
-adjoint_params.ROI_change = and(real(RI) > 2, ROI_change_xy);
-adjoint_params.step = 0.1;
-adjoint_params.itter_max = 200;
-adjoint_params.steepness = 2;
-adjoint_params.binarization_step = 50;
-adjoint_params.spatial_diameter = 0.2;
+adjoint_params.ROI_change = ROI_change;
+adjoint_params.step = 0.5;
+adjoint_params.itter_max = 100;
+adjoint_params.steepness = 0.5;
+adjoint_params.binarization_step = 100;
+adjoint_params.spatial_diameter = 0.1;
+adjoint_params.spatial_filter_range = [10 Inf];
 adjoint_params.nmin = PDMS(params.wavelength);
 adjoint_params.nmax = TiO2(params.wavelength);
 adjoint_params.verbose = true;
 adjoint_params.averaging_filter = [false false true];
-
-adjoint_solver = AdjointSolver(adjoint_params);
-options.intensity_weight  = phantom_bead(params.size, [0 1], 2.5);
+tic;
+adjoint_solver = AdjointLensSolver(adjoint_params);
+toc;
+focal_spot_radius_pixel = 0.63 * wavelength * focal_length/diameter/resolution;
+intensity_weight = phantom_bead([diameter_pixel, diameter_pixel, 2*round(z_padding/resolution)], [0 1], focal_spot_radius_pixel);
+intensity_weight = padarray(intensity_weight,[0 0 sum(thickness_pixel)-size(intensity_weight,3)], 0,'pre');
+%intensity_weight = intensity_weight + 0.5*phantom_bead([diameter_pixel, diameter_pixel, 2*round(z_padding/resolution)], [0 1], lens_radius_pixel/2);
+options.intensity_weight = intensity_weight;
 
 % Execute the optimization code
-RI_optimized=adjoint_solver.solve(input_field,RI,options);
-
+RI_optimized_byproduct=adjoint_solver.solve(input_field,RImap,options);
+adjoint_solver.step = 0.1;
+adjoint_solver.itter_max = 170;
+adjoint_solver.binarization_step = 40;
+adjoint_params.spatial_filter_range = [1 Inf];
+RI_optimized=adjoint_solver.solve(input_field,RI_optimized_byproduct,options);
 % Configuration for optimized metamaterial
 display_RI_Efield(forward_solver,RI_optimized,input_field,'after optimization')
 
 %% optional: save RI configuration
-filename = 'optimized_RI.mat';
+filename = sprintf('optimized lens on %s Diameter-%.2fum F-%.2fum.mat',substrate_type,diameter,focal_length);
 save_RI(filename, RI_optimized, params.resolution, params.wavelength);

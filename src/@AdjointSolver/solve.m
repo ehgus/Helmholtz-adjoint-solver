@@ -44,7 +44,7 @@ for ii=1:h.itter_max
     t_n=t_np;
     t_np=(1+sqrt(1+4*t_n^2))/2;
     % maximization (negative sign)
-    s_n=h.update_gradient(s_n,RI_opt,h.step);
+    s_n=h.update_gradient(s_n,RI_opt,h.step,ii);
     s_n=gather(s_n);
 
     RI_opt=s_n+(t_n-1)/t_np*(s_n-x_n);

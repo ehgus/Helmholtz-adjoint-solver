@@ -111,9 +111,11 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         if jj==2
             Field_n = Field;
         end
-%         figure(101)
-%         imagesc(squeeze(gather(abs(Field(1,:,:,1)))))
-%         drawnow
+        if obj.verbose
+            figure(101)
+            imagesc(squeeze(gather(abs(Field(1,:,:,1)))))
+            drawnow
+        end
     end
     if obj.vector_simulation
         % -i/k_0 * (n_0/impedance_0) * curl(E)
