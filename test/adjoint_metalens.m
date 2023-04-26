@@ -103,7 +103,7 @@ options.intensity_weight = intensity_weight;
 % Execute the optimization code
 RI_optimized_byproduct=adjoint_solver.solve(input_field,RImap,options);
 adjoint_solver.step = 0.1;
-adjoint_solver.itter_max = 170;
+adjoint_solver.itter_max = 200;
 adjoint_solver.binarization_step = 40;
 adjoint_params.spatial_filter_range = [1 Inf];
 RI_optimized=adjoint_solver.solve(input_field,RI_optimized_byproduct,options);

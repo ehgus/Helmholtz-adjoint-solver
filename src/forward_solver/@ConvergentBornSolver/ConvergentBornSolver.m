@@ -60,14 +60,12 @@ classdef ConvergentBornSolver < ForwardSolver
             for dim = 1:3
                 max_L = h.boundary_thickness_pixel(dim);
                 L = min(max_L, h.field_attenuation_pixel(dim));
-                roi_region = h.ROI(2*(dim-1)+2) - h.ROI(2*(dim-1)+1) + 1 + 2*max_L;
                 if h.boundary_thickness_pixel(dim)==0
                     continue;
                 end
-                %window = (tanh(linspace(-3,3,L))/tanh(3)-tanh(-3))/2;
-                %window = window*h.field_attenuation_sharpness + (1-h.field_attenuation_sharpness);
-                %x = [window ones(1, h.ROI(2*(dim-1)+2) - h.ROI(2*(dim-1)+1) + 1 + 2*(max_L-L)) flip(window)];
-                x = tukeywin(roi_region, 2*L/roi_region);
+                window = (tanh(linspace(-2.5,2.5,L))/tanh(3)-tanh(-3))/2;
+                window = window*h.field_attenuation_sharpness + (1-h.field_attenuation_sharpness);
+                x = [window ones(1, h.ROI(2*(dim-1)+2) - h.ROI(2*(dim-1)+1) + 1 + 2*(max_L-L)) flip(window)];
                 h.field_attenuation_mask{end+1} = reshape(x,circshift([1 1 length(x)],dim,2));
             end
             %make the cropped green function (for forward and backward field)

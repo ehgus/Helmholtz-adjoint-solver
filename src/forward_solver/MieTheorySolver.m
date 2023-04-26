@@ -131,8 +131,7 @@ classdef MieTheorySolver < ForwardSolver
             source = fftshift(ifft2(ifftshift(source)));
             incident_field = source;
             % Obtain T-matrix - The first T is scattered mode, 2nd T is the internal mode.
-            parameters = struct();
-            [parameters.T_ext, parameters.T_int] = tmatrix_mie_v2(h.lmax,k_m,k_s,h.radius,h.mu0,h.mu1);
+            [T_ext, T_int] = tmatrix_mie_v2(h.lmax,k_m,k_s,h.radius,h.mu0,h.mu1);
             [xf0, yf0, zf0] = ndgrid(gather(h.utility.image_space.coor{1}), gather(h.utility.image_space.coor{2}),gather(h.utility.image_space.coor{3}));
             [theta, phi, rad] = xcart2sph(xf0, yf0, zf0);  % Spherical grids
             rad = double(rad(:));phi = double(phi(:));theta = double(theta(:));
@@ -149,8 +148,8 @@ classdef MieTheorySolver < ForwardSolver
             pol_new_sph = gather(squeeze(sum(R .* reshape(transpose(pol_new), [1 3 size(pol_new,1)]),2)));
             
             %% Start computation
-            parameters.alm = zeros(h.lmax,2*h.lmax+1); 
-            parameters.blm = zeros('like', parameters.alm);
+            alm = zeros(h.lmax,2*h.lmax+1); 
+            blm = zeros('like', alm);
             for l = 1:h.lmax
             % Initialize parameters
                 cl=sqrt((2*l+1)/4/pi/l/(l+1));
@@ -158,14 +157,14 @@ classdef MieTheorySolver < ForwardSolver
                 [BB, CC] = vsh_MS(l,ktheta);
                 BB(isnan(BB)) = 0; CC(isnan(CC)) = 0;
                 ms = reshape(-l:1:l,[2*l+1 1 1]);
-                parameters.alm(l,1:size(BB,1)) = transpose(sum(sum(4.* pi.* (-1).^ms .* (1i).^l .* cl .* exp(-1i.*ms.*reshape(kphi,[1 length(kphi) 1])).* conj(CC) .* reshape(transpose(pol_new_sph), 1, [], 3),2),3));
-                parameters.blm(l,1:size(BB,1)) =  transpose(sum(sum(4.* pi.* (-1).^ms .* (1i).^(l-1) .* cl .* exp(-1i.*ms.*reshape(kphi,[1 length(kphi) 1])) .* conj(BB) .* reshape(transpose(pol_new_sph), 1, [], 3),2),3));
+                alm(l,1:size(BB,1)) = transpose(sum(sum(4.* pi.* (-1).^ms .* (1i).^l .* cl .* exp(-1i.*ms.*reshape(kphi,[1 length(kphi) 1])).* conj(CC) .* reshape(transpose(pol_new_sph), 1, [], 3),2),3));
+                blm(l,1:size(BB,1)) =  transpose(sum(sum(4.* pi.* (-1).^ms .* (1i).^(l-1) .* cl .* exp(-1i.*ms.*reshape(kphi,[1 length(kphi) 1])) .* conj(BB) .* reshape(transpose(pol_new_sph), 1, [], 3),2),3));
             end
             % T-matrix method
             % Coefficient normalization
             normalization_power=1;
-            a0s=parameters.alm/normalization_power;
-            b0s = parameters.blm/normalization_power;
+            a0s=alm/normalization_power;
+            b0s = blm/normalization_power;
             a2s=zeros((h.lmax+1)^2-1,1);
             b2s=zeros((h.lmax+1)^2-1,1);
             for i2=1:h.lmax
@@ -174,17 +173,24 @@ classdef MieTheorySolver < ForwardSolver
             end
             a2s=sparse(a2s);b2s=sparse(b2s);
             % Output mode coefficients
-            pq = parameters.T_ext * [ a2s; b2s ];   p_out = pq(1:length(pq)/2);q_out = pq(length(pq)/2+1:end);
-            pq = parameters.T_int *[ a2s; b2s ];   p_in = pq(1:length(pq)/2);q_in = pq(length(pq)/2+1:end);
+            pq = T_ext * [ a2s; b2s ];
+            p_out = pq(1:length(pq)/2);
+            q_out = pq(length(pq)/2+1:end);
+            pq = T_int * [ a2s; b2s ];
+            p_in = pq(1:length(pq)/2);
+            q_in = pq(length(pq)/2+1:end);
             E_scat_T=zeros(numel(phi),3);
             % Make scattered field
             in_flag = rho < k_m*h.radius; in_flag=in_flag(:);out_flag = rho >= k_m*h.radius; out_flag=out_flag(:);
-            M_in = E_scat_T; N_in = E_scat_T; M_outj = E_scat_T; N_outj = E_scat_T; M_outh = E_scat_T; N_outh = E_scat_T;  
             % main
             tic;
             for bulk = 1: h.divide_section
                 length_bulk = ceil(length(theta) / h.divide_section);
                 jj = (1+length_bulk * (bulk-1)) : min(length(theta), bulk*length_bulk);
+                M_in = zeros(numel(jj),3);
+                N_in = zeros(numel(jj),3);
+                M_outh = zeros(numel(jj),3);
+                N_outh = zeros(numel(jj),3);
                 for l = 1:h.lmax
                     [BB,CC,P] = vsh_MS(l,theta(jj));
                     BB(isnan(BB)) = 0; CC(isnan(CC)) = 0; P(isnan(P)) = 0;
@@ -195,11 +201,6 @@ classdef MieTheorySolver < ForwardSolver
                     j_rho_s = H_Rho(j_s,rho_s(jj),l); j_rho_s(isnan(j_rho_s))=0;
                     dxi_rho_s = Dxi_Rho(dxi_s,rho_s(jj),l); dxi_rho_s(isnan(dxi_rho_s))=0;
                     % Spherical Bessel functions for external field
-                    j_m = sbesselj(l, rho(jj));j_m=j_m(:);j_m(isnan(j_m))=0;
-                    dxi_m = ricbesjd(l, rho(jj));dxi_m=dxi_m(:); dxi_m(isnan(dxi_m))=0;
-                    j_rho_m = H_Rho(j_m,rho(jj),l); j_rho_m(isnan(j_rho_m))=0;
-                    dxi_rho_m = Dxi_Rho(dxi_m,rho(jj),l); dxi_rho_m(isnan(dxi_rho_m))=0;
-
                     h_m = sbesselh1(l, rho(jj));h_m=h_m(:);h_m(isnan(h_m))=0;
                     dxih_m = ricbesh1d(l, rho(jj));dxih_m=dxih_m(:); dxih_m(isnan(dxih_m))=0;
                     h_rho_m = H_Rho(h_m,rho(jj),l); h_rho_m(isnan(h_rho_m))=0;
@@ -210,27 +211,20 @@ classdef MieTheorySolver < ForwardSolver
                         m_list = -l:1:l;
                     end
                     for m = m_list
-                        clc,
+                        phase = exp(1i.*m.*phi(jj));
+                        clc;
                         disp(['Volume section: ' num2str(bulk) ' / ' num2str(h.divide_section)])
                         disp(['l: ' num2str(l) ' / ' num2str(h.lmax)])
                         disp(['m: ' num2str(m)])
                         idx = m + l + 1;
-                        M_in(jj,:)   = (-1).^m .* cl .* (j_s .* reshape(CC(idx,:,:),[length(phi(jj)),3])) .* exp(1i.*m.*phi(jj));
-                        N_in(jj,:)   = (-1).^m .* cl .* (l*(l+1).*j_rho_s.*(reshape(P(idx,:,:),[length(phi(jj)),3])) +...
-                            dxi_rho_s .* (reshape(BB(idx,:,:),[length(phi(jj)),3]))) .* exp(1i.*m.*phi(jj));
+                        M_in(:)   = j_s .* reshape(CC(idx,:,:),[],3);
+                        N_in(:)   = l*(l+1).*j_rho_s.*reshape(P(idx,:,:),[],3) + dxi_rho_s .* reshape(BB(idx,:,:),[],3);
 
-                        M_outj(jj,:) = (-1).^m .* cl .* (j_m .* reshape(CC(idx,:,:),[length(phi(jj)),3])) .* exp(1i.*m.*phi(jj));
-                        N_outj(jj,:) = (-1).^m .* cl .* (l*(l+1).*j_rho_m.*(reshape(P(idx,:,:),[length(phi(jj)),3])) +...
-                            dxi_rho_m .* (reshape(BB(idx,:,:),[length(phi(jj)),3]))) .* exp(1i.*m.*phi(jj));
+                        M_outh(:) = h_m .* reshape(CC(idx,:,:),[],3);
+                        N_outh(:) = l*(l+1).*h_rho_m.*reshape(P(idx,:,:),[],3) + dxih_rho_m .* reshape(BB(idx,:,:),[],3);
 
-                        M_outh(jj,:) = (-1).^m .* cl .* (h_m .* reshape(CC(idx,:,:),[length(phi(jj)),3])) .* exp(1i.*m.*phi(jj));
-                        N_outh(jj,:) = (-1).^m .* cl .* (l*(l+1).*h_rho_m.*(reshape(P(idx,:,:),[length(phi(jj)),3])) +...
-                            dxih_rho_m .* (reshape(BB(idx,:,:),[length(phi(jj)),3]))) .* exp(1i.*m.*phi(jj));
-
-                            E_scat_T(jj,:) = (E_scat_T(jj,:) + out_flag(jj) .* ((full(p_out(l*(l+1)+m))) .* M_outh(jj,:)) +...
-                                                in_flag(jj) .* single(full(p_in(l*(l+1)+m))) .* M_in(jj,:) +...
-                                                              out_flag(jj) .* ((full(q_out(l*(l+1)+m))) .* N_outh(jj,:)) +... 
-                                                in_flag(jj) .* single(full(q_in(l*(l+1)+m))) .* N_in(jj,:));
+                        E_scat_T(jj,:) = E_scat_T(jj,:) + (out_flag(jj) .* (full(p_out(l*(l+1)+m)) .* M_outh + full(q_out(l*(l+1)+m)) .* N_outh) ... 
+                                                        + in_flag(jj) .* (full(p_in(l*(l+1)+m)) .* M_in + full(q_in(l*(l+1)+m)) .* N_in)) .* ((-1)^m * cl *phase);
                     end
                 end
             end
