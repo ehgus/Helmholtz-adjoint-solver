@@ -18,9 +18,13 @@ addpath(genpath(dirname));
 NA=1;
 oversampling_rate = 2;
 %% load RI profiles
-[RI_metalens, resolution, wavelength] = load_RI('optimized_RI.mat');
+[RI_metalens, resolution, wavelength] = load_RI('optimized lens on SU8 Diameter-3.00um F-1.00um.mat');
 resolution = resolution/oversampling_rate;
-RI_metalens = imresize3(RI_metalens, oversampling_rate, 'nearest');
+if oversampling_rate < 1
+    RI_metalens = imresize3(RI_metalens, oversampling_rate, 'linear');
+elseif oversampling_rate > 1
+    RI_metalens = imresize3(RI_metalens, oversampling_rate, 'nearest');
+end
 
 database = RefractiveIndexDB();
 PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
