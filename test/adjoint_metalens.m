@@ -53,16 +53,16 @@ input_field=FieldGenerator.get_field(field_generator_params);
 
 %% Forward solver
 
-forward_params=params;
-forward_params.use_GPU=use_GPU;
-forward_params.return_3D = true;
-forward_params.boundary_thickness = [0 0 4];
-forward_params.field_attenuation = [0 0 4];
-forward_params.field_attenuation_sharpness = 0.5;
-forward_params.RI_bg = double(sqrt((minRI^2+maxRI^2)/2));
+params_CBS=params;
+params_CBS.use_GPU=use_GPU;
+params_CBS.return_3D = true;
+params_CBS.boundary_thickness = [0 0 4];
+params_CBS.field_attenuation = [0 0 4];
+params_CBS.field_attenuation_sharpness = 0.5;
+params_CBS.RI_bg = double(sqrt((minRI^2+maxRI^2)/2));
 
 %compute the forward field using convergent Born series
-forward_solver=ConvergentBornSolver(forward_params);
+forward_solver=ConvergentBornSolver(params_CBS);
 forward_solver.set_RI(RImap);
 
 % Configuration for bulk material
@@ -87,8 +87,8 @@ adjoint_params.steepness = 0.5;
 adjoint_params.binarization_step = 100;
 adjoint_params.spatial_diameter = 0.1;
 adjoint_params.spatial_filter_range = [10 Inf];
-adjoint_params.nmin = PDMS(params.wavelength);
-adjoint_params.nmax = TiO2(params.wavelength);
+adjoint_params.nmin = RI_list(1);
+adjoint_params.nmax = RI_list(2);
 adjoint_params.verbose = true;
 adjoint_params.averaging_filter = [false false true];
 tic;
@@ -103,7 +103,7 @@ options.intensity_weight = intensity_weight;
 % Execute the optimization code
 RI_optimized_byproduct=adjoint_solver.solve(input_field,RImap,options);
 adjoint_solver.step = 0.1;
-adjoint_solver.itter_max = 200;
+adjoint_solver.itter_max = 100;
 adjoint_solver.binarization_step = 40;
 adjoint_params.spatial_filter_range = [1 Inf];
 RI_optimized=adjoint_solver.solve(input_field,RI_optimized_byproduct,options);
