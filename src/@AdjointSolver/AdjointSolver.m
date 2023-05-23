@@ -7,6 +7,7 @@ classdef AdjointSolver < OpticalSimulation
         mode = "Intensity"; % Transmission
         
         % optimization option
+        optimizer = FistaOptim;
         itter_max = 100;
         nmin = -inf;
         nmax = inf;
@@ -49,9 +50,10 @@ classdef AdjointSolver < OpticalSimulation
             end
         end
 
-        function get_gradient(h,E_adj,E_old,isRItensor)
+        function get_gradient(h, E_adj, E_old, RI, index)
             % 3D gradient
             h.gradient_full(:) = E_adj.*E_old;
+            isRItensor = size(RI,4) == 3;
             if isRItensor
                 h.gradient(:) = sum(h.gradient_full,5);
             else
@@ -68,22 +70,17 @@ classdef AdjointSolver < OpticalSimulation
                 h.gradient = h.gradient + mean_gradient;
             end
             h.gradient(~h.ROI_change) = 0;
-        end
-
-        function RI_opt = update_gradient(h,RI_opt,RI,step_size, index)
-            % update gradient based on the density-based 
             % (RI + RI_gradient)^2 ~ V + gradient => RI_gradient = gradient/(2RI)
-            % TO project the RI_gradient on density,
-            % RI_porjected_gradient = inner_product(RI_gradient,unit_RI_vector)*unit_RI_vector
             h.gradient(:) = h.gradient./RI;
+            % To project the RI_gradient on density,
+            % RI_porjected_gradient = inner_product(RI_gradient,unit_RI_vector)*unit_RI_vector
             h.density_map(:) = real(h.nmax-h.nmin)*real(h.gradient)+imag(h.nmax-h.nmin)*imag(h.gradient);
             % adaptive spatial filtering
             if h.spatial_filter_range(1) < index && index < h.spatial_filter_range(2)
                 h.density_map(:) = cconv2(h.density_map,h.spatial_filter);
                 h.gradient(h.ROI_change) = h.density_map(h.ROI_change);
             end
-            h.gradient(:) = step_size/2*(h.nmax-h.nmin)/abs(h.nmax-h.nmin)^2*h.gradient;
-            RI_opt(:) = RI + h.gradient;
+            h.gradient(:) = 1/2*(h.nmax-h.nmin)/abs(h.nmax-h.nmin)^2*h.gradient;
         end
 
         function RI_opt = post_regularization(h,RI_opt,index)
