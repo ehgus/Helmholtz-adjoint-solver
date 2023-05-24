@@ -116,20 +116,7 @@ adjoint_solver.step = 2;
 RI_optimized=adjoint_solver.solve(input_field,RI_optimized_1,options);
 % Configuration for optimized metamaterial
 display_RI_Efield(forward_solver,RI_optimized,input_field,'after optimization')
-%% test: field deocmposition
-field = 0.17*options.E_field{3} + 0.64*options.E_field{5} + 0.17*options.E_field{7};
-field = field(forward_solver.ROI(1):forward_solver.ROI(2),forward_solver.ROI(3):forward_solver.ROI(4),forward_solver.ROI(5):forward_solver.ROI(6),:);
-Hfield = 0.17*options.H_field{3} + 0.64*options.H_field{5} + 0.17*options.H_field{7};
-Hfield = Hfield(forward_solver.ROI(1):forward_solver.ROI(2),forward_solver.ROI(3):forward_solver.ROI(4),forward_solver.ROI(5):forward_solver.ROI(6),:);
-% same as Hfield = -1i * (forward_solver.wavelength/2/pi)/(120*pi) * forward_solver.curl_field(field);
-relative_transmission = zeros(1,7);
-relative_transmission_ref = zeros(1,7);
-for i = 1:7
-    eigen_S = poynting_vector(field, options.H_field{i}(forward_solver.ROI(1):forward_solver.ROI(2),forward_solver.ROI(3):forward_solver.ROI(4),forward_solver.ROI(5):forward_solver.ROI(6),:)) ...
-            + poynting_vector(conj(options.E_field{i}(forward_solver.ROI(1):forward_solver.ROI(2),forward_solver.ROI(3):forward_solver.ROI(4),forward_solver.ROI(5):forward_solver.ROI(6),:)), conj(Hfield));
-    relative_transmission(i) = sum(eigen_S(:,:,end,3),'all');
-    eigen_S_ref = 2*real(poynting_vector(options.E_field{i}(forward_solver.ROI(1):forward_solver.ROI(2),forward_solver.ROI(3):forward_solver.ROI(4),forward_solver.ROI(5):forward_solver.ROI(6),:), ...
-                                         options.H_field{i}(forward_solver.ROI(1):forward_solver.ROI(2),forward_solver.ROI(3):forward_solver.ROI(4),forward_solver.ROI(5):forward_solver.ROI(6),:)));
-    relative_transmission_ref(i) = sum(eigen_S_ref(:,:,end,3),'all');
-end
-disp(abs(relative_transmission./relative_transmission_ref));
+
+%% optional: save RI configuration
+filename = 'CBS_optimized grating.mat';
+save_RI(filename, RI_optimized(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))), params.resolution, params.wavelength);
