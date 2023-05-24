@@ -58,8 +58,9 @@ input_field=FieldGenerator.get_field(field_generator_params);
 
 params_CBS = params;
 params_CBS.use_GPU = use_GPU;
-params_CBS.boundary_thickness = [0 0 10];
-params_CBS.max_attenuation_width = [0 0 10];
+params_CBS.boundary_thickness = [0 0 5];
+params_CBS.field_attenuation = [0 0 5];
+params_CBS.field_attenuation_sharpness = 0.5;
 [minRI, maxRI] = bounds(RImap,"all");
 params_CBS.RI_bg = minRI;
 
