@@ -5,13 +5,15 @@ dirname = fileparts(fileparts(matlab.desktop.editor.getActiveFilename));
 addpath(genpath(dirname));
 
 %% basic optical parameters
-NA=1;
+
 oversampling_rate = 1;
 % load RI profiles
-[RI_grating_pattern, ~, wavelength] = load_RI(fullfile(fileparts(matlab.desktop.editor.getActiveFilename),'CBS_optimized grating.mat'));
+sim_type = '2D_FDTD'; % CBS, 2D_FDTD
+NA=1;
+[RI_grating_pattern, ~, wavelength] = load_RI(fullfile(fileparts(matlab.desktop.editor.getActiveFilename),sprintf('%s_optimized grating.mat',sim_type)));
 resolution = 0.01;
 mask_width = 0.15;
-grid_size = [100 100 105];
+grid_size = [11 100 105];
 
 database = RefractiveIndexDB();
 PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
@@ -46,6 +48,7 @@ params.vector_simulation=true; % True/false: dyadic/scalar Green's function
 params.size=size(RI_grating); % 3D volume grid
 params.return_3D = true;
 params.verbose = false;
+params.RI_bg = RI_list(1);
 
 %% incident field parameters
 field_generator_params=params;
@@ -61,13 +64,11 @@ params_CBS.field_attenuation = [0 0 5];
 params_CBS.field_attenuation_sharpness = 0.5;
 params_CBS.potential_attenuation = [0 0 4];
 params_CBS.potential_attenuation_sharpness = 0.5;
-params_CBS.RI_bg = RI_list(3);
 
 %1-2 FDTD parameters
 params_FDTD=params;
 params_FDTD.use_GPU=false;
 params_FDTD.boundary_thickness = [0 0 0];
-params_FDTD.RI_bg= RI_bg;
 params_FDTD.is_plane_wave = true;
 params_FDTD.PML_boundary = [false false true];
 params_FDTD.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
@@ -83,7 +84,7 @@ H_field_rst = cell(solver_num,1);
 
 for isolver = 1:solver_num
     forward_solver = forward_solver_list{isolver};
-    save_title = sprintf("grating_pattern_%s_oversample_%d.mat",class(forward_solver), oversampling_rate);
+    save_title = sprintf("grating_pattern_%s_oversample_%d_%s.mat",class(forward_solver), oversampling_rate, sim_type);
     if isfile(save_title)
         load(save_title)
         E_field_rst{isolver} = E_field_3D;
@@ -146,3 +147,56 @@ MSE_test = mean(abs(E_field_rst{1}-E_field_rst{2}).^2, 'all');
 fprintf("MSE test result(E): %f\n",MSE_test);
 MSE_test = mean(abs(H_field_rst{1}-H_field_rst{2}).^2, 'all');
 fprintf("MSE test result(H): %f\n",MSE_test);
+
+% field transmittance for each plane wave mode
+target_transmission = [0 0 0.15 0 0.63 0 0.22];
+E_field = cell(1,length(target_transmission));
+H_field = cell(1,length(target_transmission));
+relative_transmission_ref = zeros(1,7);
+
+CBS_forward_solver = forward_solver_list{1};
+impedance = 377/CBS_forward_solver.RI_bg;
+Nsize = CBS_forward_solver.size + 2*CBS_forward_solver.boundary_thickness_pixel;
+Nsize(4) = 3;
+
+for i = 1:length(E_field)
+    % E field
+    illum_order = i - 3;
+    sin_theta = (illum_order-1)*wavelength/(params.size(2)*resolution*CBS_forward_solver.RI_bg);
+    cos_theta = sqrt(1-sin_theta^2);
+    if illum_order < 1
+        illum_order = illum_order + Nsize(2);
+    end
+    E_field{i} = zeros(Nsize([1 2 4]));
+    E_field{i}(1,illum_order,1) = prod(Nsize(1:2));
+    E_field{i} = ifft2(E_field{i});
+    E_field{i} = CBS_forward_solver.padd_field2conv(E_field{i});
+    E_field{i} = fft2(E_field{i});
+    E_field{i} = reshape(E_field{i}, [size(E_field{i},1),size(E_field{i},2),1,size(E_field{i},3)]).*CBS_forward_solver.refocusing_util;
+    E_field{i} = ifft2(E_field{i});
+    E_field{i} = CBS_forward_solver.crop_conv2RI(E_field{i});
+    E_field{i} = E_field{i}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:);
+    % H field
+    H_field{i} = zeros(size(E_field{i}),'like',E_field{i});
+    H_field{i}(:,:,:,2) = E_field{i}(:,:,:,1) * cos_theta;
+    H_field{i}(:,:,:,3) = E_field{i}(:,:,:,1) * (-sin_theta);
+    H_field{i} = H_field{i}/impedance;
+
+    eigen_S_ref = 2*real(poynting_vector(E_field{i}, H_field{i}));
+    relative_transmission_ref(i) = abs(sum(eigen_S_ref(:,:,end,3),'all'));
+end
+
+for j = 1:2
+    field = E_field_rst{j};
+    Hfield = H_field_rst{j};
+    relative_transmission = zeros(1,length(E_field));
+    
+    for i = 1:length(E_field)
+        eigen_S = poynting_vector(field, H_field{i}) + poynting_vector(conj(E_field{i}), conj(Hfield));
+        relative_transmission(i) = sum(eigen_S(:,:,end,3),'all');
+    end
+    disp(abs(relative_transmission./relative_transmission_ref).^2);
+end
+%% troubleshooting
+E_diff = H_intensity_list{1} - H_intensity_list{2};
+imagesc(2*squeeze(E_diff(1,:,:)./(H_intensity_list{1}(1,:,:)+H_intensity_list{2}(1,:,:))),[-1 1])

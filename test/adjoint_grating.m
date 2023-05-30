@@ -27,7 +27,7 @@ RI = phantom_plate(grid_size, RI_list, thickness_pixel);
 %1 optical parameters
 params.NA = NA;
 params.wavelength = wavelength;
-params.RI_bg=RI_list(3);        % Background RI - should be matched with mode decomposition area
+params.RI_bg=RI_list(1);        % Background RI - should be matched with mode decomposition area
 params.resolution=ones(1,3) * resolution; % 3D Voxel size [um]
 params.use_abbe_sine=false;     % Abbe sine condition according to demagnification condition
 params.vector_simulation=true;  % True/false: dyadic/scalar Green's function
@@ -55,6 +55,7 @@ params_CBS.potential_attenuation_sharpness = 0.5;
 forward_solver=ConvergentBornSolver(params_CBS);
 display_RI_Efield(forward_solver,RI,input_field,'before optimization');
 %% Adjoint solver
+forward_solver.verbose = true;
 ROI_change = zeros(size(RI),'logical');
 ROI_change(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))) = true;
 %Adjoint solver iteration parameters
@@ -111,9 +112,7 @@ for i = 1:length(options.E_field)
 end
 
 % Execute the optimization code
-RI_optimized_1=adjoint_solver.solve(input_field,RI,options);
-adjoint_solver.step = 2;
-RI_optimized=adjoint_solver.solve(input_field,RI_optimized_1,options);
+RI_optimized=adjoint_solver.solve(input_field,RI,options);
 % Configuration for optimized metamaterial
 display_RI_Efield(forward_solver,RI_optimized,input_field,'after optimization')
 

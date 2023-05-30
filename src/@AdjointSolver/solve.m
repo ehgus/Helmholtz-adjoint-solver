@@ -27,9 +27,9 @@ for ii=1:h.itter_max
     
     % Calculated gradient RI based on intensity mode
     h.forward_solver.set_RI(RI_opt);
-    [~,~,E_old, H_old]=h.forward_solver.solve(input_field);
-    [E_adj, Figure_of_Merit(ii)]=h.solve_adjoint(conj(E_old),conj(H_old),options);
-    h.get_gradient(E_adj, E_old, RI_opt, ii);
+    [~,~,E_fwd, H_fwd]=h.forward_solver.solve(input_field);
+    [E_adj, Figure_of_Merit(ii)]=h.solve_adjoint(E_fwd, H_fwd, options);
+    h.get_gradient(E_adj, E_fwd, RI_opt, ii);
 
     RI_opt = h.optimizer.apply_gradient(RI_opt, RI_opt, h.gradient, h.step);
     RI_opt=h.post_regularization(RI_opt,ii);
