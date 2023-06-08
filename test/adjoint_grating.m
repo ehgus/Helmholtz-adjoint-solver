@@ -11,7 +11,7 @@ NA = 1;             % numerical aperature
 wavelength = 0.355; % unit: micron
 resolution = 0.01; % unit: micron
 mask_width = 0.15;
-grid_size = [11 100 105];
+grid_size = [11 100 100];
 target_transmission = [0 0 0.15 0 0.63 0 0.22];
 verbose = false;
 
@@ -23,6 +23,7 @@ Microchem_SU8_2000 = database.material("other","resists","Microchem SU-8 2000");
 RI_list = cellfun(@(func) real(func(wavelength)), {PDMS TiO2 Microchem_SU8_2000});
 thickness_pixel = [0.20 mask_width]/resolution;
 RI = phantom_plate(grid_size, RI_list, thickness_pixel);
+%RI(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))) = RI(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))) + rand([1 grid_size(2)],'single')*(RI_list(1)-RI_list(2));
 
 %1 optical parameters
 params.NA = NA;
@@ -55,7 +56,7 @@ params_CBS.potential_attenuation_sharpness = 0.5;
 forward_solver=ConvergentBornSolver(params_CBS);
 display_RI_Efield(forward_solver,RI,input_field,'before optimization');
 %% Adjoint solver
-forward_solver.verbose = true;
+forward_solver.verbose = false;
 ROI_change = zeros(size(RI),'logical');
 ROI_change(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))) = true;
 %Adjoint solver iteration parameters
@@ -73,6 +74,7 @@ adjoint_params.nmin = RI_list(1);
 adjoint_params.nmax = RI_list(2);
 adjoint_params.verbose = true;
 adjoint_params.averaging_filter = [true false true];
+%adjoint_params.optimizer = Optim;
 
 adjoint_solver = AdjointSolver(adjoint_params);
 %Adjoint field parameter
@@ -82,15 +84,16 @@ options.surface_vector = zeros(adjoint_params.size(1),adjoint_params.size(2),adj
 options.surface_vector(:,:,end,:) = options.surface_vector(:,:,end,:) + reshape([0 0 1],1,1,1,3);
 options.E_field = cell(1,length(options.target_transmission));
 options.H_field = cell(1,length(options.target_transmission));
-
-impedance = 377/forward_solver.RI_bg;
-Nsize = forward_solver.size + 2*forward_solver.boundary_thickness_pixel;
+params_CBS.RI_bg = RI_list(3);
+options.forward_solver = ConvergentBornSolver(params_CBS);
+impedance = 377/options.forward_solver.RI_bg;
+Nsize = options.forward_solver.size + 2*options.forward_solver.boundary_thickness_pixel;
 Nsize(4) = 3;
 
 for i = 1:length(options.E_field)
     % E field
     illum_order = i - 3;
-    sin_theta = (illum_order-1)*params.wavelength/(params.size(2)*params.resolution(2)*params.RI_bg);
+    sin_theta = (illum_order-1)*params_CBS.wavelength/(params_CBS.size(2)*params_CBS.resolution(2)*params_CBS.RI_bg);
     cos_theta = sqrt(1-sin_theta^2);
     if illum_order < 1
         illum_order = illum_order + Nsize(2);
@@ -98,11 +101,11 @@ for i = 1:length(options.E_field)
     incident_field = zeros(Nsize([1 2 4]));
     incident_field(1,illum_order,1) = prod(Nsize(1:2));
     incident_field = ifft2(incident_field);
-    incident_field = forward_solver.padd_field2conv(incident_field);
+    incident_field = options.forward_solver.padd_field2conv(incident_field);
     incident_field = fft2(incident_field);
-    incident_field = reshape(incident_field, [size(incident_field,1),size(incident_field,2),1,size(incident_field,3)]).*forward_solver.refocusing_util;
+    incident_field = reshape(incident_field, [size(incident_field,1),size(incident_field,2),1,size(incident_field,3)]).*options.forward_solver.refocusing_util;
     incident_field = ifft2(incident_field);
-    options.E_field{i} = forward_solver.crop_conv2RI(incident_field);
+    options.E_field{i} = options.forward_solver.crop_conv2RI(incident_field);
     % H field
     incident_field_H = zeros(Nsize,'like',incident_field);
     incident_field_H(:,:,:,2) = incident_field(:,:,:,1) * cos_theta;
