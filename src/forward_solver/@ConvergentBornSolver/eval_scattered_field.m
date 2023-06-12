@@ -22,8 +22,8 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
     for idx = 1:length(obj.field_attenuation_mask)
         obj.field_attenuation_mask{idx}=array_func(obj.field_attenuation_mask{idx});
     end
-    Greenp = array_func(obj.Greenp);
-    flip_Greenp = array_func(obj.flip_Greenp);
+    Green_fn = obj.Green_fn;
+    flip_Green_fn = obj.flip_Green_fn;
     phase_ramp = cell(1,length(obj.phase_ramp));
     conj_phase_ramp = cell(1,length(obj.phase_ramp));
     for idx = 1:length(phase_ramp)
@@ -51,7 +51,7 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
     for jj = 1:obj.Bornmax
         if obj.acyclic
             %flip the relevant quantities
-            [Greenp, flip_Greenp] = deal(flip_Greenp, Greenp);
+            [Green_fn, flip_Green_fn] = deal(flip_Green_fn, Green_fn);
             [phase_ramp, conj_phase_ramp] = deal(conj_phase_ramp, phase_ramp);
         end
         
@@ -77,17 +77,7 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         for idx = 1:length(phase_ramp)
             psi = psi.*phase_ramp{idx};
         end
-        for j2 = 1:pole_num
-            psi(:,:,:,j2)=fftn(psi(:,:,:,j2));
-            if obj.vector_simulation %dyadic absorptive green function convolution
-                PSI = PSI + Greenp(:,:,:,:,j2).* psi(:,:,:,j2);
-            else %scalar absorptive green function convolution
-                PSI = Greenp.*psi(:,:,:,j2);
-            end
-        end
-        for j1 = 1:pole_num
-            PSI(:,:,:,j1)=ifftn(PSI(:,:,:,j1));
-        end
+        PSI = Green_fn(PSI, psi);
         for idx = 1:length(phase_ramp)
             PSI = PSI.*conj_phase_ramp{idx};
         end

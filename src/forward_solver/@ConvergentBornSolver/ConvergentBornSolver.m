@@ -23,8 +23,8 @@ classdef ConvergentBornSolver < ForwardSolver
         phase_ramp;
         cyclic_boundary_xy;
         acyclic logical = true;
-        Greenp;
-        flip_Greenp;
+        Green_fn;
+        flip_Green_fn;
         iterations_number=-1;
         eps_imag = Inf;
         kernel_trans;

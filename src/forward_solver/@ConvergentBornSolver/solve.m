@@ -103,6 +103,4 @@ function [fields_trans,fields_ref,fields_3D,Hfields]=solve(h,input_field)
     h.V=gather(h.V);
     h.field_attenuation_mask=gather(h.field_attenuation_mask);
     h.phase_ramp=gather(h.phase_ramp);
-    h.Greenp = gather(h.Greenp);
-    h.flip_Greenp = gather(h.flip_Greenp);
 end
