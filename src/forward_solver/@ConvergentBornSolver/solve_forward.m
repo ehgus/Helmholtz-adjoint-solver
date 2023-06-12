@@ -30,6 +30,9 @@ function [Field, Hfield] = solve_forward(obj,incident_field)
     if obj.vector_simulation
         incident_field_h = incident_field_h/impedance;
     end
+    % place incident field at the edge of the simulation region
+    % The position is fixed for now, but it can move any place in the future
+    incident_field(:,:,1:obj.ROI(5)-1,:) =flip(incident_field(:,:,obj.ROI(5):2*obj.ROI(5)-2,:),3);
 
     obj.refocusing_util=gather(obj.refocusing_util);
     

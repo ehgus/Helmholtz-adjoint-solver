@@ -40,9 +40,9 @@ classdef ConvergentBornSolver < ForwardSolver
                 h.boundary_thickness = ones(1,3) * h.boundary_thickness;
             end
             assert(length(h.boundary_thickness) == 3, 'boundary_thickness should be either a 3-size vector or a scalar')
-            h.boundary_thickness_pixel = double(round((h.boundary_thickness*h.wavelength/abs(h.RI_bg))./(h.resolution.*2)));
-            h.field_attenuation_pixel = double(round((h.field_attenuation*h.wavelength/abs(h.RI_bg))./(h.resolution.*2)));
-            h.potential_attenuation_pixel = double(round((h.potential_attenuation*h.wavelength/abs(h.RI_bg))./(h.resolution.*2)));
+            h.boundary_thickness_pixel = double(round(h.boundary_thickness./(h.resolution.*2)));
+            h.field_attenuation_pixel = double(round(h.field_attenuation./(h.resolution.*2)));
+            h.potential_attenuation_pixel = double(round(h.potential_attenuation./(h.resolution.*2)));
             if h.RI_xy_size(1)==0
                 h.RI_xy_size(1)=h.size(1);
             end
