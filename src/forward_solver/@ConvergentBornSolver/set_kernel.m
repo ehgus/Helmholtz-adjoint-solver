@@ -41,7 +41,7 @@ function set_kernel(obj)
     end
 
     % Helmholtz Green function in Fourier space
-    shifted_coordinate=obj.utility.fourier_space.coor(1:3);
+    shifted_coordinate = obj.utility.fourier_space.coor(1:3);
     if obj.acyclic %shift all by kres/4 for acyclic convolution
         if ~obj.cyclic_boundary_xy %shift only in z obj.acyclic
             shifted_coordinate{1}=shifted_coordinate{1}+obj.utility.fourier_space.res{1}/4;
@@ -52,75 +52,75 @@ function set_kernel(obj)
     for i=1:3
         shifted_coordinate{i}=2*pi*ifftshift(gather(shifted_coordinate{i}));
     end
-
+    k_square = (2*pi*obj.utility.k0_nm)^2+1i.*obj.eps_imag;
+    Lz = (obj.ROI(6)-obj.ROI(5)+1)*obj.resolution(3);
     if ~obj.acyclic
-        Greenp = xyz_periodic_green(obj, shifted_coordinate);
+        Greenp = xyz_periodic_green(k_square, shifted_coordinate{:});
     elseif obj.cyclic_boundary_xy
-        Greenp = xy_periodic_green(obj, shifted_coordinate);
+        Greenp = xy_periodic_green(k_square, Lz, shifted_coordinate{:});
     else
         warning("Totally non-periodic Green's function is not yet implemented." + newline + ...
             "For now, xy-periodic green function is used.")
-        Greenp = xy_periodic_green(obj, shifted_coordinate);
-    end
-    if obj.use_GPU
-        Greenp = gpuArray(Greenp);
+        Greenp = xy_periodic_green(k_square, Lz, shifted_coordinate{:});
     end
     
     flip_Greenp = fft_flip(Greenp,[1 1 1],false);
     if obj.vector_simulation % dyadic Green's function
-        eye_3=reshape(eye(3,'single'),1,1,1,3,3);
         rads=...
             shifted_coordinate{1}.*reshape([1 0 0],1,1,1,[])+...
             shifted_coordinate{2}.*reshape([0 1 0],1,1,1,[])+...
             shifted_coordinate{3}.*reshape([0 0 1],1,1,1,[]);
-        green_absorbtion_correction=1/((2*pi*obj.utility.k0_nm)^2+1i.*obj.eps_imag);
-        [xsize, ysize, zsize] = size(Greenp);
-        flip_rads = fft_flip(rads,[1 1 1],false);
-        Greenp = Greenp.*(eye_3-green_absorbtion_correction*(rads).*reshape(rads,xsize,ysize,zsize,1,3));
-        flip_Greenp = flip_Greenp.*(eye_3-green_absorbtion_correction*(flip_rads).*reshape(flip_rads,xsize,ysize,zsize,1,3));
+        flip_rads = fft_flip(rads, [1 1 1], false);
+        rads = rads./sqrt(k_square);
+        flip_rads = flip_rads./sqrt(k_square);
     end
+    if obj.use_GPU
+        Greenp = gpuArray(Greenp);
+        flip_Greenp = gpuArray(flip_Greenp);
+        rads = gpuArray(rads);
+        flip_rads = gpuArray(flip_rads);
+    end
+
     if obj.vector_simulation
-        obj.Green_fn = @(PSI, psi) apply_dyadic_Green(PSI, Greenp, psi);
-        obj.flip_Green_fn = @(PSI, psi) apply_dyadic_Green(PSI, flip_Greenp, psi);
+        obj.Green_fn = @(PSI, psi) apply_dyadic_Green(PSI, psi, Greenp, rads);
+        obj.flip_Green_fn = @(PSI, psi) apply_dyadic_Green(PSI, psi, flip_Greenp, flip_rads);
     else
-        obj.Green_fn = @(PSI, psi) apply_scalar_Green(PSI, Greenp, psi);
-        obj.flip_Green_fn = @(PSI, psi) apply_scalar_Green(PSI, flip_Greenp, psi);
+        obj.Green_fn = @(PSI, psi) apply_scalar_Green(PSI, psi, Greenp);
+        obj.flip_Green_fn = @(PSI, psi) apply_scalar_Green(PSI, psi, flip_Greenp);
     end
 end
 
-function PSI = apply_dyadic_Green(PSI, Greenp, psi)
+function PSI = apply_dyadic_Green(PSI, psi, Greenp, rads)
     for i = 1:3
         psi(:,:,:,i) = fftn(psi(:,:,:,i));
     end
+    % identity term
+    PSI(:) = Greenp.*psi;
+    % dyadic term
+    psi(:) = PSI.*rads;
     for i = 1:3
-        PSI =  PSI + Greenp(:,:,:,:,i).*psi(:,:,:,i);
+        PSI(:) = PSI - rads.*psi(:,:,:,i);
     end
     for i = 1:3
         PSI(:,:,:,i) = ifftn(PSI(:,:,:,i));
     end
 end
 
-function PSI = apply_scalar_Green(PSI, Greenp, psi)
+function PSI = apply_scalar_Green(PSI, psi, Greenp)
     psi = fftn(psi);
     PSI(:) = Greenp.*psi;
     PSI = ifftn(PSI);
 end
 
-function Greenp = xyz_periodic_green(obj, shifted_coordinate)
+function Greenp = xyz_periodic_green(k_square, kx, ky, kz)
     % Totally periodic Green's function
-    Greenp = 1 ./ (abs(...
-        (shifted_coordinate{1}).^2 + ...
-        (shifted_coordinate{2}).^2 + ...
-        (shifted_coordinate{3}).^2 ...
-        )-(2*pi*obj.utility.k0_nm)^2-1i*obj.eps_imag);
+    Greenp = 1 ./ (abs(kx.^2 + ky.^2 + kz.^2)-k_square);
 end
 
-function Greenp = xy_periodic_green(obj, shifted_coordinate)
+function Greenp = xy_periodic_green(k_square, Lz, kx, ky, kz)
     % Z-axis-truncated Green's function
     % It is YX periodic
-    Greenp = xyz_periodic_green(obj, shifted_coordinate);
-    k0 = sqrt((2*pi*obj.utility.k0_nm)^2+1i*obj.eps_imag - shifted_coordinate{2}.^2 - shifted_coordinate{3}.^2);
-    kz = shifted_coordinate{3};
-    L = (obj.ROI(6)-obj.ROI(5)+1)*obj.resolution(3)/4;
-    Greenp = Greenp .* (1- exp(1i*L*k0) .* (cos(kz*L) - 1i*kz./k0.*sin(kz*L)));
+    Greenp = xyz_periodic_green(k_square, kx, ky, kz);
+    k0 = sqrt(k_square - kx.^2 - ky.^2);
+    Greenp = Greenp .* (1- exp(1i*Lz*k0) .* (cos(kz*Lz) - 1i*kz./k0.*sin(kz*Lz)));
 end
