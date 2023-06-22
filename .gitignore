@@ -6,3 +6,6 @@
 *.log
 *.fsp
 *.txt
+# images
+*.gif
+*.png
