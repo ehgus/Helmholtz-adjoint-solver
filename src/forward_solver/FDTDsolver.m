@@ -74,7 +74,7 @@ classdef FDTDsolver < ForwardSolver
             h.utility=derive_utility(h, Nsize); % the utility for the space with border
             warning('on','all');
         end
-        function [fields_trans,fields_ref,fields_3D,Hfields]=solve(h,input_field)
+        function [fields_3D, Hfields]=solve(h,input_field)
             input_field=single(input_field);
             
             if size(input_field,3)>1 &&~h.vector_simulation
@@ -111,14 +111,6 @@ classdef FDTDsolver < ForwardSolver
             if h.vector_simulation
                 out_pol=2;
             end
-            fields_trans=[];
-            if h.return_transmission
-                fields_trans=ones(size(h.RI,1),size(h.RI,2),out_pol,size(input_field,4),'single');
-            end
-            fields_ref=[];
-            if h.return_reflection
-                fields_ref=ones(size(h.RI,1),size(h.RI,2),out_pol,size(input_field,4),'single');
-            end
             fields_3D=[];
             if h.return_3D
                 fields_3D=ones(size(h.RI,1),size(h.RI,2),h.initial_ZP_3,size(input_field,3),size(input_field,4),'single');
@@ -131,29 +123,9 @@ classdef FDTDsolver < ForwardSolver
             for field_num=1:size(input_field,4)
                 [Field, Hfield] = h.solve_forward(input_field(:,:,:,field_num), source_H(:,:,:,field_num));
                 %crop and remove near field (3D to 2D field)
-                
                 if h.return_3D
                     fields_3D(:,:,:,:,field_num)=Field;
                     Hfields(:,:,:,:,field_num)=Hfield;
-                end
-                if h.return_transmission
-                    field_trans= squeeze(Field(:,:,end,:));
-                    field_trans=fftshift(fft2(ifftshift(field_trans)));
-                    field_trans = h.transform_field_2D(field_trans);
-                    field_trans=field_trans.*exp(h.utility.refocusing_kernel.*h.resolution(3).*(floor(h.initial_ZP_3/2)+1+h.padding_source-(h.initial_ZP_3+1+h.padding_source)));
-                    field_trans=field_trans.*h.utility.NA_circle;%crop to the objective NA
-                    field_trans=fftshift(ifft2(ifftshift(field_trans)));
-                    fields_trans(:,:,:,field_num)=squeeze(field_trans);
-                end
-                if h.return_reflection
-                    field_ref= squeeze(Field(:,:,1,:));
-                    field_ref=fftshift(fft2(ifftshift(field_ref)));
-                    field_ref=field_ref-source_0_3D(:,:,:,field_num).*exp(h.utility.refocusing_kernel.*h.resolution(3).*(+h.padding_source));
-                    field_ref = h.transform_field_2D_reflection(field_ref);
-                    field_ref=field_ref.*exp(h.utility.refocusing_kernel.*h.resolution(3).*(-floor(h.initial_ZP_3/2)-1));
-                    field_ref=field_ref.*h.utility.NA_circle;%crop to the objective NA
-                    field_ref=fftshift(ifft2(ifftshift(field_ref)));
-                    fields_ref(:,:,:,field_num)=squeeze(field_ref);
                 end
             end
             

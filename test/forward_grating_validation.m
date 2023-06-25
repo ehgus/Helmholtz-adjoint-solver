@@ -95,7 +95,7 @@ for isolver = 1:solver_num
     end
     forward_solver.set_RI(RI_grating);
     tic;
-    [~, ~, E_field_rst{isolver}, H_field_rst{isolver}] = forward_solver.solve(input_field);
+    [E_field_rst{isolver}, H_field_rst{isolver}] = forward_solver.solve(input_field);
     E_field_3D = E_field_rst{isolver};
     H_field_3D = H_field_rst{isolver};
     toc;

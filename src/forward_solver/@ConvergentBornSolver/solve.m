@@ -1,4 +1,4 @@
-function [fields_trans,fields_ref,fields_3D,Hfields]=solve(h,input_field)
+function [fields_3D,Hfields]=solve(h,input_field)
     if ~h.use_GPU
         input_field=single(input_field);
     else
@@ -20,14 +20,6 @@ function [fields_trans,fields_ref,fields_3D,Hfields]=solve(h,input_field)
     out_pol=1;
     if h.vector_simulation
         out_pol=2;
-    end
-    fields_trans=[];
-    if h.return_transmission
-        fields_trans=ones(1+h.ROI(2)-h.ROI(1),1+h.ROI(4)-h.ROI(3),out_pol,size(input_field,4),'single');
-    end
-    fields_ref=[];
-    if h.return_reflection
-        fields_ref=ones(1+h.ROI(2)-h.ROI(1),1+h.ROI(4)-h.ROI(3),out_pol,size(input_field,4),'single');
     end
     fields_3D=[];
     if h.return_3D
@@ -69,34 +61,6 @@ function [fields_trans,fields_ref,fields_3D,Hfields]=solve(h,input_field)
                 emitter_3D=gpuArray(emitter_3D);
             end
             emitter_3D=fft2(ifftshift2(emitter_3D));
-        end
-        if h.return_transmission
-            if h.use_GPU
-                h.kernel_trans=gpuArray(h.kernel_trans);
-            end
-
-            field_trans = h.crop_conv2field(fftshift2(ifft2(sum(emitter_3D.*fftshift(h.kernel_trans,3),3))));
-            field_trans=squeeze(field_trans);
-            field_trans=fft2(field_trans);
-            field_trans=field_trans + input_field(:,:,:,field_num);
-
-            field_trans = ifftshift2(h.transform_field_2D(fftshift2(field_trans)));
-            field_trans=ifft2(field_trans);
-            fields_trans(:,:,:,field_num)=gather(squeeze(field_trans));
-            h.kernel_trans=gather(h.kernel_trans);
-        end
-        if h.return_reflection
-            if h.use_GPU
-                h.kernel_ref=gpuArray(h.kernel_ref);
-            end
-            field_ref = h.crop_conv2field(fftshift2(ifft2(sum(emitter_3D.*fftshift(h.kernel_ref,3),3))));
-            field_ref=squeeze(field_ref);
-            field_ref=fft2(field_ref);
-            field_ref = ifftshift2(h.transform_field_2D_reflection(fftshift2(field_ref)));
-            field_ref=ifft2(field_ref);
-            fields_ref(:,:,:,field_num)=gather(squeeze(field_ref));
-
-            h.kernel_ref=gather(h.kernel_ref);
         end
     end
     %gather to release gpu memory

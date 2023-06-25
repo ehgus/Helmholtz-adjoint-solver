@@ -55,7 +55,7 @@ classdef MieTheorySolver < ForwardSolver
             h.utility=derive_utility(h, Nsize); % the utility for the space with border
             warning('on','all');
         end
-        function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
+        function [fields_3D]=solve(h,input_field)
             if ~h.use_GPU
                 input_field=single(input_field);
             else
@@ -82,34 +82,20 @@ classdef MieTheorySolver < ForwardSolver
             if h.vector_simulation
                 out_pol=2;
             end
-            fields_trans=[];
-            if h.return_transmission
-                fields_trans=ones(h.ROI(2)-h.ROI(1)+1,h.ROI(4)-h.ROI(3)+1,out_pol,size(input_field,4),'single');
-            end
-            fields_ref=[];
-            if h.return_reflection
-                fields_ref=ones(h.ROI(2)-h.ROI(1)+1,h.ROI(4)-h.ROI(3)+1,out_pol,size(input_field,4),'single');
-            end
             fields_3D=[];
             if h.return_3D
                 fields_3D=ones(h.ROI(2)-h.ROI(1)+1, h.ROI(4)-h.ROI(3)+1, h.ROI(6)-h.ROI(5)+1, size(input_field,3), size(input_field,4), 'single');
             end
             for field_num=1:size(input_field,4)
-                [field_3D, field_trans, field_ref]=h.solve_forward(input_field(:,:,:,field_num), field_num);
+                field_3D = h.solve_forward(input_field(:,:,:,field_num), field_num);
                 %crop and remove near field (3D to 2D field)
                 if h.return_3D
                     fields_3D(:,:,:,:,field_num)=gather(field_3D);
                 end
-                if h.return_transmission
-                    fields_trans(:,:,:,field_num)=gather(squeeze(field_trans));
-                end
-                if h.return_reflection
-                    fields_ref(:,:,:,field_num)=gather(squeeze(field_ref));
-                end
             end
             
         end
-        function [field_3D, field_trans, field_ref]=solve_forward(h,source,field_num)
+        function field_3D = solve_forward(h,source,field_num)
             Field = complex(zeros([size(h.RI,1:3) 3], 'single'));
             % defined a k-vector for the illuminated plane & wavenumbers in both sample and background medium
             if field_num == 1
@@ -244,27 +230,10 @@ classdef MieTheorySolver < ForwardSolver
 
             % Retrieve final result
             field_3D = Field(h.ROI(1):h.ROI(2), h.ROI(3):h.ROI(4), h.ROI(5):h.ROI(6),:);
-            
-            field_trans = Field(h.ROI(1):h.ROI(2), h.ROI(3):h.ROI(4),h.ROI(6)+1,:);
-            field_trans=squeeze(field_trans);
-            field_trans=fftshift(fft2(ifftshift(field_trans)));
-            [field_trans] = h.transform_field_2D(field_trans);
-            field_trans=field_trans.*exp(h.utility.refocusing_kernel.*h.resolution(3).*(floor(h.initial_Nsize(3)/2)+1-(h.initial_Nsize(3)+1)));
-            field_trans=field_trans.*h.utility.NA_circle;%crop to the objective NA
-            field_trans=fftshift(ifft2(ifftshift(field_trans)));
 
             Field(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)-1-h.padding_source):(h.ROI(6)+1),:,:) = ...
-                gather(single(Field(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)-1-h.padding_source):(h.ROI(6)+1),:,:) - incident_field));
-            field_ref = Field(h.ROI(1):h.ROI(2), h.ROI(3):h.ROI(4),h.ROI(5)-1,:);
-            field_ref=squeeze(field_ref);
-            field_ref=fftshift(fft2(ifftshift(field_ref)));
-            [field_ref] = h.transform_field_2D_reflection(field_ref);
-            field_ref=field_ref.*exp(h.utility.refocusing_kernel.*h.resolution(3).*(-floor(h.initial_Nsize(3)/2)-1));
-            field_ref=field_ref.*h.utility.NA_circle;%crop to the objective NA
-            field_ref=fftshift(ifft2(ifftshift(field_ref)));
-            
+                gather(single(Field(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)-1-h.padding_source):(h.ROI(6)+1),:,:) - incident_field));        
         end
-        
     end
 end
 

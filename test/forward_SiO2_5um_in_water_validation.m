@@ -65,59 +65,41 @@ input_field=FieldGenerator.get_field(field_generator_params);
 %% solve the forward problem
 cbs_file = "SiO2_5um_bead_CBS.mat";
 if isfile(cbs_file)
-    load(cbs_file,'field_trans_CBS','field_ref_CBS','field_CBS','Hfield_CBS');
+    load(cbs_file, 'field_CBS', 'Hfield_CBS');
 else
     forward_solver_CBS=ConvergentBornSolver(forward_CBS_params);
     forward_solver_CBS.set_RI(RI);
     tic;
-    [field_trans_CBS,field_ref_CBS,field_CBS,Hfield_CBS]=forward_solver_CBS.solve(input_field);
+    [field_CBS, Hfield_CBS]=forward_solver_CBS.solve(input_field);
     toc;
-    save(cbs_file,'field_trans_CBS','field_ref_CBS','field_CBS','Hfield_CBS');
+    save(cbs_file, 'field_CBS', 'Hfield_CBS');
 end
 
 fdtd_file = "SiO2_5um_bead_FDTD.mat";
 if isfile(fdtd_file)
-    load(fdtd_file,'field_trans_FDTD','field_ref_FDTD','field_FDTD','Hfield_FDTD');
+    load(fdtd_file, 'field_FDTD', 'Hfield_FDTD');
 else
     forward_solver_FDTD=FDTDsolver(forward_FDTD_params);
     forward_solver_FDTD.set_RI(RI);
     tic;
-    [field_trans_FDTD,field_ref_FDTD,field_FDTD,Hfield_FDTD]=forward_solver_FDTD.solve(input_field);
+    [field_FDTD, Hfield_FDTD]=forward_solver_FDTD.solve(input_field);
     toc;
-    save(fdtd_file,'field_trans_FDTD','field_ref_FDTD','field_FDTD','Hfield_FDTD');
+    save(fdtd_file, 'field_FDTD', 'Hfield_FDTD');
 end
 %compute the forward field - Mie
 mie_field_filename = fullfile(dirname,'test/Mie_field.mat');
 if isfile(mie_field_filename)
-    load(mie_field_filename, 'field_trans_Mie','field_ref_Mie','field_3D_Mie');
+    load(mie_field_filename, 'field_3D_Mie');
 else
     forward_solver_Mie=MieTheorySolver(forward_params_Mie);
     forward_solver_Mie.set_RI(RI);
     tic;
-    [field_trans_Mie,field_ref_Mie,field_3D_Mie]=forward_solver_Mie.solve(input_field);
+    [field_3D_Mie]=forward_solver_Mie.solve(input_field);
     toc;
-    save(mie_field_filename, 'field_trans_Mie','field_ref_Mie','field_3D_Mie');
+    save(mie_field_filename, 'field_3D_Mie');
 end
 
 %% Draw results
-[~,field_trans_CBS_scalar]=vector2scalarfield(input_field,field_trans_CBS);
-[~,field_trans_FDTD_scalar]=vector2scalarfield(input_field,field_trans_FDTD);
-[~,field_ref_CBS_scalar]=vector2scalarfield(input_field,field_ref_CBS);
-[input_field_scalar,field_ref_FDTD_scalar]=vector2scalarfield(input_field,field_ref_FDTD);
-input_field_no_zero=input_field_scalar;zero_part_mask=abs(input_field_no_zero)<=0.01.*mean(abs(input_field_no_zero(:)));input_field_no_zero(zero_part_mask)=0.01.*exp(1i.*angle(input_field_no_zero(zero_part_mask)));
-
-% far-field results
-amp_CBS=squeeze(abs(field_trans_CBS_scalar(:,:,:).^2));
-ref_CBS=squeeze(abs(field_ref_CBS_scalar(:,:,:).^2));
-ang_CBS=squeeze(angle(field_trans_CBS_scalar(:,:,:)./input_field_no_zero(:,:,:)/field_trans_CBS_scalar(1,1,1)));
-
-amp_FDTD=squeeze(abs(field_trans_FDTD_scalar(:,:,:).^2));
-ref_FDTD=squeeze(abs(field_ref_FDTD_scalar(:,:,:).^2));
-ang_FDTD=squeeze(angle(field_trans_FDTD_scalar(:,:,:)./input_field_no_zero(:,:,:)/field_trans_FDTD_scalar(1,1,1)));
-
-figure('Name','Transmission (Amp): CBS / FDTD');imagesc(cat(2,amp_CBS,amp_FDTD)); colormap gray;
-figure('Name','Transmission (Phase): CBS / FDTD');imagesc(cat(2,ang_CBS,ang_FDTD)); colormap gray;
-figure('Name','Reflection (Amp): CBS / FDTD');imagesc(cat(2,ref_CBS,ref_FDTD)); colormap gray;
 
 % 3D field distribution: E field
 intensity_CBS=sum(abs(field_CBS(:,:,:,:,1)).^2,4);
@@ -126,7 +108,6 @@ intensity_Mie=sum(abs(field_3D_Mie(:,:,:,:,1)).^2,4);
 figure('Name','Intensity: CBS / FDTD / Mie scattering');
 orthosliceViewer(cat(2,intensity_CBS,intensity_FDTD,intensity_Mie));
 colormap parula;
-
 
 % 3D field distribution: H field
 H_intensity_CBS=sum(abs(Hfield_CBS(:,:,:,:,1)).^2,4);

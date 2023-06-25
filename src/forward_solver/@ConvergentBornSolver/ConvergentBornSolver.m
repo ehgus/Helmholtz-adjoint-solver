@@ -113,9 +113,6 @@ classdef ConvergentBornSolver < ForwardSolver
                 free_space_green=fftshift(ifftn(ifftshift(free_space_green)));
             end
             h.refocusing_util=fftshift(h.refocusing_util,3);
-            free_space_green = free_space_green(h.ROI(1):h.ROI(2), h.ROI(3):h.ROI(4), h.ROI(5):h.ROI(6));
-            h.kernel_trans=gather(fft2(conj(free_space_green)));
-            h.kernel_ref=  gather(fft2(free_space_green));
         end
     end
 end
