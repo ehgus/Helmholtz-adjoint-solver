@@ -43,7 +43,6 @@ params.NA=NA; % Numerical aperture
 params.wavelength=wavelength; % [um]
 params.resolution=resolution*[1 1 1]; % 3D Voxel size [um]
 params.use_abbe_sine=false; % Abbe sine condition according to demagnification condition
-params.vector_simulation=true; % True/false: dyadic/scalar Green's function
 params.size=size(RImap); % 3D volume grid
 params.return_3D = true;
 params.verbose = false;

@@ -41,7 +41,6 @@ params.wavelength=wavelength;   % unit: micron
 params.RI_bg=minRI;            % Background RI
 params.resolution=ones(1,3) * resolution;         % 3D Voxel size [um]
 params.use_abbe_sine=false;     % Abbe sine condition according to demagnification condition
-params.vector_simulation=true;  % True/false: dyadic/scalar Green's function
 params.size=size(RImap);        % 3D volume grid
 
 %2 incident field parameters

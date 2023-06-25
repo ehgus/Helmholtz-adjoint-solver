@@ -31,7 +31,6 @@ params.wavelength = wavelength;
 params.RI_bg=RI_list(1);        % Background RI - should be matched with mode decomposition area
 params.resolution=ones(1,3) * resolution; % 3D Voxel size [um]
 params.use_abbe_sine=false;     % Abbe sine condition according to demagnification condition
-params.vector_simulation=true;  % True/false: dyadic/scalar Green's function
 params.size=grid_size;          % 3D volume grid
 
 %2 incident field parameters

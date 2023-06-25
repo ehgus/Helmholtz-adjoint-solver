@@ -6,9 +6,7 @@ function [Field, FoM] =solve_adjoint(obj,E_fwd, H_fwd, options)
     end
     % pre-allocate empty array
     Nsize = obj.forward_solver.size + 2 * obj.forward_solver.boundary_thickness_pixel;
-    if obj.forward_solver.vector_simulation
-        Nsize(4) = 3;
-    end
+    Nsize(4) = 3;
     if obj.forward_solver.use_GPU
         adjoint_field = zeros(Nsize,'single','gpuArray');
     else

@@ -13,7 +13,6 @@ SiO2 = database.material("main","SiO2","Malitson");
 params.RI_bg=H2O(params.wavelength);
 RI_sp=SiO2(params.wavelength);
 params.resolution=ones(1,3) * 0.05;
-params.vector_simulation=true;
 params.use_abbe_sine=true;
 params.size= [201 201 191];
 

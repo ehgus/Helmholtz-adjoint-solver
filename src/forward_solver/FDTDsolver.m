@@ -77,10 +77,8 @@ classdef FDTDsolver < ForwardSolver
         function [fields_3D, Hfields]=solve(h,input_field)
             input_field=single(input_field);
             
-            if size(input_field,3)>1 &&~h.vector_simulation
-                error('the source is 2D but parameter indicate a vectorial simulation');
-            elseif size(input_field,3)==1 && h.vector_simulation
-                error('the source is 3D but parameter indicate a non-vectorial simulation');
+            if size(input_field,3) == 2
+                error('The 3rd dimension of input_field should indicate polarization');
             end
             if h.verbose && size(input_field,3)==1
                 warning('Input is scalar but scalar equation is less precise');
@@ -107,10 +105,6 @@ classdef FDTDsolver < ForwardSolver
             input_field=fftshift(ifft2(ifftshift(input_field)));
             source_H=fftshift(ifft2(ifftshift(source_H)));
             %compute
-            out_pol=1;
-            if h.vector_simulation
-                out_pol=2;
-            end
             fields_3D=[];
             if h.return_3D
                 fields_3D=ones(size(h.RI,1),size(h.RI,2),h.initial_ZP_3,size(input_field,3),size(input_field,4),'single');

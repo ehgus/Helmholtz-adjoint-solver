@@ -5,10 +5,9 @@ function [fields_3D,Hfields]=solve(h,input_field)
         input_field=single(gpuArray(input_field));
     end
 
-    assert(size(input_field,3)~=1 || ~h.vector_simulation, ...
-    'Scalar simulation requires scalar field: size(input_field,3)==1');
-    assert(size(input_field,3)~=2 || h.vector_simulation, ...
-    'Vectorial simulation requires 2D vector field: size(input_field,3)==2');
+    if size(input_field,3) == 2
+        error('The 3rd dimension of input_field should indicate polarization');
+    end
     if h.verbose && size(input_field,3)==1
         warning('Scalar simulation is less precise');
     end
@@ -17,16 +16,12 @@ function [fields_3D,Hfields]=solve(h,input_field)
     %2D to 3D field
     input_field = ifftshift2(h.transform_field_3D(fftshift2(input_field)));
     %compute
-    out_pol=1;
-    if h.vector_simulation
-        out_pol=2;
-    end
     fields_3D=[];
     if h.return_3D
         fields_3D=ones(1+h.ROI(2)-h.ROI(1),1+h.ROI(4)-h.ROI(3),1+h.ROI(6)-h.ROI(5),size(input_field,3),size(input_field,4),'single');
     end
     Hfields=[];
-    if h.return_3D && h.vector_simulation
+    if h.return_3D
         Hfields=ones(1+h.ROI(2)-h.ROI(1),1+h.ROI(4)-h.ROI(3),1+h.ROI(6)-h.ROI(5),size(input_field,3),size(input_field,4),'single');
     end
 
@@ -35,9 +30,7 @@ function [fields_3D,Hfields]=solve(h,input_field)
         %crop and remove near field (3D to 2D field)
         if h.return_3D
             fields_3D(:,:,:,:,field_num)=gather(Field);
-            if h.vector_simulation
-                Hfields(:,:,:,:,field_num)=gather(Hfield);
-            end
+            Hfields(:,:,:,:,field_num)=gather(Hfield);
         end
         if h.return_transmission || h.return_reflection
             potential = h.V(h.ROI(1):h.ROI(2), h.ROI(3):h.ROI(4), h.ROI(5):h.ROI(6),:,:);

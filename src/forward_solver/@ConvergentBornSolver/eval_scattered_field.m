@@ -4,12 +4,8 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
     % E2 = r*G_flip*S/4
     % E3 = M * (E1 + E2) + (E1 + E2)
     % E_(j+1) = M E_j
-    pole_num = 1;
-    if obj.vector_simulation
-        pole_num = 3;
-    end
     is_isotropic = size(obj.V, 4) == 1;  % scalar RI = (x,y,z, tensor_dim1, tensor_dim2)
-    size_field=[size(obj.V,1),size(obj.V,2),size(obj.V,3), pole_num];
+    size_field=[size(obj.V,1),size(obj.V,2),size(obj.V,3), 3];
 
     if obj.use_GPU
         array_func = @gpuArray;
@@ -107,11 +103,10 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
             drawnow
         end
     end
-    if obj.vector_simulation
-        % -i/k_0 * (n_0/impedance_0) * curl(E)
-        Hfield = obj.curl_field(Field);
-        Hfield = -1i * obj.wavelength/(2*pi*377) .* gather(Hfield(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),obj.ROI(5):obj.ROI(6),:,:));
-    end
+    % H = -i/k_0 * (n_0/impedance_0) * curl(E)
+    Hfield = obj.curl_field(Field);
+    Hfield = -1i * obj.wavelength/(2*pi*377) .* gather(Hfield(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),obj.ROI(5):obj.ROI(6),:,:));
+
     Field = gather(Field(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),obj.ROI(5):obj.ROI(6),:,:));
     obj.V=gather(obj.V);
     obj.field_attenuation_mask=gather(obj.field_attenuation_mask);

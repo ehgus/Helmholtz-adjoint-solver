@@ -62,10 +62,8 @@ classdef MieTheorySolver < ForwardSolver
                 h.RI=single(gpuArray(h.RI));
                 input_field=single(gpuArray(input_field));
             end
-            if size(input_field,3)>1 &&~h.vector_simulation
-                error('the source is 2D but parameter indicate a vectorial simulation');
-            elseif size(input_field,3)==1 && h.vector_simulation
-                error('the source is 3D but parameter indicate a non-vectorial simulation');
+            if size(input_field,3) == 2
+                error('The 3rd dimension of input_field should indicate polarization');
             end
             if h.verbose && size(input_field,3)==1
                 warning('Input is scalar but scalar equation is less precise');
@@ -78,10 +76,6 @@ classdef MieTheorySolver < ForwardSolver
             %2D to 3D field
             [input_field] = h.transform_field_3D(input_field);
             %compute
-            out_pol=1;
-            if h.vector_simulation
-                out_pol=2;
-            end
             fields_3D=[];
             if h.return_3D
                 fields_3D=ones(h.ROI(2)-h.ROI(1)+1, h.ROI(4)-h.ROI(3)+1, h.ROI(6)-h.ROI(5)+1, size(input_field,3), size(input_field,4), 'single');

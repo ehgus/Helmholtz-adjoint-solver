@@ -1,6 +1,6 @@
 classdef FieldGenerator < handle
     % generate array correponding to coherent plane light source in frequency space
-    % Return array with size [Xsize, Ysize, 2 if vector_simulation else 1, illumination_number]
+    % Return array with size [Xsize, Ysize, 2, illumination_number]
     properties (Constant)
         wavelength = NaN;           %wavelength
         NA = 1;                     %Numerical aperture
@@ -8,17 +8,12 @@ classdef FieldGenerator < handle
         illumination_style='random';%illumination style: random, circle
         size = [NaN, NaN];          %XY size of illumination
         illumination_number=10;     %Number of illumination patterns to generate
-        vector_simulation=true;     %Vectorial source or scalar wave source
         start_with_normal=true;     %Check whether you always put normal plane at the start of the illumination
     end
     methods (Static)
         function output_field = get_field(options)
             options = FieldGenerator.fill_default_parameters(options);
-            pol_num = 1;
-            if options.vector_simulation
-                pol_num = 2;
-            end
-            output_field=zeros(options.size(1), options.size(2), pol_num, options.illumination_number, 'single');
+            output_field=zeros(options.size(1), options.size(2), 2, options.illumination_number, 'single');
             options.RI_bg = 1; % vacuum RI 
             utility = derive_optical_tool(options);
             for ill_num = 1:options.illumination_number
