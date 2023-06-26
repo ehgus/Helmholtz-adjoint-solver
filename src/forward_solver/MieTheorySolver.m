@@ -32,7 +32,6 @@ classdef MieTheorySolver < ForwardSolver
             obj.create_boundary_RI();
         end
         function create_boundary_RI(obj)
-            warning('allow to chose a threshold for remaining energy');
             Nsize = size(obj.RI);
             % Set boundary size & absorptivity
             if length(obj.boundary_thickness) == 1
@@ -55,7 +54,7 @@ classdef MieTheorySolver < ForwardSolver
             obj.utility=derive_utility(obj, Nsize); % the utility for the space with border
             warning('on','all');
         end
-        function [fields_3D]=solve(obj,input_field)
+        function [Efield]=solve(obj,input_field)
             if ~obj.use_GPU
                 input_field=single(input_field);
             else
@@ -75,28 +74,17 @@ classdef MieTheorySolver < ForwardSolver
             %2D to 3D field
             [input_field] = obj.transform_field_3D(input_field);
             %compute
-            fields_3D=ones(obj.ROI(2)-obj.ROI(1)+1, obj.ROI(4)-obj.ROI(3)+1, obj.ROI(6)-obj.ROI(5)+1, size(input_field,3), size(input_field,4), 'single');
-            for field_num=1:size(input_field,4)
-                field_3D = obj.solve_forward(input_field(:,:,:,field_num), field_num);
-                %crop and remove near field (3D to 2D field)
-                if obj.return_3D
-                    fields_3D(:,:,:,:,field_num)=gather(field_3D);
-                end
-            end
-            
+            Efield = obj.solve_forward(input_field);
         end
-        function field_3D = solve_forward(obj,source,field_num)
+        function Efield = solve_forward(obj,source,field_num)
             Field = complex(zeros([size(obj.RI,1:3) 3], 'single'));
             % defined a k-vector for the illuminated plane & wavenumbers in both sample and background medium
-            if field_num == 1
-                kx = 0; ky = 0;
-            else
-                [kx, ky] = find(source == max(source(:)));
-                kx = kx - floor(size(source,1)/2) - 1;
-                ky = ky - floor(size(source,2)/2) - 1;
-                kx = kx * utility.fourier_space.res{1};
-                ky = ky * utility.fourier_space.res{2};
-            end
+            [kx, ky] = find(source == max(source(:)));
+            kx = kx - floor(size(source,1)/2) - 1;
+            ky = ky - floor(size(source,2)/2) - 1;
+            kx = kx * obj.utility.fourier_space.res{1};
+            ky = ky * obj.utility.fourier_space.res{2};
+
             k_m = obj.utility.k0_nm * 2 * pi;
             k_s = k_m * obj.n_s / obj.RI_bg;
             k_vector = [kx ky sqrt(k_m^2 - kx^2 - ky^2)]; %%% sqrt(k_m^2 - norm(k_vector)^2); ?? why norm?
@@ -219,7 +207,7 @@ classdef MieTheorySolver < ForwardSolver
             end
 
             % Retrieve final result
-            field_3D = gather(Field(obj.ROI(1):obj.ROI(2), obj.ROI(3):obj.ROI(4), obj.ROI(5):obj.ROI(6),:));    
+            Efield = gather(Field(obj.ROI(1):obj.ROI(2), obj.ROI(3):obj.ROI(4), obj.ROI(5):obj.ROI(6),:));    
         end
     end
 end

@@ -44,7 +44,6 @@ params.wavelength=wavelength; % [um]
 params.resolution=resolution*[1 1 1]; % 3D Voxel size [um]
 params.use_abbe_sine=false; % Abbe sine condition according to demagnification condition
 params.size=size(RImap); % 3D volume grid
-params.return_3D = true;
 params.verbose = false;
 
 % incident field
@@ -72,8 +71,6 @@ x_pixel_coord = transpose((1:size(RImap,1))-diameter_pixel/2);
 y_pixel_coord = (1:size(RImap,2))-diameter_pixel/2;
 ROI_change_xy = x_pixel_coord.^2 + y_pixel_coord.^2 < diameter_pixel^2/4;
 ROI_change = and(real(RImap) > 2, ROI_change_xy);
-forward_solver.return_transmission = false;
-forward_solver.return_reflection = false;
 %Adjoint solver parameters
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;

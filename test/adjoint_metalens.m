@@ -54,7 +54,6 @@ input_field=FieldGenerator.get_field(field_generator_params);
 
 params_CBS=params;
 params_CBS.use_GPU=use_GPU;
-params_CBS.return_3D = true;
 params_CBS.boundary_thickness = [0 0 4];
 params_CBS.field_attenuation = [0 0 4];
 params_CBS.field_attenuation_sharpness = 0.5;
@@ -73,8 +72,6 @@ x_pixel_coord = transpose((1:size(RImap,1))-diameter_pixel/2);
 y_pixel_coord = (1:size(RImap,2))-diameter_pixel/2;
 ROI_change_xy = x_pixel_coord.^2 + y_pixel_coord.^2 < diameter_pixel^2/4;
 ROI_change = and(real(RImap) > 2, ROI_change_xy);
-forward_solver.return_transmission = false;
-forward_solver.return_reflection = false;
 %Adjoint solver parameters
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;

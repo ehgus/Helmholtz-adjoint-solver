@@ -50,7 +50,6 @@ input_field = (input_field_x + input_field_y)./sqrt(2);
 
 params_CBS=params;
 params_CBS.use_GPU=use_GPU;
-params_CBS.return_3D = true;
 params_CBS.boundary_thickness = [0 0 4];
 params_CBS.field_attenuation = [0 0 4];
 params_CBS.field_attenuation_sharpness = 0.5;
@@ -66,8 +65,6 @@ if verbose
 end
 %% Adjoint method
 ROI_change = real(RImap) > 2;
-forward_solver.return_transmission = false;
-forward_solver.return_reflection = false;
 %Adjoint solver parameters
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;

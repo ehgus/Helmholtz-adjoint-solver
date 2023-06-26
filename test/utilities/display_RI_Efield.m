@@ -1,7 +1,4 @@
 function display_RI_Efield(forward_solver,RI,input_field,figure_name)
-    forward_solver.return_3D = true;
-    forward_solver.return_reflection = true;
-    forward_solver.return_transmission = true;
     forward_solver.set_RI(RI); % change to RI_optimized and run if you want to see the output of adjoint method
     tic;
     field_3D = forward_solver.solve(input_field(:,:,:,1));

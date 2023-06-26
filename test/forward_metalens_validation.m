@@ -58,7 +58,6 @@ params.wavelength=wavelength; % [um]
 params.resolution=resolution; % 3D Voxel size [um]
 params.use_abbe_sine=false; % Abbe sine condition according to demagnification condition
 params.size=size(RI_metalens); % 3D volume grid
-params.return_3D = true;
 params.verbose = false;
 
 %% incident field parameters

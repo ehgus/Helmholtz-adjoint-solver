@@ -8,13 +8,9 @@ classdef (Abstract) ForwardSolver < OpticalSimulation
         RI_bg;                              %The representative refractive index
         % acceleration
         use_GPU logical = true;             %GPU acceleration
-        % return values
-        return_3D = true;
-        return_transmission = true;
-        return_reflection = true;
     end
     methods(Abstract)
-        [E, transmitted_E, reflected_E] = solve(obj, input_field)
+        solve(obj, input_field)
         set_RI(obj, RI) % determine RI and RI_bg
     end
     methods

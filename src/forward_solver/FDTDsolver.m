@@ -74,7 +74,7 @@ classdef FDTDsolver < ForwardSolver
             obj.utility=derive_utility(obj, Nsize); % the utility for the space with border
             warning('on','all');
         end
-        function [fields_3D, Hfields]=solve(obj,input_field)
+        function [Efield, Hfield]=solve(obj,input_field)
             input_field=single(input_field);
             
             assert(size(input_field,3) == 2, 'The 3rd dimension of input_field should indicate polarization')
@@ -102,20 +102,9 @@ classdef FDTDsolver < ForwardSolver
             input_field=fftshift(ifft2(ifftshift(input_field)));
             source_H=fftshift(ifft2(ifftshift(source_H)));
             %compute
-            fields_3D=ones(size(obj.RI,1),size(obj.RI,2),obj.initial_ZP_3,size(input_field,3),size(input_field,4),'single');
-            Hfields=ones(size(obj.RI,1),size(obj.RI,2),obj.initial_ZP_3,size(input_field,3),size(input_field,4),'single');
-
-            for field_num=1:size(input_field,4)
-                [Field, Hfield] = obj.solve_forward(input_field(:,:,:,field_num), source_H(:,:,:,field_num));
-                %crop and remove near field (3D to 2D field)
-                if obj.return_3D
-                    fields_3D(:,:,:,:,field_num)=Field;
-                    Hfields(:,:,:,:,field_num)=Hfield;
-                end
-            end
-            
+            [Efield, Hfield] = obj.solve_forward(input_field, source_H);
         end
-        function [Field, Hfield] = solve_forward(obj,source,source_H)
+        function [Efield, Hfield] = solve_forward(obj,source,source_H)
             assert(isequal(size(source,1:2),size(obj.RI,1:2)),'Field and RI sizes are not consistent')
             assert(isfolder(obj.fdtd_temp_dir), 'FDTD temp folder is not valid')
             %find the main component of the field
@@ -128,9 +117,6 @@ classdef FDTDsolver < ForwardSolver
             roi = reshape(roi,2,3) .* reshape(resolution,1,3);
             lumerical_save_field(source,source_H,obj.resolution, fullfile(obj.fdtd_temp_dir, 'field.mat'));
 
-            return_trans=double(1);
-            return_ref=double(1);
-            return_vol=double(1);
             base_index = obj.RI_bg;
             lambda = obj.wavelength;
             is_plane_wave=double(obj.is_plane_wave);
@@ -148,8 +134,7 @@ classdef FDTDsolver < ForwardSolver
                 GUI_option = "-nw";
             end
             save(fullfile(obj.fdtd_temp_dir, 'optical.mat'),'lambda','base_index', 'RI', 'resolution', ...
-                'roi', 'return_trans','return_ref','return_vol',...
-                'is_plane_wave','phi','theta','para_pol','ortho_pol','shutoff_min','dt_stability_factor','pml_x','pml_y','pml_z');
+                'roi','is_plane_wave','phi','theta','para_pol','ortho_pol','shutoff_min','dt_stability_factor','pml_x','pml_y','pml_z');
             assert(isfile(fullfile(obj.fdtd_temp_dir, "lumerical_fdtd_script.lsf")), sprintf("The script you tried to open does not exist on %s", obj.fdtd_temp_dir))
             command = sprintf('cd %s && "%s" -exit -run "lumerical_fdtd_script.lsf" %s', obj.fdtd_temp_dir, obj.lumerical_exe, GUI_option);
             system(command);
@@ -165,10 +150,10 @@ classdef FDTDsolver < ForwardSolver
             %% End of FDTD
             load(fullfile(obj.fdtd_temp_dir, 'result.mat'),'res_vol','res_vol_H');
 
-            Field=reshape(res_vol.E,length(res_vol.x),length(res_vol.y),length(res_vol.z),3);
+            Efield=reshape(res_vol.E,length(res_vol.x),length(res_vol.y),length(res_vol.z),3);
             Hfield=reshape(res_vol_H.H,length(res_vol_H.x),length(res_vol_H.y),length(res_vol_H.z),3);
             if obj.verbose
-                set(gcf,'color','w'), imagesc((abs(squeeze(Field(:,floor(size(Field,2)/2)+1,:))')));axis image; colorbar; axis off;drawnow
+                set(gcf,'color','w'), imagesc((abs(squeeze(Efield(:,floor(size(Efield,2)/2)+1,:))')));axis image; colorbar; axis off;drawnow
                 colormap hot
             end
         end

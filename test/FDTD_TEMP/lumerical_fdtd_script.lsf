@@ -22,9 +22,6 @@ save(filename_fsp);
 ?size(RI);
 ?resolution;
 ?roi;
-?return_trans;
-?return_ref;
-?return_vol;
 ?is_plane_wave;
 ?phi;
 ?theta;
@@ -214,34 +211,7 @@ if(pml_z){
     obs_max_z = max_z;
 }
 
-if(return_trans){
-addpower;
-set("name","field_profile_trans");
-set("monitor type",7);  # 2D z-normal
-
-set("x min",obs_min_x);
-set("x max",obs_max_x);
-set("y min",obs_min_y);
-set("y max",obs_max_y);
-
-set("z",max_z);
-
-}
-if(return_ref){
-addpower;
-set("name","field_profile_ref");
-set("monitor type",7);  # 2D z-normal
-
-set("x min",obs_min_x);
-set("x max",obs_max_x);
-set("y min",obs_min_y);
-set("y max",obs_max_y);
-
-set("z",min_z);
-
-}
-
-if(return_vol){
+#field profiler
 addpower;
 set("name","field_profile_vol");
 set("monitor type",8);  # 2D z-normal
@@ -252,10 +222,6 @@ set("y min",obs_min_y);
 set("y max",obs_max_y);
 set("z min",obs_min_z);
 set("z max",obs_max_z);
-}
-
-
-
 
 #run the simulation
 t_start = now;
@@ -268,11 +234,8 @@ res_vol_H = 0;
 res_trans = 0;
 res_ref = 0;
 
-if(return_vol){res_vol = getresult("field_profile_vol", "E");}
-if(return_vol){res_vol_H = getresult("field_profile_vol", "H");}
-if(return_trans){res_trans = getresult("field_profile_trans", "E");}
-if(return_ref){res_ref = getresult("field_profile_ref", "E");}
-
+res_vol = getresult("field_profile_vol", "E");
+res_vol_H = getresult("field_profile_vol", "H");
 
 matlabsave(filename_save,res_vol,res_vol_H,res_trans,res_ref);
 
