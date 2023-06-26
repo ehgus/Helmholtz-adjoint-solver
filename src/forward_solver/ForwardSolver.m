@@ -23,17 +23,17 @@ classdef (Abstract) ForwardSolver < OpticalSimulation
         end
         function fft_Field_3pol=transform_field_3D(obj,fft_Field_2pol)
             Nsize = size(fft_Field_2pol);
-            h.utility = derive_utility(obj, Nsize);
-            fft_Field_2pol = fft_Field_2pol.*h.utility.NA_circle;
+            obj.utility = derive_utility(obj, Nsize);
+            fft_Field_2pol = fft_Field_2pol.*obj.utility.NA_circle;
             
             if obj.use_abbe_sine
                 %abbe sine condition is due to the magnification
-                filter=single(h.utility.NA_circle);
-                filter(h.utility.NA_circle)=filter(h.utility.NA_circle)./sqrt(h.utility.cos_theta(h.utility.NA_circle));
+                filter=single(obj.utility.NA_circle);
+                filter(obj.utility.NA_circle)=filter(obj.utility.NA_circle)./sqrt(obj.utility.cos_theta(obj.utility.NA_circle));
                 fft_Field_2pol=fft_Field_2pol.*filter;
             end
             if Nsize(3)==2
-                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(h.utility);
+                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(obj.utility);
                 
                 fft_Field_2pol=fft_Field_2pol.*K_mask;
                 
@@ -52,19 +52,19 @@ classdef (Abstract) ForwardSolver < OpticalSimulation
         end
         function fft_Field_2pol=transform_field_2D(obj,fft_Field_3pol) 
             Nsize=size(fft_Field_3pol);
-            h.utility = derive_utility(obj, Nsize);
-            fft_Field_3pol=fft_Field_3pol.*h.utility.NA_circle;
+            obj.utility = derive_utility(obj, Nsize);
+            fft_Field_3pol=fft_Field_3pol.*obj.utility.NA_circle;
             
             if obj.use_abbe_sine
                 %abbe sine condition is due to the magnification
-                fft_Field_3pol=fft_Field_3pol.*sqrt(h.utility.cos_theta).*h.utility.NA_circle;
+                fft_Field_3pol=fft_Field_3pol.*sqrt(obj.utility.cos_theta).*obj.utility.NA_circle;
             end
             if size(fft_Field_3pol,3)>1
                 if Nsize(3)~=3
                     error('Near field has three polarisation');
                 end
                 
-                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(h.utility);
+                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(obj.utility);
                 
                 fft_Field_3pol=fft_Field_3pol.*K_mask;
                 
@@ -81,16 +81,16 @@ classdef (Abstract) ForwardSolver < OpticalSimulation
         end
         function fft_Field_2pol=transform_field_2D_reflection(obj,fft_Field_3pol)
             Nsize=size(fft_Field_3pol);
-            h.utility = derive_utility(obj, Nsize);
-            fft_Field_3pol=fft_Field_3pol.*h.utility.NA_circle;
+            obj.utility = derive_utility(obj, Nsize);
+            fft_Field_3pol=fft_Field_3pol.*obj.utility.NA_circle;
             
             if obj.use_abbe_sine
                 %abbe sine condition is due to the magnification
-                fft_Field_3pol=fft_Field_3pol.*sqrt(h.utility.cos_theta).*h.utility.NA_circle;
+                fft_Field_3pol=fft_Field_3pol.*sqrt(obj.utility.cos_theta).*obj.utility.NA_circle;
             end
             if size(fft_Field_3pol,3)>1
                 assert(Nsize(3)==3, 'Near field has three polarisation')
-                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(h.utility);
+                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(obj.utility);
                 
                 ewald_TanVec(:,:,3)=-ewald_TanVec(:,:,3);%because reflection invers k3
                 

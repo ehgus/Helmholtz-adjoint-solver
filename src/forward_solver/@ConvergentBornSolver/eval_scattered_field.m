@@ -35,8 +35,8 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         source = obj.V .* incident_field;
     else % tensor
         source = zeros('like',incident_field);
-        for j1 = 1:3
-            source = source + obj.V(:,:,:,:,j1) .* incident_field(:,:,:,j1);
+        for axis = 1:3
+            source = source + obj.V(:,:,:,:,axis) .* incident_field(:,:,:,axis);
         end
     end
     source = source + 1i*obj.eps_imag * incident_field;
@@ -44,7 +44,7 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
     for idx = 1:length(obj.field_attenuation_mask)
         source=source.*obj.field_attenuation_mask{idx};
     end
-    for jj = 1:obj.Bornmax
+    for idx = 1:obj.Bornmax
         if obj.acyclic
             %flip the relevant quantities
             [Green_fn, flip_Green_fn] = deal(flip_Green_fn, Green_fn);
@@ -55,15 +55,15 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         PSI(:) = 0;
         psi(:) = 0;
         
-        if jj <= 2 % source
+        if idx <= 2 % source
             Field_n(:)=0;
             psi(:) = (1i/obj.eps_imag/4)*source;
         else % gamma * E
             if is_isotropic
                 psi = obj.V .* Field_n;
             else
-                for j1 = 1:3
-                    psi = psi + obj.V(:,:,:,:,j1) .* Field_n(:,:,:,j1);
+                for axis = 1:3
+                    psi = psi + obj.V(:,:,:,:,axis) .* Field_n(:,:,:,axis);
                 end
             end
             psi = (1i/obj.eps_imag)*psi;
@@ -81,8 +81,8 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         if is_isotropic
             Field_n = Field_n + obj.V .* PSI;
         else
-            for j1 = 1:3
-                Field_n = Field_n + obj.V(:,:,:,:,j1) .* PSI(:,:,:,j1);
+            for axis = 1:3
+                Field_n = Field_n + obj.V(:,:,:,:,axis) .* PSI(:,:,:,axis);
             end
         end
         % Attenuation
@@ -90,11 +90,11 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
             Field_n=Field_n.*obj.field_attenuation_mask{idx};
         end
         % add the fields to the total field
-        if jj==3
+        if idx==3
             Field_n = Field_n + Field;
         end
         Field = Field + Field_n;
-        if jj==2
+        if idx==2
             Field_n = Field;
         end
         if obj.verbose

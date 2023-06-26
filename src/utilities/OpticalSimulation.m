@@ -21,8 +21,8 @@ classdef (Abstract) OpticalSimulation < handle
             % Update parameters from default settings
             % It ignores unsupported fields
             instance_properties = intersect(properties(obj),fieldnames(options));
-            for i = 1:length(instance_properties)
-                property = instance_properties{i};
+            for idx = 1:length(instance_properties)
+                property = instance_properties{idx};
                 obj.(property) = options.(property);
             end
         end

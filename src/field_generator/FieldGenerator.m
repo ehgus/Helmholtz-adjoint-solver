@@ -55,8 +55,8 @@ classdef FieldGenerator < handle
         function options = fill_default_parameters(options)
             % fill default values if some mendatory values are missing
             instance_properties = setdiff(properties(FieldGenerator), fieldnames(options));
-            for i = 1:length(instance_properties)
-                property = instance_properties{i};
+            for idx = 1:length(instance_properties)
+                property = instance_properties{idx};
                 options.(property) = FieldGenerator.(property);
             end
         end

@@ -1,4 +1,4 @@
-function [Field, FoM] =solve_adjoint(obj,E_fwd, H_fwd, options)
+function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
     % minimize FoM
     % Generate adjoint source and calculate adjoint field
     if (obj.forward_solver.use_GPU)
@@ -20,15 +20,15 @@ function [Field, FoM] =solve_adjoint(obj,E_fwd, H_fwd, options)
         % Calculate transmission rate of plane wave
         % relative intensity: Matrix of relative intensity
         relative_transmission = zeros(1,length(options.E_field));
-        for i = 1:length(options.E_field)
-            eigen_S = poynting_vector(E_fwd, options.H_field{i}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)) ...
-                    + poynting_vector(conj(options.E_field{i}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)), conj(H_fwd));
-            relative_transmission(i) = mean(sum(eigen_S(:,:,end,3),1:2)./options.normal_transmission{i},'all');
+        for idx = 1:length(options.E_field)
+            eigen_S = poynting_vector(E_fwd, options.H_field{idx}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)) ...
+                    + poynting_vector(conj(options.E_field{idx}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)), conj(H_fwd));
+            relative_transmission(idx) = mean(sum(eigen_S(:,:,end,3),1:2)./options.normal_transmission{idx},'all');
         end
         adjoint_source_weight = (abs(relative_transmission).^2 - options.target_transmission).*(relative_transmission./abs(relative_transmission));
         disp(abs(relative_transmission).^2)
-        for i = 1:length(options.E_field)
-            adjoint_field = adjoint_field - 1i * conj(options.E_field{i}* adjoint_source_weight(i));
+        for idx = 1:length(options.E_field)
+            adjoint_field = adjoint_field - 1i * conj(options.E_field{idx}* adjoint_source_weight(idx));
         end
         
         % ad-hoc solution: It places input field at the edge of the simulation region.

@@ -49,8 +49,8 @@ function set_kernel(obj)
         end
         shifted_coordinate{3}=shifted_coordinate{3}+obj.utility.fourier_space.res{3}/4;
     end
-    for i=1:3
-        shifted_coordinate{i}=2*pi*ifftshift(gather(shifted_coordinate{i}));
+    for axis = 1:3
+        shifted_coordinate{axis}=2*pi*ifftshift(gather(shifted_coordinate{axis}));
     end
     k_square = (2*pi*obj.utility.k0_nm)^2+1i.*obj.eps_imag;
     Lz = (obj.ROI(6)-obj.ROI(5)+1)*obj.resolution(3);
@@ -86,18 +86,18 @@ function set_kernel(obj)
 end
 
 function PSI = apply_dyadic_Green(PSI, psi, Greenp, rads)
-    for i = 1:3
-        psi(:,:,:,i) = fftn(psi(:,:,:,i));
+    for axis = 1:3
+        psi(:,:,:,axis) = fftn(psi(:,:,:,axis));
     end
     % identity term
     PSI(:) = Greenp.*psi;
     % dyadic term
     psi(:) = PSI.*rads;
-    for i = 1:3
-        PSI(:) = PSI - rads.*psi(:,:,:,i);
+    for axis = 1:3
+        PSI(:) = PSI - rads.*psi(:,:,:,axis);
     end
-    for i = 1:3
-        PSI(:,:,:,i) = ifftn(PSI(:,:,:,i));
+    for axis = 1:3
+        PSI(:,:,:,i) = ifftn(PSI(:,:,:,axis));
     end
 end
 

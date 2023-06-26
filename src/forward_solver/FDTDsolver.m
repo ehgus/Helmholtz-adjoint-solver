@@ -32,55 +32,55 @@ classdef FDTDsolver < ForwardSolver
     end
 
     methods
-        function h=FDTDsolver(params)
-            h@ForwardSolver(params);
+        function obj=FDTDsolver(params)
+            obj@ForwardSolver(params);
             % check boundary thickness
-            if length(h.boundary_thickness) == 1
-                h.boundary_thickness = zeros(1,3);
-                h.boundary_thickness(:) = h.boundary_thickness;
+            if length(obj.boundary_thickness) == 1
+                obj.boundary_thickness = zeros(1,3);
+                obj.boundary_thickness(:) = obj.boundary_thickness;
             end
-            assert(length(h.boundary_thickness) == 3, 'boundary_thickness should be either a 3-size vector or a scalar')
-            h.boundary_thickness_pixel = round(h.boundary_thickness*h.wavelength/h.RI_bg./(h.resolution.*2));
-            h.boundary_thickness_pixel(3) = max(1, h.boundary_thickness_pixel(3)); % make place for source
+            assert(length(obj.boundary_thickness) == 3, 'boundary_thickness should be either a 3-size vector or a scalar')
+            obj.boundary_thickness_pixel = round(obj.boundary_thickness*obj.wavelength/obj.RI_bg./(obj.resolution.*2));
+            obj.boundary_thickness_pixel(3) = max(1, obj.boundary_thickness_pixel(3)); % make place for source
             % find lumerical solver
-            h.lumerical_exe = FDTDsolver.find_lumerical_exe();
+            obj.lumerical_exe = FDTDsolver.find_lumerical_exe();
         end
-        function set_RI(h,RI)
-            h.RI=single(RI);%single computation are faster
-            h.initial_ZP_3=size(h.RI,3);%size before adding boundary
-            h.condition_RI();%modify the RI (add padding and boundary)
-            h.init();%init the parameter for the forward model
+        function set_RI(obj,RI)
+            obj.RI=single(RI);%single computation are faster
+            obj.initial_ZP_3=size(obj.RI,3);%size before adding boundary
+            obj.condition_RI();%modify the RI (add padding and boundary)
+            obj.init();%init the parameter for the forward model
         end
-        function condition_RI(h)
+        function condition_RI(obj)
             %add boundary to the RI
-            h.create_boundary_RI();
+            obj.create_boundary_RI();
         end
-        function create_boundary_RI(h)
+        function create_boundary_RI(obj)
             %% SHOULD BE REMOVED: boundary_thickness_pixel is the half from the previous definition
-            old_RI_size=size(h.RI);
-            pott=RI2potential(h.RI,h.wavelength,h.RI_bg);
-            pott=padarray(pott,h.boundary_thickness_pixel,'replicate');
-            h.RI=potential2RI(pott,h.wavelength,h.RI_bg);
+            old_RI_size=size(obj.RI);
+            pott=RI2potential(obj.RI,obj.wavelength,obj.RI_bg);
+            pott=padarray(pott,obj.boundary_thickness_pixel,'replicate');
+            obj.RI=potential2RI(pott,obj.wavelength,obj.RI_bg);
             
-            h.ROI = [...
-                h.boundary_thickness_pixel(1)+1 h.boundary_thickness_pixel(1)+old_RI_size(1)...
-                h.boundary_thickness_pixel(2)+1 h.boundary_thickness_pixel(2)+old_RI_size(2)...
-                h.boundary_thickness_pixel(3)+1 h.boundary_thickness_pixel(3)+old_RI_size(3)];
-            h.RI = potential2RI(pott,h.wavelength,h.RI_bg);
+            obj.ROI = [...
+                obj.boundary_thickness_pixel(1)+1 obj.boundary_thickness_pixel(1)+old_RI_size(1)...
+                obj.boundary_thickness_pixel(2)+1 obj.boundary_thickness_pixel(2)+old_RI_size(2)...
+                obj.boundary_thickness_pixel(3)+1 obj.boundary_thickness_pixel(3)+old_RI_size(3)];
+            obj.RI = potential2RI(pott,obj.wavelength,obj.RI_bg);
         end
-        function init(h)
-            Nsize = size(h.RI);
+        function init(obj)
+            Nsize = size(obj.RI);
             warning('off','all');
-            h.utility=derive_utility(h, Nsize); % the utility for the space with border
+            obj.utility=derive_utility(obj, Nsize); % the utility for the space with border
             warning('on','all');
         end
-        function [fields_3D, Hfields]=solve(h,input_field)
+        function [fields_3D, Hfields]=solve(obj,input_field)
             input_field=single(input_field);
             
             if size(input_field,3) == 2
                 error('The 3rd dimension of input_field should indicate polarization');
             end
-            if h.verbose && size(input_field,3)==1
+            if obj.verbose && size(input_field,3)==1
                 warning('Input is scalar but scalar equation is less precise');
             end
             if size(input_field,3)>2
@@ -90,15 +90,15 @@ classdef FDTDsolver < ForwardSolver
             
             
             %2D to 3D field
-            [input_field] = h.transform_field_3D(input_field);
-            source_H = h.transform_field_3D(source_H);
+            [input_field] = obj.transform_field_3D(input_field);
+            source_H = obj.transform_field_3D(source_H);
             %refocusing
-            input_field=input_field.*exp(h.utility.refocusing_kernel.*h.resolution(3).*(-floor(h.initial_ZP_3/2)-1-h.padding_source));
-            source_H=source_H.*exp(h.utility.refocusing_kernel.*h.resolution(3).*(-floor(h.initial_ZP_3/2)-1-h.padding_source));
+            input_field=input_field.*exp(obj.utility.refocusing_kernel.*obj.resolution(3).*(-floor(obj.initial_ZP_3/2)-1-obj.padding_source));
+            source_H=source_H.*exp(obj.utility.refocusing_kernel.*obj.resolution(3).*(-floor(obj.initial_ZP_3/2)-1-obj.padding_source));
             source_0_3D=input_field;%save to remove the reflection
 
             %normalisation needed here only for source terms (term from the helmotz equation in plane source because of double derivative)
-            k_space_mask = sqrt(max(0,1-h.utility.fourier_space.coor{1}.^2/h.utility.k0_nm^2-h.utility.fourier_space.coor{2}.^2/h.utility.k0_nm^2));
+            k_space_mask = sqrt(max(0,1-obj.utility.fourier_space.coor{1}.^2/obj.utility.k0_nm^2-obj.utility.fourier_space.coor{2}.^2/obj.utility.k0_nm^2));
             input_field=input_field.*k_space_mask;
             source_H=source_H.*k_space_mask;
 
@@ -106,27 +106,27 @@ classdef FDTDsolver < ForwardSolver
             source_H=fftshift(ifft2(ifftshift(source_H)));
             %compute
             fields_3D=[];
-            if h.return_3D
-                fields_3D=ones(size(h.RI,1),size(h.RI,2),h.initial_ZP_3,size(input_field,3),size(input_field,4),'single');
+            if obj.return_3D
+                fields_3D=ones(size(obj.RI,1),size(obj.RI,2),obj.initial_ZP_3,size(input_field,3),size(input_field,4),'single');
             end
             Hfields=[];
-            if h.return_3D
-                Hfields=ones(size(h.RI,1),size(h.RI,2),h.initial_ZP_3,size(input_field,3),size(input_field,4),'single');
+            if obj.return_3D
+                Hfields=ones(size(obj.RI,1),size(obj.RI,2),obj.initial_ZP_3,size(input_field,3),size(input_field,4),'single');
             end
             
             for field_num=1:size(input_field,4)
-                [Field, Hfield] = h.solve_forward(input_field(:,:,:,field_num), source_H(:,:,:,field_num));
+                [Field, Hfield] = obj.solve_forward(input_field(:,:,:,field_num), source_H(:,:,:,field_num));
                 %crop and remove near field (3D to 2D field)
-                if h.return_3D
+                if obj.return_3D
                     fields_3D(:,:,:,:,field_num)=Field;
                     Hfields(:,:,:,:,field_num)=Hfield;
                 end
             end
             
         end
-        function [Field, Hfield] = solve_forward(h,source,source_H)
-            assert(isequal(size(source,1:2),size(h.RI,1:2)),'Field and RI sizes are not consistent')
-            assert(isfolder(h.fdtd_temp_dir), 'FDTD temp folder is not valid')
+        function [Field, Hfield] = solve_forward(obj,source,source_H)
+            assert(isequal(size(source,1:2),size(obj.RI,1:2)),'Field and RI sizes are not consistent')
+            assert(isfolder(obj.fdtd_temp_dir), 'FDTD temp folder is not valid')
             %find the main component of the field
             Field_SPEC_ABS= sqrt(sum(abs(source).^2,3));
             [~,I]=max(Field_SPEC_ABS,[],'all','linear');
@@ -134,51 +134,51 @@ classdef FDTDsolver < ForwardSolver
             theta=0;
             para_pol=1;
             ortho_pol=0;
-            [RI, roi] = lumerical_pad_RI(h.RI, h.ROI);
-            resolution = h.resolution .* [1e-6 1e-6 1e-6]; % um to meter (SI unit)
+            [RI, roi] = lumerical_pad_RI(obj.RI, obj.ROI);
+            resolution = obj.resolution .* [1e-6 1e-6 1e-6]; % um to meter (SI unit)
             roi = reshape(roi,2,3) .* reshape(resolution,1,3);
-            lumerical_save_field(source,source_H,h.resolution, fullfile(h.fdtd_temp_dir, 'field.mat'));
+            lumerical_save_field(source,source_H,obj.resolution, fullfile(obj.fdtd_temp_dir, 'field.mat'));
 
             return_trans=double(1);
             return_ref=double(1);
             return_vol=double(1);
-            base_index = h.RI_bg;
-            lambda = h.wavelength;
-            is_plane_wave=double(h.is_plane_wave);
+            base_index = obj.RI_bg;
+            lambda = obj.wavelength;
+            is_plane_wave=double(obj.is_plane_wave);
             phi=double(phi);
             theta=double(theta);
             para_pol=double(para_pol);
             ortho_pol=double(ortho_pol);
-            shutoff_min = double(h.xtol);
-            dt_stability_factor = double(h.dt_stability_factor);
-            pml_x = double(h.PML_boundary(1));
-            pml_y = double(h.PML_boundary(2));
-            pml_z = double(h.PML_boundary(3));
+            shutoff_min = double(obj.xtol);
+            dt_stability_factor = double(obj.dt_stability_factor);
+            pml_x = double(obj.PML_boundary(1));
+            pml_y = double(obj.PML_boundary(2));
+            pml_z = double(obj.PML_boundary(3));
             GUI_option = "";
-            if h.hide_GUI
+            if obj.hide_GUI
                 GUI_option = "-nw";
             end
-            save(fullfile(h.fdtd_temp_dir, 'optical.mat'),'lambda','base_index', 'RI', 'resolution', ...
+            save(fullfile(obj.fdtd_temp_dir, 'optical.mat'),'lambda','base_index', 'RI', 'resolution', ...
                 'roi', 'return_trans','return_ref','return_vol',...
                 'is_plane_wave','phi','theta','para_pol','ortho_pol','shutoff_min','dt_stability_factor','pml_x','pml_y','pml_z');
-            assert(isfile(fullfile(h.fdtd_temp_dir, "lumerical_fdtd_script.lsf")), sprintf("The script you tried to open does not exist on %s", h.fdtd_temp_dir))
-            command = sprintf('cd %s && "%s" -exit -run "lumerical_fdtd_script.lsf" %s', h.fdtd_temp_dir, h.lumerical_exe, GUI_option);
+            assert(isfile(fullfile(obj.fdtd_temp_dir, "lumerical_fdtd_script.lsf")), sprintf("The script you tried to open does not exist on %s", obj.fdtd_temp_dir))
+            command = sprintf('cd %s && "%s" -exit -run "lumerical_fdtd_script.lsf" %s', obj.fdtd_temp_dir, obj.lumerical_exe, GUI_option);
             system(command);
 
             % check the result data is still being written
-            fid = fopen(fullfile(h.fdtd_temp_dir, 'result.mat'),'r');
+            fid = fopen(fullfile(obj.fdtd_temp_dir, 'result.mat'),'r');
             while fid == -1
                 pause(1);
-                fid = fopen(fullfile(h.fdtd_temp_dir, 'result.mat'),'r');
+                fid = fopen(fullfile(obj.fdtd_temp_dir, 'result.mat'),'r');
             end
             fclose(fid);
             
             %% End of FDTD
-            load(fullfile(h.fdtd_temp_dir, 'result.mat'),'res_vol','res_vol_H');
+            load(fullfile(obj.fdtd_temp_dir, 'result.mat'),'res_vol','res_vol_H');
 
             Field=reshape(res_vol.E,length(res_vol.x),length(res_vol.y),length(res_vol.z),3);
             Hfield=reshape(res_vol_H.H,length(res_vol_H.x),length(res_vol_H.y),length(res_vol_H.z),3);
-            if h.verbose
+            if obj.verbose
                 set(gcf,'color','w'), imagesc((abs(squeeze(Field(:,floor(size(Field,2)/2)+1,:))')));axis image; colorbar; axis off;drawnow
                 colormap hot
             end

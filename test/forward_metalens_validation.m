@@ -139,9 +139,9 @@ scale_z = (1:size(E_intensity_list{1},3))*resolution(3);
 
 max_val = max(E_concat_intensity, [], 'all')*1.1;
 figure;
-for i = 1:2
+for idx = 1:2
     subplot(2,2,i);
-    imagesc(scale_xy, scale_xy, squeeze(E_intensity_list{i}(center_RI(1),:,:))',[0 max_val]);
+    imagesc(scale_xy, scale_xy, squeeze(E_intensity_list{idx}(center_RI(1),:,:))',[0 max_val]);
     xline(center_RI(1),'--yellow');
     colormap parula;
 end
@@ -155,10 +155,10 @@ ylim([0 max_val]);
 % MSE value
 % Set center of phase to be the same
 center_position = floor(size(E_field_rst{1},1:3)/2)+1;
-for i = 1:2
-    center_field = E_field_rst{i}(center_position(1), center_position(2), center_position(3),1);
+for idx = 1:2
+    center_field = E_field_rst{idx}(center_position(1), center_position(2), center_position(3),1);
     center_field = center_field./abs(center_field);
-    E_field_rst{i} = E_field_rst{i}./center_field;
+    E_field_rst{idx} = E_field_rst{idx}./center_field;
 end
 MSE_test = mean(abs(E_field_rst{1}-E_field_rst{2}).^2, 'all');
 fprintf("MSE test result(E): %f\n",MSE_test);

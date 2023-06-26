@@ -11,8 +11,8 @@ params_required.oversample_xy=20000;%200;
 params_required.oversample_xy_fourier=2;
 params_required.simultanous_process=30;
 fields = setdiff(fieldnames(params_required),fieldnames(params));
-for i = 1:length(fields)
-    field=fields{i};
+for idx = 1:length(fields)
+    field=fields{idx};
     params.(field)=params_required.(field);
 end
 %change the parameter to englobe the full arrear.
@@ -84,8 +84,8 @@ slices=1:params.simultanous_process:utility.size(3);
 if length(slices)==1 || slices(end)~=utility.size(3)
     slices(end+1)=utility.size(3);
 end
-for ii=1:length(slices)-1
-    z_index=slices(ii):slices(ii+1);
+for idx=1:length(slices)-1
+    z_index=slices(idx):slices(idx+1);
     z_coor_add=reshape(length(H_optical_coor).*((z_index)-1),1,1,[]);
     green_slice=green(nearest_coordinate+z_coor_add).*blending_coeff+green(nearest_coordinate2+z_coor_add).*(1-blending_coeff);
     green_slice=green_slice.*utility.size(3)./(utility.image_space.res{1}.*utility.image_space.res{2});
