@@ -77,9 +77,7 @@ classdef FDTDsolver < ForwardSolver
         function [fields_3D, Hfields]=solve(obj,input_field)
             input_field=single(input_field);
             
-            if size(input_field,3) == 2
-                error('The 3rd dimension of input_field should indicate polarization');
-            end
+            assert(size(input_field,3) == 2, 'The 3rd dimension of input_field should indicate polarization')
             if obj.verbose && size(input_field,3)==1
                 warning('Input is scalar but scalar equation is less precise');
             end
@@ -95,7 +93,6 @@ classdef FDTDsolver < ForwardSolver
             %refocusing
             input_field=input_field.*exp(obj.utility.refocusing_kernel.*obj.resolution(3).*(-floor(obj.initial_ZP_3/2)-1-obj.padding_source));
             source_H=source_H.*exp(obj.utility.refocusing_kernel.*obj.resolution(3).*(-floor(obj.initial_ZP_3/2)-1-obj.padding_source));
-            source_0_3D=input_field;%save to remove the reflection
 
             %normalisation needed here only for source terms (term from the helmotz equation in plane source because of double derivative)
             k_space_mask = sqrt(max(0,1-obj.utility.fourier_space.coor{1}.^2/obj.utility.k0_nm^2-obj.utility.fourier_space.coor{2}.^2/obj.utility.k0_nm^2));
@@ -105,15 +102,9 @@ classdef FDTDsolver < ForwardSolver
             input_field=fftshift(ifft2(ifftshift(input_field)));
             source_H=fftshift(ifft2(ifftshift(source_H)));
             %compute
-            fields_3D=[];
-            if obj.return_3D
-                fields_3D=ones(size(obj.RI,1),size(obj.RI,2),obj.initial_ZP_3,size(input_field,3),size(input_field,4),'single');
-            end
-            Hfields=[];
-            if obj.return_3D
-                Hfields=ones(size(obj.RI,1),size(obj.RI,2),obj.initial_ZP_3,size(input_field,3),size(input_field,4),'single');
-            end
-            
+            fields_3D=ones(size(obj.RI,1),size(obj.RI,2),obj.initial_ZP_3,size(input_field,3),size(input_field,4),'single');
+            Hfields=ones(size(obj.RI,1),size(obj.RI,2),obj.initial_ZP_3,size(input_field,3),size(input_field,4),'single');
+
             for field_num=1:size(input_field,4)
                 [Field, Hfield] = obj.solve_forward(input_field(:,:,:,field_num), source_H(:,:,:,field_num));
                 %crop and remove near field (3D to 2D field)
@@ -128,8 +119,6 @@ classdef FDTDsolver < ForwardSolver
             assert(isequal(size(source,1:2),size(obj.RI,1:2)),'Field and RI sizes are not consistent')
             assert(isfolder(obj.fdtd_temp_dir), 'FDTD temp folder is not valid')
             %find the main component of the field
-            Field_SPEC_ABS= sqrt(sum(abs(source).^2,3));
-            [~,I]=max(Field_SPEC_ABS,[],'all','linear');
             phi=0;
             theta=0;
             para_pol=1;
@@ -191,34 +180,6 @@ function [RI_pad, ROI_pad] = lumerical_pad_RI(RI, ROI)
     RI_pad=cat(1,RI_pad,RI_pad,RI_pad);
     RI_pad=cat(2,RI_pad,RI_pad,RI_pad);
     ROI_pad = ROI;
-end
-
-function lumerical_save_RI_text(RI,dx,file_name)
-%% Lumerical function: lumerical_save_RI_text
-
-RI=single(RI);
-reality=isreal(RI);
-RI=cat(1,RI,RI,RI);
-RI=cat(2,RI,RI,RI);
-
-if length(dx)==1
-    dx=dx*[1 1 1];
-end
-
-dx=dx*1e-6;%um to si units
-
-fid=fopen(file_name,'W');
-%set the parameters
-for dim=1:3
-    fprintf(fid, '%.10g %.10g %.10g \n', [single(size(RI,dim)) single(0)*dx(dim) single((size(RI,dim)-1)*dx(dim))]');
-end
-%set the data
-if reality
-    fprintf(fid, '%.10g\n', RI(:));
-else
-    fprintf(fid, '%.10g %.10g\n', [real(RI(:))'; imag(RI(:)')] );
-end
-fclose(fid);
 end
 
 function lumerical_save_field(FIELD,FIELD_H,dx,file_name)

@@ -97,7 +97,7 @@ function PSI = apply_dyadic_Green(PSI, psi, Greenp, rads)
         PSI(:) = PSI - rads.*psi(:,:,:,axis);
     end
     for axis = 1:3
-        PSI(:,:,:,i) = ifftn(PSI(:,:,:,axis));
+        PSI(:,:,:,axis) = ifftn(PSI(:,:,:,axis));
     end
 end
 

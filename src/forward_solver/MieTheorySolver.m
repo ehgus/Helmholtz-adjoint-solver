@@ -16,8 +16,8 @@ classdef MieTheorySolver < ForwardSolver
         divide_section = 1;
     end
     methods
-        function h=MieTheorySolver(params)
-            h@ForwardSolver(params);
+        function obj=MieTheorySolver(params)
+            obj@ForwardSolver(params);
         end
         function set_RI(obj, RI)
             obj.RI=single(RI);%single computation are faster
@@ -25,13 +25,13 @@ classdef MieTheorySolver < ForwardSolver
             obj.condition_RI();%modify the RI (add padding and boundary)
             obj.init();%init the parameter for the forward model
         end
-        function condition_RI(h)
+        function condition_RI(obj)
             %add boundary to the RI
             %%% -Z - source (padding) - reflection plane - Sample - transmission plane - Absorption layer %%%
             obj.RI = padarray(obj.RI,[0 0 1],obj.RI_bg,'both');
             obj.create_boundary_RI();
         end
-        function create_boundary_RI(h)
+        function create_boundary_RI(obj)
             warning('allow to chose a threshold for remaining energy');
             Nsize = size(obj.RI);
             % Set boundary size & absorptivity
@@ -49,7 +49,7 @@ classdef MieTheorySolver < ForwardSolver
             end
             obj.ROI = [1 Nsize(1) 1 Nsize(2) obj.padding_source+2 Nsize(3)-1];
         end
-        function init(h)
+        function init(obj)
             Nsize=size(obj.RI);
             warning('off','all');
             obj.utility=derive_utility(obj, Nsize); % the utility for the space with border
@@ -62,9 +62,8 @@ classdef MieTheorySolver < ForwardSolver
                 obj.RI=single(gpuArray(obj.RI));
                 input_field=single(gpuArray(input_field));
             end
-            if size(input_field,3) == 2
-                error('The 3rd dimension of input_field should indicate polarization');
-            end
+
+            assert(size(input_field,3) == 2, 'The 3rd dimension of input_field should indicate polarization')
             if obj.verbose && size(input_field,3)==1
                 warning('Input is scalar but scalar equation is less precise');
             end
@@ -76,10 +75,7 @@ classdef MieTheorySolver < ForwardSolver
             %2D to 3D field
             [input_field] = obj.transform_field_3D(input_field);
             %compute
-            fields_3D=[];
-            if obj.return_3D
-                fields_3D=ones(obj.ROI(2)-obj.ROI(1)+1, obj.ROI(4)-obj.ROI(3)+1, obj.ROI(6)-obj.ROI(5)+1, size(input_field,3), size(input_field,4), 'single');
-            end
+            fields_3D=ones(obj.ROI(2)-obj.ROI(1)+1, obj.ROI(4)-obj.ROI(3)+1, obj.ROI(6)-obj.ROI(5)+1, size(input_field,3), size(input_field,4), 'single');
             for field_num=1:size(input_field,4)
                 field_3D = obj.solve_forward(input_field(:,:,:,field_num), field_num);
                 %crop and remove near field (3D to 2D field)
@@ -223,10 +219,7 @@ classdef MieTheorySolver < ForwardSolver
             end
 
             % Retrieve final result
-            field_3D = Field(obj.ROI(1):obj.ROI(2), obj.ROI(3):obj.ROI(4), obj.ROI(5):obj.ROI(6),:);
-
-            Field(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),(obj.ROI(5)-1-obj.padding_source):(obj.ROI(6)+1),:,:) = ...
-                gather(single(Field(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),(obj.ROI(5)-1-obj.padding_source):(obj.ROI(6)+1),:,:) - incident_field));        
+            field_3D = gather(Field(obj.ROI(1):obj.ROI(2), obj.ROI(3):obj.ROI(4), obj.ROI(5):obj.ROI(6),:));    
         end
     end
 end

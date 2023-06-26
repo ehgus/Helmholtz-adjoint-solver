@@ -140,7 +140,7 @@ scale_z = (1:size(E_intensity_list{1},3))*resolution(3);
 max_val = max(E_concat_intensity, [], 'all')*1.1;
 figure;
 for idx = 1:2
-    subplot(2,2,i);
+    subplot(2,2,idx);
     imagesc(scale_xy, scale_xy, squeeze(E_intensity_list{idx}(center_RI(1),:,:))',[0 max_val]);
     xline(center_RI(1),'--yellow');
     colormap parula;

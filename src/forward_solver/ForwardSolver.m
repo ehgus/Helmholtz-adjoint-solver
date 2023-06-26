@@ -23,17 +23,17 @@ classdef (Abstract) ForwardSolver < OpticalSimulation
         end
         function fft_Field_3pol=transform_field_3D(obj,fft_Field_2pol)
             Nsize = size(fft_Field_2pol);
-            obj.utility = derive_utility(obj, Nsize);
-            fft_Field_2pol = fft_Field_2pol.*obj.utility.NA_circle;
+            utils = derive_utility(obj, Nsize);
+            fft_Field_2pol = fft_Field_2pol.*utils.NA_circle;
             
             if obj.use_abbe_sine
                 %abbe sine condition is due to the magnification
-                filter=single(obj.utility.NA_circle);
-                filter(obj.utility.NA_circle)=filter(obj.utility.NA_circle)./sqrt(obj.utility.cos_theta(obj.utility.NA_circle));
+                filter=single(utils.NA_circle);
+                filter(utils.NA_circle)=filter(utils.NA_circle)./sqrt(utils.cos_theta(utils.NA_circle));
                 fft_Field_2pol=fft_Field_2pol.*filter;
             end
             if Nsize(3)==2
-                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(obj.utility);
+                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(utils);
                 
                 fft_Field_2pol=fft_Field_2pol.*K_mask;
                 
@@ -48,63 +48,6 @@ classdef (Abstract) ForwardSolver < OpticalSimulation
                 fft_Field_3pol=fft_Field_2pol;
             else
                 error('Far field has two polarisation');
-            end
-        end
-        function fft_Field_2pol=transform_field_2D(obj,fft_Field_3pol) 
-            Nsize=size(fft_Field_3pol);
-            obj.utility = derive_utility(obj, Nsize);
-            fft_Field_3pol=fft_Field_3pol.*obj.utility.NA_circle;
-            
-            if obj.use_abbe_sine
-                %abbe sine condition is due to the magnification
-                fft_Field_3pol=fft_Field_3pol.*sqrt(obj.utility.cos_theta).*obj.utility.NA_circle;
-            end
-            if size(fft_Field_3pol,3)>1
-                if Nsize(3)~=3
-                    error('Near field has three polarisation');
-                end
-                
-                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(obj.utility);
-                
-                fft_Field_3pol=fft_Field_3pol.*K_mask;
-                
-                Field_new_basis=zeros(Nsize(1),Nsize(2),2,size(fft_Field_3pol,4),'single');%the field in the polar basis
-                Field_new_basis(:,:,1,:)=sum(fft_Field_3pol         .*ewald_TanVec,3);
-                Field_new_basis(:,:,2,:)=sum(fft_Field_3pol(:,:,1:2,:).*Perp_2D,3);
-                
-                fft_Field_2pol=zeros(Nsize(1),Nsize(2),2,size(fft_Field_3pol,4),'single');%the field in the 2D
-                fft_Field_2pol=fft_Field_2pol+Field_new_basis(:,:,1,:).*Radial_2D;
-                fft_Field_2pol=fft_Field_2pol+Field_new_basis(:,:,2,:).*Perp_2D;
-            else
-                fft_Field_2pol=fft_Field_3pol;
-            end
-        end
-        function fft_Field_2pol=transform_field_2D_reflection(obj,fft_Field_3pol)
-            Nsize=size(fft_Field_3pol);
-            obj.utility = derive_utility(obj, Nsize);
-            fft_Field_3pol=fft_Field_3pol.*obj.utility.NA_circle;
-            
-            if obj.use_abbe_sine
-                %abbe sine condition is due to the magnification
-                fft_Field_3pol=fft_Field_3pol.*sqrt(obj.utility.cos_theta).*obj.utility.NA_circle;
-            end
-            if size(fft_Field_3pol,3)>1
-                assert(Nsize(3)==3, 'Near field has three polarisation')
-                [Radial_2D,Perp_2D,ewald_TanVec,K_mask] = polarisation_utility(obj.utility);
-                
-                ewald_TanVec(:,:,3)=-ewald_TanVec(:,:,3);%because reflection invers k3
-                
-                fft_Field_3pol=fft_Field_3pol.*K_mask;
-                
-                Field_new_basis=zeros(Nsize(1),Nsize(2),2,size(fft_Field_3pol,4),'single');%the field in the polar basis
-                Field_new_basis(:,:,1,:)=sum(fft_Field_3pol         .*ewald_TanVec,3);
-                Field_new_basis(:,:,2,:)=sum(fft_Field_3pol(:,:,1:2,:).*Perp_2D,3);
-                
-                fft_Field_2pol=zeros(Nsize(1),Nsize(2),2,size(fft_Field_3pol,4),'single');%the field in the 2D
-                fft_Field_2pol=fft_Field_2pol+Field_new_basis(:,:,1,:).*Radial_2D;
-                fft_Field_2pol=fft_Field_2pol+Field_new_basis(:,:,2,:).*Perp_2D;
-            else
-                fft_Field_2pol=fft_Field_3pol;
             end
         end
         function utility = derive_utility(obj, Nsize)

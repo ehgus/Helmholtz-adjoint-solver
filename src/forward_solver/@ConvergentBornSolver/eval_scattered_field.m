@@ -44,7 +44,7 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
     for idx = 1:length(obj.field_attenuation_mask)
         source=source.*obj.field_attenuation_mask{idx};
     end
-    for idx = 1:obj.Bornmax
+    for Born_order = 1:obj.Bornmax
         if obj.acyclic
             %flip the relevant quantities
             [Green_fn, flip_Green_fn] = deal(flip_Green_fn, Green_fn);
@@ -55,7 +55,7 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         PSI(:) = 0;
         psi(:) = 0;
         
-        if idx <= 2 % source
+        if Born_order <= 2 % source
             Field_n(:)=0;
             psi(:) = (1i/obj.eps_imag/4)*source;
         else % gamma * E
@@ -90,11 +90,11 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
             Field_n=Field_n.*obj.field_attenuation_mask{idx};
         end
         % add the fields to the total field
-        if idx==3
+        if Born_order == 3
             Field_n = Field_n + Field;
         end
         Field = Field + Field_n;
-        if idx==2
+        if Born_order == 2
             Field_n = Field;
         end
         if obj.verbose

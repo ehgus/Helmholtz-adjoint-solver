@@ -78,10 +78,6 @@ classdef ConvergentBornSolver < ForwardSolver
                 obj.refocusing_util=ifftshift(gather(obj.refocusing_util));
                 shifted_NA_circle = ifftshift(obj.utility.fourier_space.coorxy  < obj.utility.k0_nm);
                 obj.refocusing_util= obj.refocusing_util.*shifted_NA_circle;
-                free_space_green=obj.refocusing_util/(4i*pi);
-                free_space_green=free_space_green.*shifted_NA_circle./(ifftshift(obj.utility.k3)+~shifted_NA_circle);
-                free_space_green=free_space_green./(obj.utility.image_space.res{1}*obj.utility.image_space.res{2});
-                free_space_green=ifft2(free_space_green);
             else
                 params_truncated_green=struct( ...
                     'use_GPU', obj.use_GPU, ...
@@ -99,18 +95,7 @@ classdef ConvergentBornSolver < ForwardSolver
                     1-min(0,obj.RI_center(2)):end-max(0,obj.RI_center(2)),:);
                 obj.refocusing_util=circshift(obj.refocusing_util,[-obj.RI_center(1) -obj.RI_center(2) 0]);
                 obj.refocusing_util=ifft(ifftshift(obj.refocusing_util),[],3);
-                
                 obj.refocusing_util=obj.refocusing_util*(obj.utility.image_space.res{1}*obj.utility.image_space.res{2});
-                
-                warning('off','all');
-                free_space_green=truncated_green_plus(params_truncated_green);
-                warning('on','all');
-                
-                free_space_green=free_space_green(...
-                    1-min(0,obj.RI_center(1)):end-max(0,obj.RI_center(1)),...
-                    1-min(0,obj.RI_center(2)):end-max(0,obj.RI_center(2)),:);
-                free_space_green=circshift(free_space_green,[-obj.RI_center(1) -obj.RI_center(2) 0]);
-                free_space_green=fftshift(ifftn(ifftshift(free_space_green)));
             end
             obj.refocusing_util=fftshift(obj.refocusing_util,3);
         end
