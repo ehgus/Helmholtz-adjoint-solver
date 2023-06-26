@@ -49,8 +49,8 @@ function set_kernel(obj)
         end
         shifted_coordinate{3}=shifted_coordinate{3}+obj.utility.fourier_space.res{3}/4;
     end
-    for i=1:3
-        shifted_coordinate{i}=2*pi*ifftshift(gather(shifted_coordinate{i}));
+    for axis = 1:3
+        shifted_coordinate{axis}=2*pi*ifftshift(gather(shifted_coordinate{axis}));
     end
     k_square = (2*pi*obj.utility.k0_nm)^2+1i.*obj.eps_imag;
     Lz = (obj.ROI(6)-obj.ROI(5)+1)*obj.resolution(3);
@@ -65,15 +65,15 @@ function set_kernel(obj)
     end
     
     flip_Greenp = fft_flip(Greenp,[1 1 1],false);
-    if obj.vector_simulation % dyadic Green's function
-        rads=...
-            shifted_coordinate{1}.*reshape([1 0 0],1,1,1,[])+...
-            shifted_coordinate{2}.*reshape([0 1 0],1,1,1,[])+...
-            shifted_coordinate{3}.*reshape([0 0 1],1,1,1,[]);
-        flip_rads = fft_flip(rads, [1 1 1], false);
-        rads = rads./sqrt(k_square);
-        flip_rads = flip_rads./sqrt(k_square);
-    end
+    % dyadic term
+    rads=...
+        shifted_coordinate{1}.*reshape([1 0 0],1,1,1,[])+...
+        shifted_coordinate{2}.*reshape([0 1 0],1,1,1,[])+...
+        shifted_coordinate{3}.*reshape([0 0 1],1,1,1,[]);
+    flip_rads = fft_flip(rads, [1 1 1], false);
+    rads = rads./sqrt(k_square);
+    flip_rads = flip_rads./sqrt(k_square);
+
     if obj.use_GPU
         Greenp = gpuArray(Greenp);
         flip_Greenp = gpuArray(flip_Greenp);
@@ -81,35 +81,24 @@ function set_kernel(obj)
         flip_rads = gpuArray(flip_rads);
     end
 
-    if obj.vector_simulation
-        obj.Green_fn = @(PSI, psi) apply_dyadic_Green(PSI, psi, Greenp, rads);
-        obj.flip_Green_fn = @(PSI, psi) apply_dyadic_Green(PSI, psi, flip_Greenp, flip_rads);
-    else
-        obj.Green_fn = @(PSI, psi) apply_scalar_Green(PSI, psi, Greenp);
-        obj.flip_Green_fn = @(PSI, psi) apply_scalar_Green(PSI, psi, flip_Greenp);
-    end
+    obj.Green_fn = @(PSI, psi) apply_dyadic_Green(PSI, psi, Greenp, rads);
+    obj.flip_Green_fn = @(PSI, psi) apply_dyadic_Green(PSI, psi, flip_Greenp, flip_rads);
 end
 
 function PSI = apply_dyadic_Green(PSI, psi, Greenp, rads)
-    for i = 1:3
-        psi(:,:,:,i) = fftn(psi(:,:,:,i));
+    for axis = 1:3
+        psi(:,:,:,axis) = fftn(psi(:,:,:,axis));
     end
     % identity term
     PSI(:) = Greenp.*psi;
     % dyadic term
     psi(:) = PSI.*rads;
-    for i = 1:3
-        PSI(:) = PSI - rads.*psi(:,:,:,i);
+    for axis = 1:3
+        PSI(:) = PSI - rads.*psi(:,:,:,axis);
     end
-    for i = 1:3
-        PSI(:,:,:,i) = ifftn(PSI(:,:,:,i));
+    for axis = 1:3
+        PSI(:,:,:,i) = ifftn(PSI(:,:,:,axis));
     end
-end
-
-function PSI = apply_scalar_Green(PSI, psi, Greenp)
-    psi = fftn(psi);
-    PSI(:) = Greenp.*psi;
-    PSI = ifftn(PSI);
 end
 
 function Greenp = xyz_periodic_green(k_square, kx, ky, kz)

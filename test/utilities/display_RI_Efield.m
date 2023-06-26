@@ -4,11 +4,10 @@ function display_RI_Efield(forward_solver,RI,input_field,figure_name)
     forward_solver.return_transmission = true;
     forward_solver.set_RI(RI); % change to RI_optimized and run if you want to see the output of adjoint method
     tic;
-    [field_trans,~,field_3D]=forward_solver.solve(input_field(:,:,:,1));
+    field_3D = forward_solver.solve(input_field(:,:,:,1));
     toc;
 
     % tranform vector field to scalar field
-    [input_field_scalar,field_trans_scalar]=vector2scalarfield(input_field,field_trans);
     input_field_no_zero=input_field_scalar;
     zero_part_mask=abs(input_field_scalar)<=0.01*mean(abs(input_field_scalar),'all');
     input_field_no_zero(zero_part_mask)=0.01*exp(1i.*angle(input_field_no_zero(zero_part_mask)));

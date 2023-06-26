@@ -4,12 +4,8 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
     % E2 = r*G_flip*S/4
     % E3 = M * (E1 + E2) + (E1 + E2)
     % E_(j+1) = M E_j
-    pole_num = 1;
-    if obj.vector_simulation
-        pole_num = 3;
-    end
     is_isotropic = size(obj.V, 4) == 1;  % scalar RI = (x,y,z, tensor_dim1, tensor_dim2)
-    size_field=[size(obj.V,1),size(obj.V,2),size(obj.V,3), pole_num];
+    size_field=[size(obj.V,1),size(obj.V,2),size(obj.V,3), 3];
 
     if obj.use_GPU
         array_func = @gpuArray;
@@ -39,8 +35,8 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         source = obj.V .* incident_field;
     else % tensor
         source = zeros('like',incident_field);
-        for j1 = 1:3
-            source = source + obj.V(:,:,:,:,j1) .* incident_field(:,:,:,j1);
+        for axis = 1:3
+            source = source + obj.V(:,:,:,:,axis) .* incident_field(:,:,:,axis);
         end
     end
     source = source + 1i*obj.eps_imag * incident_field;
@@ -48,7 +44,7 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
     for idx = 1:length(obj.field_attenuation_mask)
         source=source.*obj.field_attenuation_mask{idx};
     end
-    for jj = 1:obj.Bornmax
+    for idx = 1:obj.Bornmax
         if obj.acyclic
             %flip the relevant quantities
             [Green_fn, flip_Green_fn] = deal(flip_Green_fn, Green_fn);
@@ -59,15 +55,15 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         PSI(:) = 0;
         psi(:) = 0;
         
-        if jj <= 2 % source
+        if idx <= 2 % source
             Field_n(:)=0;
             psi(:) = (1i/obj.eps_imag/4)*source;
         else % gamma * E
             if is_isotropic
                 psi = obj.V .* Field_n;
             else
-                for j1 = 1:3
-                    psi = psi + obj.V(:,:,:,:,j1) .* Field_n(:,:,:,j1);
+                for axis = 1:3
+                    psi = psi + obj.V(:,:,:,:,axis) .* Field_n(:,:,:,axis);
                 end
             end
             psi = (1i/obj.eps_imag)*psi;
@@ -85,8 +81,8 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         if is_isotropic
             Field_n = Field_n + obj.V .* PSI;
         else
-            for j1 = 1:3
-                Field_n = Field_n + obj.V(:,:,:,:,j1) .* PSI(:,:,:,j1);
+            for axis = 1:3
+                Field_n = Field_n + obj.V(:,:,:,:,axis) .* PSI(:,:,:,axis);
             end
         end
         % Attenuation
@@ -94,11 +90,11 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
             Field_n=Field_n.*obj.field_attenuation_mask{idx};
         end
         % add the fields to the total field
-        if jj==3
+        if idx==3
             Field_n = Field_n + Field;
         end
         Field = Field + Field_n;
-        if jj==2
+        if idx==2
             Field_n = Field;
         end
         if obj.verbose
@@ -107,11 +103,10 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
             drawnow
         end
     end
-    if obj.vector_simulation
-        % -i/k_0 * (n_0/impedance_0) * curl(E)
-        Hfield = obj.curl_field(Field);
-        Hfield = -1i * obj.wavelength/(2*pi*377) .* gather(Hfield(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),obj.ROI(5):obj.ROI(6),:,:));
-    end
+    % H = -i/k_0 * (n_0/impedance_0) * curl(E)
+    Hfield = obj.curl_field(Field);
+    Hfield = -1i * obj.wavelength/(2*pi*377) .* gather(Hfield(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),obj.ROI(5):obj.ROI(6),:,:));
+
     Field = gather(Field(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),obj.ROI(5):obj.ROI(6),:,:));
     obj.V=gather(obj.V);
     obj.field_attenuation_mask=gather(obj.field_attenuation_mask);

@@ -19,55 +19,53 @@ classdef MieTheorySolver < ForwardSolver
         function h=MieTheorySolver(params)
             h@ForwardSolver(params);
         end
-        function set_RI(h,RI)
-            h.RI=single(RI);%single computation are faster
-            h.initial_Nsize=size(h.RI);%size before adding boundary
-            h.condition_RI();%modify the RI (add padding and boundary)
-            h.init();%init the parameter for the forward model
+        function set_RI(obj, RI)
+            obj.RI=single(RI);%single computation are faster
+            obj.initial_Nsize=size(obj.RI);%size before adding boundary
+            obj.condition_RI();%modify the RI (add padding and boundary)
+            obj.init();%init the parameter for the forward model
         end
         function condition_RI(h)
             %add boundary to the RI
             %%% -Z - source (padding) - reflection plane - Sample - transmission plane - Absorption layer %%%
-            h.RI = padarray(h.RI,[0 0 1],h.RI_bg,'both');
-            h.create_boundary_RI();
+            obj.RI = padarray(obj.RI,[0 0 1],obj.RI_bg,'both');
+            obj.create_boundary_RI();
         end
         function create_boundary_RI(h)
             warning('allow to chose a threshold for remaining energy');
-            Nsize = size(h.RI);
+            Nsize = size(obj.RI);
             % Set boundary size & absorptivity
-            if length(h.boundary_thickness) == 1
-                h.boundary_thickness_pixel = [0 0 round((h.boundary_thickness*h.wavelength/h.RI_bg)/h.resolution(3))];
-            elseif length(h.boundary_thickness) == 3
-                h.boundary_thickness_pixel = round((h.boundary_thickness*h.wavelength/h.RI_bg)./h.resolution);
+            if length(obj.boundary_thickness) == 1
+                obj.boundary_thickness_pixel = [0 0 round((obj.boundary_thickness*obj.wavelength/obj.RI_bg)/obj.resolution(3))];
+            elseif length(obj.boundary_thickness) == 3
+                obj.boundary_thickness_pixel = round((obj.boundary_thickness*obj.wavelength/obj.RI_bg)./obj.resolution);
             else
-                error('h.boundary_thickness_pixel vector dimension should be 1 or 3.')
+                error('obj.boundary_thickness_pixel vector dimension should be 1 or 3.')
             end
         
             % Pad boundary;
-            if (h.use_GPU)
-                h.RI = padarray(h.RI, h.boundary_thickness_pixel, h.RI_bg, 'post');
+            if (obj.use_GPU)
+                obj.RI = padarray(obj.RI, obj.boundary_thickness_pixel, obj.RI_bg, 'post');
             end
-            h.ROI = [1 Nsize(1) 1 Nsize(2) h.padding_source+2 Nsize(3)-1];
+            obj.ROI = [1 Nsize(1) 1 Nsize(2) obj.padding_source+2 Nsize(3)-1];
         end
         function init(h)
-            Nsize=size(h.RI);
+            Nsize=size(obj.RI);
             warning('off','all');
-            h.utility=derive_utility(h, Nsize); % the utility for the space with border
+            obj.utility=derive_utility(obj, Nsize); % the utility for the space with border
             warning('on','all');
         end
-        function [fields_trans,fields_ref,fields_3D]=solve(h,input_field)
-            if ~h.use_GPU
+        function [fields_3D]=solve(obj,input_field)
+            if ~obj.use_GPU
                 input_field=single(input_field);
             else
-                h.RI=single(gpuArray(h.RI));
+                obj.RI=single(gpuArray(obj.RI));
                 input_field=single(gpuArray(input_field));
             end
-            if size(input_field,3)>1 &&~h.vector_simulation
-                error('the source is 2D but parameter indicate a vectorial simulation');
-            elseif size(input_field,3)==1 && h.vector_simulation
-                error('the source is 3D but parameter indicate a non-vectorial simulation');
+            if size(input_field,3) == 2
+                error('The 3rd dimension of input_field should indicate polarization');
             end
-            if h.verbose && size(input_field,3)==1
+            if obj.verbose && size(input_field,3)==1
                 warning('Input is scalar but scalar equation is less precise');
             end
             if size(input_field,3)>2
@@ -76,41 +74,23 @@ classdef MieTheorySolver < ForwardSolver
             
             input_field=fftshift(fft2(ifftshift(input_field)));
             %2D to 3D field
-            [input_field] = h.transform_field_3D(input_field);
+            [input_field] = obj.transform_field_3D(input_field);
             %compute
-            out_pol=1;
-            if h.vector_simulation
-                out_pol=2;
-            end
-            fields_trans=[];
-            if h.return_transmission
-                fields_trans=ones(h.ROI(2)-h.ROI(1)+1,h.ROI(4)-h.ROI(3)+1,out_pol,size(input_field,4),'single');
-            end
-            fields_ref=[];
-            if h.return_reflection
-                fields_ref=ones(h.ROI(2)-h.ROI(1)+1,h.ROI(4)-h.ROI(3)+1,out_pol,size(input_field,4),'single');
-            end
             fields_3D=[];
-            if h.return_3D
-                fields_3D=ones(h.ROI(2)-h.ROI(1)+1, h.ROI(4)-h.ROI(3)+1, h.ROI(6)-h.ROI(5)+1, size(input_field,3), size(input_field,4), 'single');
+            if obj.return_3D
+                fields_3D=ones(obj.ROI(2)-obj.ROI(1)+1, obj.ROI(4)-obj.ROI(3)+1, obj.ROI(6)-obj.ROI(5)+1, size(input_field,3), size(input_field,4), 'single');
             end
             for field_num=1:size(input_field,4)
-                [field_3D, field_trans, field_ref]=h.solve_forward(input_field(:,:,:,field_num), field_num);
+                field_3D = obj.solve_forward(input_field(:,:,:,field_num), field_num);
                 %crop and remove near field (3D to 2D field)
-                if h.return_3D
+                if obj.return_3D
                     fields_3D(:,:,:,:,field_num)=gather(field_3D);
-                end
-                if h.return_transmission
-                    fields_trans(:,:,:,field_num)=gather(squeeze(field_trans));
-                end
-                if h.return_reflection
-                    fields_ref(:,:,:,field_num)=gather(squeeze(field_ref));
                 end
             end
             
         end
-        function [field_3D, field_trans, field_ref]=solve_forward(h,source,field_num)
-            Field = complex(zeros([size(h.RI,1:3) 3], 'single'));
+        function field_3D = solve_forward(obj,source,field_num)
+            Field = complex(zeros([size(obj.RI,1:3) 3], 'single'));
             % defined a k-vector for the illuminated plane & wavenumbers in both sample and background medium
             if field_num == 1
                 kx = 0; ky = 0;
@@ -121,18 +101,18 @@ classdef MieTheorySolver < ForwardSolver
                 kx = kx * utility.fourier_space.res{1};
                 ky = ky * utility.fourier_space.res{2};
             end
-            k_m = h.utility.k0_nm * 2 * pi;
-            k_s = k_m * h.n_s / h.RI_bg;
+            k_m = obj.utility.k0_nm * 2 * pi;
+            k_s = k_m * obj.n_s / obj.RI_bg;
             k_vector = [kx ky sqrt(k_m^2 - kx^2 - ky^2)]; %%% sqrt(k_m^2 - norm(k_vector)^2); ?? why norm?
             [ktheta,kphi,~] = xcart2sph(k_vector(1),k_vector(2),k_vector(3));
             % generate volumetric source
             source = reshape(source, size(source, 1), size(source, 2), 1, size(source, 3)) .* ...
-                exp(h.utility.refocusing_kernel.*h.resolution(3) .* reshape(-floor(h.initial_Nsize(3)/2)-h.padding_source-1:ceil(h.initial_Nsize(3)/2),1, 1, []));
+                exp(obj.utility.refocusing_kernel.*obj.resolution(3) .* reshape(-floor(obj.initial_Nsize(3)/2)-obj.padding_source-1:ceil(obj.initial_Nsize(3)/2),1, 1, []));
             source = fftshift(ifft2(ifftshift(source)));
             incident_field = source;
             % Obtain T-matrix - The first T is scattered mode, 2nd T is the internal mode.
-            [T_ext, T_int] = tmatrix_mie_v2(h.lmax,k_m,k_s,h.radius,h.mu0,h.mu1);
-            [xf0, yf0, zf0] = ndgrid(gather(h.utility.image_space.coor{1}), gather(h.utility.image_space.coor{2}),gather(h.utility.image_space.coor{3}));
+            [T_ext, T_int] = tmatrix_mie_v2(obj.lmax,k_m,k_s,obj.radius,obj.mu0,obj.mu1);
+            [xf0, yf0, zf0] = ndgrid(gather(obj.utility.image_space.coor{1}), gather(obj.utility.image_space.coor{2}),gather(obj.utility.image_space.coor{3}));
             [theta, phi, rad] = xcart2sph(xf0, yf0, zf0);  % Spherical grids
             rad = double(rad(:));phi = double(phi(:));theta = double(theta(:));
             theta(isnan(theta))=0;
@@ -148,9 +128,9 @@ classdef MieTheorySolver < ForwardSolver
             pol_new_sph = gather(squeeze(sum(R .* reshape(transpose(pol_new), [1 3 size(pol_new,1)]),2)));
             
             %% Start computation
-            alm = zeros(h.lmax,2*h.lmax+1); 
+            alm = zeros(obj.lmax,2*obj.lmax+1); 
             blm = zeros('like', alm);
-            for l = 1:h.lmax
+            for l = 1:obj.lmax
             % Initialize parameters
                 cl=sqrt((2*l+1)/4/pi/l/(l+1));
         %         [B,C,~] = basic_wavevectors(l,ktheta);
@@ -165,11 +145,11 @@ classdef MieTheorySolver < ForwardSolver
             normalization_power=1;
             a0s=alm/normalization_power;
             b0s = blm/normalization_power;
-            a2s=zeros((h.lmax+1)^2-1,1);
-            b2s=zeros((h.lmax+1)^2-1,1);
-            for i2=1:h.lmax
-                a2s(i2^2:(i2+1)^2-1)=a0s(i2,1:(i2+1)^2-i2^2);
-                b2s(i2^2:(i2+1)^2-1)=b0s(i2,1:(i2+1)^2-i2^2);
+            a2s=zeros((obj.lmax+1)^2-1,1);
+            b2s=zeros((obj.lmax+1)^2-1,1);
+            for l_val=1:obj.lmax
+                a2s(l_val^2:(l_val+1)^2-1)=a0s(l_val,1:(l_val+1)^2-l_val^2);
+                b2s(l_val^2:(l_val+1)^2-1)=b0s(l_val,1:(l_val+1)^2-l_val^2);
             end
             a2s=sparse(a2s);b2s=sparse(b2s);
             % Output mode coefficients
@@ -181,17 +161,17 @@ classdef MieTheorySolver < ForwardSolver
             q_in = pq(length(pq)/2+1:end);
             E_scat_T=zeros(numel(phi),3);
             % Make scattered field
-            in_flag = rho < k_m*h.radius; in_flag=in_flag(:);out_flag = rho >= k_m*h.radius; out_flag=out_flag(:);
+            in_flag = rho < k_m*obj.radius; in_flag=in_flag(:);out_flag = rho >= k_m*obj.radius; out_flag=out_flag(:);
             % main
             tic;
-            for bulk = 1: h.divide_section
-                length_bulk = ceil(length(theta) / h.divide_section);
+            for bulk = 1: obj.divide_section
+                length_bulk = ceil(length(theta) / obj.divide_section);
                 jj = (1+length_bulk * (bulk-1)) : min(length(theta), bulk*length_bulk);
                 M_in = zeros(numel(jj),3);
                 N_in = zeros(numel(jj),3);
                 M_outh = zeros(numel(jj),3);
                 N_outh = zeros(numel(jj),3);
-                for l = 1:h.lmax
+                for l = 1:obj.lmax
                     [BB,CC,P] = vsh_MS(l,theta(jj));
                     BB(isnan(BB)) = 0; CC(isnan(CC)) = 0; P(isnan(P)) = 0;
                     cl=sqrt((2*l+1)/4/pi/l/(l+1));
@@ -213,8 +193,8 @@ classdef MieTheorySolver < ForwardSolver
                     for m = m_list
                         phase = exp(1i.*m.*phi(jj));
                         clc;
-                        disp(['Volume section: ' num2str(bulk) ' / ' num2str(h.divide_section)])
-                        disp(['l: ' num2str(l) ' / ' num2str(h.lmax)])
+                        disp(['Volume section: ' num2str(bulk) ' / ' num2str(obj.divide_section)])
+                        disp(['l: ' num2str(l) ' / ' num2str(obj.lmax)])
                         disp(['m: ' num2str(m)])
                         idx = m + l + 1;
                         M_in(:)   = j_s .* reshape(CC(idx,:,:),[],3);
@@ -233,38 +213,21 @@ classdef MieTheorySolver < ForwardSolver
             E_scat_T = transpose(squeeze(sum(Rx .* reshape(transpose(E_scat_T), [1 3 size(E_scat_T,1)]),2)));
             E_scat_T = squeeze(reshape(E_scat_T,[size(xf0), 3]));
         
-            Field(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)-1-h.padding_source):(h.ROI(6)+1),:,:) = ...
-                incident_field.*out_flag(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)-1-h.padding_source):(h.ROI(6)+1),:,:) +...
-                E_scat_T(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)-1-h.padding_source):(h.ROI(6)+1),:,:);
+            Field(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),(obj.ROI(5)-1-obj.padding_source):(obj.ROI(6)+1),:,:) = ...
+                incident_field.*out_flag(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),(obj.ROI(5)-1-obj.padding_source):(obj.ROI(6)+1),:,:) +...
+                E_scat_T(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),(obj.ROI(5)-1-obj.padding_source):(obj.ROI(6)+1),:,:);
 
-            if h.verbose
+            if obj.verbose
                 set(gcf,'color','w'), imagesc((abs(squeeze(Field(:,floor(size(Field,2)/2)+1,:))')));axis image; colorbar; axis off;drawnow
                 colormap hot
             end
 
             % Retrieve final result
-            field_3D = Field(h.ROI(1):h.ROI(2), h.ROI(3):h.ROI(4), h.ROI(5):h.ROI(6),:);
-            
-            field_trans = Field(h.ROI(1):h.ROI(2), h.ROI(3):h.ROI(4),h.ROI(6)+1,:);
-            field_trans=squeeze(field_trans);
-            field_trans=fftshift(fft2(ifftshift(field_trans)));
-            [field_trans] = h.transform_field_2D(field_trans);
-            field_trans=field_trans.*exp(h.utility.refocusing_kernel.*h.resolution(3).*(floor(h.initial_Nsize(3)/2)+1-(h.initial_Nsize(3)+1)));
-            field_trans=field_trans.*h.utility.NA_circle;%crop to the objective NA
-            field_trans=fftshift(ifft2(ifftshift(field_trans)));
+            field_3D = Field(obj.ROI(1):obj.ROI(2), obj.ROI(3):obj.ROI(4), obj.ROI(5):obj.ROI(6),:);
 
-            Field(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)-1-h.padding_source):(h.ROI(6)+1),:,:) = ...
-                gather(single(Field(h.ROI(1):h.ROI(2),h.ROI(3):h.ROI(4),(h.ROI(5)-1-h.padding_source):(h.ROI(6)+1),:,:) - incident_field));
-            field_ref = Field(h.ROI(1):h.ROI(2), h.ROI(3):h.ROI(4),h.ROI(5)-1,:);
-            field_ref=squeeze(field_ref);
-            field_ref=fftshift(fft2(ifftshift(field_ref)));
-            [field_ref] = h.transform_field_2D_reflection(field_ref);
-            field_ref=field_ref.*exp(h.utility.refocusing_kernel.*h.resolution(3).*(-floor(h.initial_Nsize(3)/2)-1));
-            field_ref=field_ref.*h.utility.NA_circle;%crop to the objective NA
-            field_ref=fftshift(ifft2(ifftshift(field_ref)));
-            
+            Field(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),(obj.ROI(5)-1-obj.padding_source):(obj.ROI(6)+1),:,:) = ...
+                gather(single(Field(obj.ROI(1):obj.ROI(2),obj.ROI(3):obj.ROI(4),(obj.ROI(5)-1-obj.padding_source):(obj.ROI(6)+1),:,:) - incident_field));        
         end
-        
     end
 end
 

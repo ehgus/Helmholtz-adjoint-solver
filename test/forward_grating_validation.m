@@ -46,7 +46,6 @@ params.NA=NA; % Numerical aperture
 params.wavelength=wavelength; % [um]
 params.resolution=resolution*ones(1,3); % 3D Voxel size [um]
 params.use_abbe_sine=false; % Abbe sine condition according to demagnification condition
-params.vector_simulation=true; % True/false: dyadic/scalar Green's function
 params.size=size(RI_grating); % 3D volume grid
 params.return_3D = true;
 params.verbose = false;
@@ -95,7 +94,7 @@ for isolver = 1:solver_num
     end
     forward_solver.set_RI(RI_grating);
     tic;
-    [~, ~, E_field_rst{isolver}, H_field_rst{isolver}] = forward_solver.solve(input_field);
+    [E_field_rst{isolver}, H_field_rst{isolver}] = forward_solver.solve(input_field);
     E_field_3D = E_field_rst{isolver};
     H_field_3D = H_field_rst{isolver};
     toc;
@@ -125,9 +124,9 @@ scale_xy = (1:size(E_intensity_list{1},1))*resolution;
 scale_z = (1:size(E_intensity_list{1},3))*resolution;
 
 figure;
-for i = 1:2
-    subplot(2,2,i);
-    imagesc(scale_xy, scale_xy, squeeze(E_intensity_list{i}(center_RI(1),:,:))',[0 max_E_val]);
+for idx = 1:2
+    subplot(2,2,idx);
+    imagesc(scale_xy, scale_xy, squeeze(E_intensity_list{idx}(center_RI(1),:,:))',[0 max_E_val]);
     xline(center_RI(1),'--yellow');
     colormap parula;
 end
@@ -150,9 +149,9 @@ impedance = 377/CBS_forward_solver.RI_bg;
 Nsize = CBS_forward_solver.size + 2*CBS_forward_solver.boundary_thickness_pixel;
 Nsize(4) = 3;
 
-for i = 1:length(target_angle_mode)
+for idx = 1:length(target_angle_mode)
     % E field
-    illum_order = target_angle_mode(i);
+    illum_order = target_angle_mode(idx);
     sin_theta = illum_order*CBS_forward_solver.wavelength/(CBS_forward_solver.size(2)*CBS_forward_solver.resolution(2)*CBS_forward_solver.RI_bg);
     cos_theta = sqrt(1-sin_theta^2);
     if illum_order < 0
@@ -165,30 +164,30 @@ for i = 1:length(target_angle_mode)
     incident_field = fft2(incident_field);
     incident_field = reshape(incident_field, [size(incident_field,1),size(incident_field,2),1,size(incident_field,3)]).*CBS_forward_solver.refocusing_util;
     incident_field = ifft2(incident_field);
-    eigen_E_field{i} = CBS_forward_solver.crop_conv2RI(incident_field);
+    eigen_E_field{idx} = CBS_forward_solver.crop_conv2RI(incident_field);
     % H field
     incident_field_H = zeros(Nsize,'like',incident_field);
     incident_field_H(:,:,:,2) = incident_field(:,:,:,1) * cos_theta;
     incident_field_H(:,:,:,3) = incident_field(:,:,:,1) * (-sin_theta);
     incident_field_H = incident_field_H/impedance;
-    eigen_H_field{i} = incident_field_H;
+    eigen_H_field{idx} = incident_field_H;
     
-    eigen_S_ref = 2*real(poynting_vector(eigen_E_field{i}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:), eigen_H_field{i}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)));
-    relative_transmission_ref(i) = abs(sum(eigen_S_ref(:,:,end,3),'all'));
+    eigen_S_ref = 2*real(poynting_vector(eigen_E_field{idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:), eigen_H_field{idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)));
+    relative_transmission_ref(idx) = abs(sum(eigen_S_ref(:,:,end,3),'all'));
 end
 
 
 relative_transmission = zeros(1,length(target_transmission));
-for j = 1:length(E_field_rst)
-    E_field = E_field_rst{j};
-    H_field = H_field_rst{j};
+for idx = 1:length(E_field_rst)
+    E_field = E_field_rst{idx};
+    H_field = H_field_rst{idx};
     
-    for i = 1:length(target_transmission)
-        eigen_S = poynting_vector(E_field, eigen_H_field{i}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)) +...
-            poynting_vector(conj(eigen_E_field{i}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)), conj(H_field));
-        relative_transmission(i) = sum(eigen_S(:,:,end,3),'all');
+    for field_idx = 1:length(target_transmission)
+        eigen_S = poynting_vector(E_field, eigen_H_field{field_idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)) +...
+            poynting_vector(conj(eigen_E_field{field_idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)), conj(H_field));
+        relative_transmission(field_idx) = sum(eigen_S(:,:,end,3),'all');
     end
-    fprintf("%s :",class(forward_solver_list{j}));
+    fprintf("%s :",class(forward_solver_list{idx}));
     disp(abs(relative_transmission./relative_transmission_ref).^2);
 end
 
@@ -196,17 +195,17 @@ end
 ideal_E_field = zeros(size(E_field_rst{1}),'like',eigen_E_field{1});
 ideal_H_field = zeros(size(H_field_rst{1}),'like',eigen_H_field{1});
 relative_phase = sqrt(target_transmission);
-for i = 1:length(target_transmission)
-    ideal_E_field = ideal_E_field + relative_phase(i)*eigen_E_field{i}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:);
-    ideal_H_field = ideal_H_field + relative_phase(i)*eigen_H_field{i}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:);
+for idx = 1:length(target_transmission)
+    ideal_E_field = ideal_E_field + relative_phase(idx)*eigen_E_field{idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:);
+    ideal_H_field = ideal_H_field + relative_phase(idx)*eigen_H_field{idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:);
 end
 figure('Name',"Ideal case");
 imagesc(scale_xy, scale_xy, squeeze(sum(abs(ideal_E_field(center_RI(1),:,:,:)),4))',[0 max_E_val]);
 
-for i = 1:length(target_transmission)
-    eigen_S = poynting_vector(ideal_E_field, eigen_H_field{i}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)) +...
-        poynting_vector(conj(eigen_E_field{i}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)), conj(ideal_H_field));
-    relative_transmission(i) = sum(eigen_S(:,:,end,3),'all');
+for idx = 1:length(target_transmission)
+    eigen_S = poynting_vector(ideal_E_field, eigen_H_field{idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)) +...
+              poynting_vector(conj(eigen_E_field{idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)), conj(ideal_H_field));
+    relative_transmission(idx) = sum(eigen_S(:,:,end,3),'all');
 end
 fprintf("Ideal case :");
 disp(abs(relative_transmission./relative_transmission_ref).^2);
