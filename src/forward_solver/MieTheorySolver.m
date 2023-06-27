@@ -72,11 +72,7 @@ classdef MieTheorySolver < ForwardSolver
             
             input_field=fftshift(fft2(ifftshift(input_field)));
             %2D to 3D field
-            [input_field] = obj.transform_field_3D(input_field);
-            %compute
-            Efield = obj.solve_forward(input_field);
-        end
-        function Efield = solve_forward(obj,source,field_num)
+            source = obj.transform_field_3D(input_field);
             Field = complex(zeros([size(obj.RI,1:3) 3], 'single'));
             % defined a k-vector for the illuminated plane & wavenumbers in both sample and background medium
             [kx, ky] = find(source == max(source(:)));
@@ -148,6 +144,11 @@ classdef MieTheorySolver < ForwardSolver
             in_flag = rho < k_m*obj.radius; in_flag=in_flag(:);out_flag = rho >= k_m*obj.radius; out_flag=out_flag(:);
             % main
             tic;
+            if kx == 0 && ky == 0
+                m_list = [-1 1];
+            else
+                m_list = -l:1:l;
+            end
             for bulk = 1: obj.divide_section
                 length_bulk = ceil(length(theta) / obj.divide_section);
                 jj = (1+length_bulk * (bulk-1)) : min(length(theta), bulk*length_bulk);
@@ -169,11 +170,6 @@ classdef MieTheorySolver < ForwardSolver
                     dxih_m = ricbesh1d(l, rho(jj));dxih_m=dxih_m(:); dxih_m(isnan(dxih_m))=0;
                     h_rho_m = H_Rho(h_m,rho(jj),l); h_rho_m(isnan(h_rho_m))=0;
                     dxih_rho_m = Dxi_Rho(dxih_m,rho(jj),l); dxih_rho_m(isnan(dxih_rho_m))=0;
-                    if field_num == 1
-                        m_list = [-1 1];
-                    else
-                        m_list = -l:1:l;
-                    end
                     for m = m_list
                         phase = exp(1i.*m.*phi(jj));
                         clc;

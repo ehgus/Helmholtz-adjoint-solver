@@ -69,14 +69,14 @@ classdef FDTDsolver < ForwardSolver
             obj.RI = potential2RI(pott,obj.wavelength,obj.RI_bg);
         end
         function init(obj)
-            Nsize = size(obj.RI);
+            grid_size = size(obj.RI);
             warning('off','all');
-            obj.utility=derive_utility(obj, Nsize); % the utility for the space with border
+            obj.utility=derive_utility(obj, grid_size); % the utility for the space with border
             warning('on','all');
         end
         function [Efield, Hfield]=solve(obj,input_field)
             input_field=single(input_field);
-            
+            assert(isfolder(obj.fdtd_temp_dir), 'FDTD temp folder is not valid')
             assert(size(input_field,3) == 2, 'The 3rd dimension of input_field should indicate polarization')
             if obj.verbose && size(input_field,3)==1
                 warning('Input is scalar but scalar equation is less precise');
@@ -99,14 +99,10 @@ classdef FDTDsolver < ForwardSolver
             input_field=input_field.*k_space_mask;
             source_H=source_H.*k_space_mask;
 
-            input_field=fftshift(ifft2(ifftshift(input_field)));
+            source=fftshift(ifft2(ifftshift(input_field)));
             source_H=fftshift(ifft2(ifftshift(source_H)));
-            %compute
-            [Efield, Hfield] = obj.solve_forward(input_field, source_H);
-        end
-        function [Efield, Hfield] = solve_forward(obj,source,source_H)
             assert(isequal(size(source,1:2),size(obj.RI,1:2)),'Field and RI sizes are not consistent')
-            assert(isfolder(obj.fdtd_temp_dir), 'FDTD temp folder is not valid')
+            
             %find the main component of the field
             phi=0;
             theta=0;

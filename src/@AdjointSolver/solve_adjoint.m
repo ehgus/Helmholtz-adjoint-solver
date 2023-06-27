@@ -5,12 +5,12 @@ function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
         E_fwd = gpuArray(E_fwd);
     end
     % pre-allocate empty array
-    Nsize = obj.forward_solver.size + 2 * obj.forward_solver.boundary_thickness_pixel;
-    Nsize(4) = 3;
+    grid_size = obj.forward_solver.size + 2 * obj.forward_solver.boundary_thickness_pixel;
+    grid_size(4) = 3;
     if obj.forward_solver.use_GPU
-        adjoint_field = zeros(Nsize,'single','gpuArray');
+        adjoint_field = zeros(grid_size,'single','gpuArray');
     else
-        adjoint_field = zeros(Nsize,'single');
+        adjoint_field = zeros(grid_size,'single');
     end
     if obj.mode == "Intensity"
         FoM = - sum(abs(E_fwd).^2.*options.intensity_weight,'all') / numel(E_fwd);

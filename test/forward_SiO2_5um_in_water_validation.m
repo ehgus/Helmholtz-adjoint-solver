@@ -55,7 +55,13 @@ field_generator_params=params;
 field_generator_params.illumination_number=1;
 field_generator_params.illumination_style='circle';
 input_field=FieldGenerator.get_field(field_generator_params);
-
+source_params = params;
+source_params.polarization = [1 0 0];
+source_params.direction = 3;
+source_params.horizontal_k_vector = [0 0];
+source_params.center_position = [1 1 1];
+source_params.grid_size = source_params.size;
+current_source = PlaneSource(source_params);
 %% solve the forward problem
 cbs_file = "SiO2_5um_bead_CBS.mat";
 if isfile(cbs_file)
@@ -64,7 +70,7 @@ else
     forward_solver_CBS=ConvergentBornSolver(forward_CBS_params);
     forward_solver_CBS.set_RI(RI);
     tic;
-    [field_CBS, Hfield_CBS]=forward_solver_CBS.solve(input_field);
+    [field_CBS, Hfield_CBS]=forward_solver_CBS.solve(current_source);
     toc;
     save(cbs_file, 'field_CBS', 'Hfield_CBS');
 end
