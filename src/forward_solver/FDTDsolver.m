@@ -13,21 +13,26 @@ classdef FDTDsolver < ForwardSolver
         dt_stability_factor = 0.99;
         is_plane_wave = false;
         PML_boundary = [false false true];
-        % acceleration
-        fdtd_temp_dir = fullfile('./FDTD_TEMP');
-        lumerical_exe;
         % interative GUI
-        hide_GUI = true;
+        hide_GUI = true
+        % save directory
+        save_directory = tempdir()
+    end
+    properties(Hidden = true)
+        lumerical_api_dir
+        lumerical_session
     end
     methods (Static)
-        function lumerical_exe = find_lumerical_exe()
+        function lumerical_api_dir = find_lumerical_api()
             assert(ispc, "The FDTD solver only supports Windows platform")
-            solver_list = dir("C:/Program Files/Lumerical/v*/bin/fdtd-solutions.exe");
-            assert(~isempty(solver_list), "The Lumerical solver is not found")
-            
-            solver_dir = sort({solver_list.folder});
-            modern_solver = solver_dir{end};
-            lumerical_exe = fullfile(modern_solver, 'fdtd-solutions.exe');
+            if ispc
+                api_list = dir("C:/Program Files/Lumerical/v*/api/matlab");
+                assert(~isempty(api_list), "The Lumerical solver is not found")
+                api_dir = sort({api_list.folder});
+                lumerical_api_dir = api_dir{end};
+            else
+                error("Current OS is not supported")
+            end
         end
     end
 
@@ -42,18 +47,28 @@ classdef FDTDsolver < ForwardSolver
             assert(length(obj.boundary_thickness) == 3, 'boundary_thickness should be either a 3-size vector or a scalar')
             obj.boundary_thickness_pixel = round(obj.boundary_thickness*obj.wavelength/obj.RI_bg./(obj.resolution.*2));
             obj.boundary_thickness_pixel(3) = max(1, obj.boundary_thickness_pixel(3)); % make place for source
-            % find lumerical solver
-            obj.lumerical_exe = FDTDsolver.find_lumerical_exe();
+            % find lumerical solverRI
+            obj.lumerical_api_dir = FDTDsolver.find_lumerical_api();
+            addpath(obj.lumerical_api_dir);
+            if obj.hide_GUI
+                obj.lumerical_session = appopen('fdtd', '-hide');
+            else
+                obj.lumerical_session = appopen('fdtd');
+            end
+        end
+        function delete(obj)
+            addpath(obj.lumerical_api_dir);
+            appclose(obj.lumerical_session);
         end
         function set_RI(obj,RI)
-            obj.RI=single(RI);%single computation are faster
+            obj.RI= RI;
             obj.initial_ZP_3=size(obj.RI,3);%size before adding boundary
-            obj.condition_RI();%modify the RI (add padding and boundary)
-            obj.init();%init the parameter for the forward model
-        end
-        function condition_RI(obj)
-            %add boundary to the RI
-            obj.create_boundary_RI();
+            obj.create_boundary_RI();%modify the RI (add padding and boundary)
+            obj.RI= double(obj.RI); % Lumerical only accept double-type variables
+            grid_size = size(obj.RI);
+            warning('off','all');
+            obj.utility=derive_utility(obj, grid_size); % the utility for the space with border
+            warning('on','all');
         end
         function create_boundary_RI(obj)
             %% SHOULD BE REMOVED: boundary_thickness_pixel is the half from the previous definition
@@ -67,137 +82,117 @@ classdef FDTDsolver < ForwardSolver
                 obj.boundary_thickness_pixel(2)+1 obj.boundary_thickness_pixel(2)+old_RI_size(2)...
                 obj.boundary_thickness_pixel(3)+1 obj.boundary_thickness_pixel(3)+old_RI_size(3)];
             obj.RI = potential2RI(pott,obj.wavelength,obj.RI_bg);
+            % replicate along the periodic axis
+            rep_size = ones(1,3);
+            rep_size(~obj.PML_boundary) = 3;
+            obj.RI = repmat(obj.RI, rep_size);
         end
-        function init(obj)
-            grid_size = size(obj.RI);
-            warning('off','all');
-            obj.utility=derive_utility(obj, grid_size); % the utility for the space with border
-            warning('on','all');
-        end
-        function [Efield, Hfield]=solve(obj,input_field)
-            input_field=single(input_field);
-            assert(isfolder(obj.fdtd_temp_dir), 'FDTD temp folder is not valid')
-            assert(size(input_field,3) == 2, 'The 3rd dimension of input_field should indicate polarization')
-            if obj.verbose && size(input_field,3)==1
-                warning('Input is scalar but scalar equation is less precise');
+        function [Efield, Hfield]=solve(obj,current_source)
+            assert(isa(current_source, 'PlaneSource'), "PlaneSource is the only available source")
+            addpath(obj.lumerical_api_dir);
+            axis_name_list = {'x', 'y', 'z'};
+            microns = 1e-6;
+            resolution = obj.resolution .* microns;
+            lumerical_roi = obj.ROI - 1;
+            for axis = 1:3
+                lumerical_roi([2*axis-1, 2*axis]) = lumerical_roi([2*axis-1, 2*axis]) * resolution(axis);
             end
-            if size(input_field,3)>2
-                error('Input field must be either a scalar or a 2D vector');
+            % initialize solver
+            init_code = strcat('switchtolayout;', ...
+                               'closeall;', ...
+                               'deleteall;', ...
+                               'clear;');
+            appevalscript(obj.lumerical_session, init_code);
+            for axis = 1:3
+                appputvar(obj.lumerical_session, strcat('d', axis_name_list{axis}), resolution(axis));
             end
-            source_H = reshape([-1 1],1,1,2).*flip(input_field,3);
-            
-            
-            %2D to 3D field
-            [input_field] = obj.transform_field_3D(input_field);
-            source_H = obj.transform_field_3D(source_H);
-            %refocusing
-            input_field=input_field.*exp(obj.utility.refocusing_kernel.*obj.resolution(3).*(-floor(obj.initial_ZP_3/2)-1-obj.padding_source));
-            source_H=source_H.*exp(obj.utility.refocusing_kernel.*obj.resolution(3).*(-floor(obj.initial_ZP_3/2)-1-obj.padding_source));
-
-            %normalisation needed here only for source terms (term from the helmotz equation in plane source because of double derivative)
-            k_space_mask = sqrt(max(0,1-obj.utility.fourier_space.coor{1}.^2/obj.utility.k0_nm^2-obj.utility.fourier_space.coor{2}.^2/obj.utility.k0_nm^2));
-            input_field=input_field.*k_space_mask;
-            source_H=source_H.*k_space_mask;
-
-            source=fftshift(ifft2(ifftshift(input_field)));
-            source_H=fftshift(ifft2(ifftshift(source_H)));
-            assert(isequal(size(source,1:2),size(obj.RI,1:2)),'Field and RI sizes are not consistent')
-            
-            %find the main component of the field
-            phi=0;
-            theta=0;
-            para_pol=1;
-            ortho_pol=0;
-            [RI, roi] = lumerical_pad_RI(obj.RI, obj.ROI);
-            resolution = obj.resolution .* [1e-6 1e-6 1e-6]; % um to meter (SI unit)
-            roi = reshape(roi,2,3) .* reshape(resolution,1,3);
-            lumerical_save_field(source,source_H,obj.resolution, fullfile(obj.fdtd_temp_dir, 'field.mat'));
-
-            base_index = obj.RI_bg;
-            lambda = obj.wavelength;
-            is_plane_wave=double(obj.is_plane_wave);
-            phi=double(phi);
-            theta=double(theta);
-            para_pol=double(para_pol);
-            ortho_pol=double(ortho_pol);
-            shutoff_min = double(obj.xtol);
-            dt_stability_factor = double(obj.dt_stability_factor);
-            pml_x = double(obj.PML_boundary(1));
-            pml_y = double(obj.PML_boundary(2));
-            pml_z = double(obj.PML_boundary(3));
-            GUI_option = "";
-            if obj.hide_GUI
-                GUI_option = "-nw";
+            fsp_name = fullfile(obj.save_directory, "temp.fsp");
+            appevalscript(obj.lumerical_session, sprintf('save("%s");',fsp_name));
+            % add material
+            appputvar(obj.lumerical_session, 'RI', obj.RI);
+            for axis = 1:3
+                appputvar(obj.lumerical_session, axis_name_list{axis}, (1:size(obj.RI, axis))*resolution(axis));
             end
-            save(fullfile(obj.fdtd_temp_dir, 'optical.mat'),'lambda','base_index', 'RI', 'resolution', ...
-                'roi','is_plane_wave','phi','theta','para_pol','ortho_pol','shutoff_min','dt_stability_factor','pml_x','pml_y','pml_z');
-            assert(isfile(fullfile(obj.fdtd_temp_dir, "lumerical_fdtd_script.lsf")), sprintf("The script you tried to open does not exist on %s", obj.fdtd_temp_dir))
-            command = sprintf('cd %s && "%s" -exit -run "lumerical_fdtd_script.lsf" %s', obj.fdtd_temp_dir, obj.lumerical_exe, GUI_option);
-            system(command);
-
-            % check the result data is still being written
-            fid = fopen(fullfile(obj.fdtd_temp_dir, 'result.mat'),'r');
-            while fid == -1
-                pause(1);
-                fid = fopen(fullfile(obj.fdtd_temp_dir, 'result.mat'),'r');
+            appevalscript(obj.lumerical_session, 'addimport;importnk2(RI, x, y, z);');
+            for axis = 1:3
+                target_name = axis_name_list{axis};
+                if obj.PML_boundary(axis)
+                    min_max_code = strcat(sprintf('min_%s = get("%s min");',target_name, target_name), ...
+                                          sprintf('max_%s = get("%s max");',target_name, target_name));
+                    num_code = sprintf('num_%s = get("data %s points");',target_name, target_name);
+                else
+                    min_max_code = strcat(sprintf('min_%s = (get("%s min")-d%s)*2/3 + get("%s max")*1/3+d%s;', target_name, target_name, target_name, target_name, target_name), ...
+                                          sprintf('max_%s = (get("%s min")-d%s)*1/3 + get("%s max")*2/3;', target_name, target_name, target_name, target_name));
+                    num_code = sprintf('num_%s = get("data %s points")/3;',target_name, target_name);
+                end
+                appevalscript(obj.lumerical_session,strcat(min_max_code, num_code));
             end
-            fclose(fid);
-            
-            %% End of FDTD
-            load(fullfile(obj.fdtd_temp_dir, 'result.mat'),'res_vol','res_vol_H');
-
-            Efield=reshape(res_vol.E,length(res_vol.x),length(res_vol.y),length(res_vol.z),3);
-            Hfield=reshape(res_vol_H.H,length(res_vol_H.x),length(res_vol_H.y),length(res_vol_H.z),3);
-            if obj.verbose
-                set(gcf,'color','w'), imagesc((abs(squeeze(Efield(:,floor(size(Efield,2)/2)+1,:))')));axis image; colorbar; axis off;drawnow
-                colormap hot
+            % set boundary
+            appevalscript(obj.lumerical_session, 'addfdtd;set("dimension", 2);set("min mesh step", 0);set("mesh type", 3);');
+            for axis = 1:3
+                target_name = axis_name_list{axis};
+                boundary_size_code = sprintf('set("%s min", min_%s);set("%s max", max_%s);',target_name,target_name,target_name,target_name);
+                if obj.PML_boundary(axis)
+                    bc_code = sprintf('set("%s min bc", "PML");set("%s max bc", "PML");set("pml profile", 3);',target_name,target_name);
+                else
+                    bc_code = sprintf('set("%s min bc", "Bloch");',target_name);
+                end
+                mesh_code = sprintf('set("define %s mesh by",4);set("mesh cells %s", num_%s-1);',target_name, target_name, target_name);
+                appevalscript(obj.lumerical_session, strcat(boundary_size_code, bc_code, mesh_code));
             end
+            % add source
+            k_0 =2*pi/current_source.wavelength;
+            phi = asin(sqrt(sum(current_source.horizontal_k_vector .^2))/k_0);
+            if phi == 0
+                theta = 0;
+            else
+                theta = atan(current_source.horizontal_k_vector(2)/current_source.horizontal_k_vector(1));
+            end
+            rot_matrix = rotz(theta) * roty(phi);
+            pol = circshift(current_source.polarization,-current_source.direction);
+            horizontal_axis = rem([3 1] + current_source.direction, 3) + 1;
+            horizontal_name1 = axis_name_list{horizontal_axis(1)};
+            horizontal_name2 = axis_name_list{horizontal_axis(2)};
+            for pol_idx = 0:1
+                % pol_idx == 0 => p-pol, pol_idx == 1 => s-pol 
+                pol_direction = rot_matrix * circshift([1 0 0], pol_idx)';
+                complex_amp = dot(pol_direction, pol);
+                if abs(complex_amp) ~= 0
+                    source_insertion_code = strcat('addplane;', ...
+                                                   sprintf('set("name", "pol%d");',pol_idx+1), ...
+                                                   sprintf('set("center wavelength", %g);', obj.wavelength*microns), ...
+                                                   sprintf('set("wavelength span", 0);'), ...
+                                                   sprintf('set("polarization angle", %d);', 90*pol_idx), ...
+                                                   sprintf('set("amplitude", %g);', abs(complex_amp)), ...
+                                                   sprintf('set("phase", %g);', 180/pi*angle(complex_amp)), ...
+                                                   sprintf('set("angle theta", %g);', 180/pi*theta), ...
+                                                   sprintf('set("angle phi", %g);', 180/pi*phi), ...
+                                                   sprintf('set("%s min", min_%s); set("%s max", max_%s);',horizontal_name1,horizontal_name1,horizontal_name1,horizontal_name1), ...
+                                                   sprintf('set("%s min", min_%s); set("%s max", max_%s);',horizontal_name2,horizontal_name2,horizontal_name2,horizontal_name2), ...
+                                                   sprintf('set("%s", min_%s);',axis_name_list{current_source.direction},axis_name_list{current_source.direction}) ...
+                                                   );
+                    appevalscript(obj.lumerical_session, source_insertion_code);
+                end
+            end
+            % set profiler
+            appevalscript(obj.lumerical_session, 'addpower;set("name","field_profile_vol");set("monitor type",8);');
+            for axis = 1:3
+                target_name = axis_name_list{axis};
+                profiler_size_code = sprintf('set("%s min",min_%s+%g);set("%s max",min_%s+%g);',target_name,target_name,lumerical_roi(2*axis-1),target_name,target_name,lumerical_roi(2*axis));
+                appevalscript(obj.lumerical_session, profiler_size_code);
+            end
+            % run simulation
+            run_code = strcat('t_start = now;', ...
+                               'run;', ...
+                               't_code = now - t_start;');
+            appevalscript(obj.lumerical_session, run_code);
+            % get simulation results
+            for field_name = ['E','H']
+                appevalscript(obj.lumerical_session, strcat(sprintf('res_vol = getresult("field_profile_vol", "%s");',field_name), ...
+                                                            sprintf('%sfield=reshape(res_vol.%s,[length(res_vol.x),length(res_vol.y),length(res_vol.z),3]);',field_name,field_name)));
+            end
+            Efield = appgetvar(obj.lumerical_session,'Efield');
+            Hfield = appgetvar(obj.lumerical_session,'Hfield');
         end
     end
-end
-
-function [RI_pad, ROI_pad] = lumerical_pad_RI(RI, ROI)
-    RI_pad=double(RI);
-    RI_pad=cat(1,RI_pad,RI_pad,RI_pad);
-    RI_pad=cat(2,RI_pad,RI_pad,RI_pad);
-    ROI_pad = ROI;
-end
-
-function lumerical_save_field(FIELD,FIELD_H,dx,file_name)
-%% Lumerical function: lumerical_save_field
-
-FIELD=double(FIELD);
-FIELD_H=double(FIELD_H);
-
-if length(size(FIELD))~=3
-   error('the field must be of size x by y by 3'); 
-end
-if size(FIELD,3)~=3
-   error('the field must be of size x by y by 3'); 
-end
-
-if length(dx)==1
-    dx=dx*[1 1 1];
-end
-
-dx=dx*1e-6;%um to si units
-
-EM=struct;
-EM.E=reshape(double(FIELD),[],3);
-
-EM.Lumerical_dataset=struct;
-EM.H=reshape(double(FIELD_H),[],3);
-EM.Lumerical_dataset.attributes=[struct,struct]';
-EM.Lumerical_dataset.attributes(1).variable='E';
-EM.Lumerical_dataset.attributes(1).name='E';
-EM.Lumerical_dataset.attributes(2).variable='H';
-EM.Lumerical_dataset.attributes(2).name='H';
-
-EM.Lumerical_dataset.geometry='rectilinear';
-EM.x=reshape(double((0:(size(FIELD,1)-1))*dx(1)),[],1);
-EM.y=reshape(double((0:(size(FIELD,2)-1))*dx(2)),[],1);
-EM.z=0;
-
-save(file_name,'EM')
-
 end

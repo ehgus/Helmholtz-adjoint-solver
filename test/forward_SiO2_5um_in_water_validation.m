@@ -32,6 +32,7 @@ forward_FDTD_params.verbose=false;
 forward_FDTD_params.boundary_thickness=[0 0 1];
 forward_FDTD_params.iterations_number=-1;
 forward_FDTD_params.is_plane_wave = true;
+forward_FDTD_params.hide_GUI = false;
 forward_FDTD_params.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
 
 % forward solver parameters - MIE
@@ -82,7 +83,7 @@ else
     forward_solver_FDTD=FDTDsolver(forward_FDTD_params);
     forward_solver_FDTD.set_RI(RI);
     tic;
-    [field_FDTD, Hfield_FDTD]=forward_solver_FDTD.solve(input_field);
+    [field_FDTD, Hfield_FDTD]=forward_solver_FDTD.solve(current_source);
     toc;
     save(fdtd_file, 'field_FDTD', 'Hfield_FDTD');
 end
@@ -103,7 +104,7 @@ end
 
 % 3D field distribution: E field
 intensity_CBS=sum(abs(field_CBS(:,:,:,:,1)).^2,4);
-intensity_FDTD=sum(abs(field_FDTD(:,:,:,:,1)).^2,4);
+intensity_FDTD=single(sum(abs(field_FDTD(:,:,:,:,1)).^2,4));
 intensity_Mie=sum(abs(field_3D_Mie(:,:,:,:,1)).^2,4);
 figure('Name','Intensity: CBS / FDTD / Mie scattering');
 orthosliceViewer(cat(2,intensity_CBS,intensity_FDTD,intensity_Mie));
