@@ -74,7 +74,7 @@ classdef FDTDsolver < ForwardSolver
             %% SHOULD BE REMOVED: boundary_thickness_pixel is the half from the previous definition
             old_RI_size=size(obj.RI);
             pott=RI2potential(obj.RI,obj.wavelength,obj.RI_bg);
-            pott=padarray(pott,obj.boundary_thickness_pixel,'replicate');
+            pott=padarray(pott,double(obj.boundary_thickness_pixel),'replicate');
             obj.RI=potential2RI(pott,obj.wavelength,obj.RI_bg);
             
             obj.ROI = [...

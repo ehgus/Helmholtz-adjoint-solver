@@ -61,31 +61,38 @@ params.size=size(RI_metalens); % 3D volume grid
 params.verbose = false;
 
 %% incident field parameters
-field_generator_params=params;
-field_generator_params.illumination_number=1;
-field_generator_params.illumination_style='circle';
-input_field=FieldGenerator.get_field(field_generator_params);
+source_params = params;
+source_params.polarization = [1 0 0];
+source_params.direction = 3;
+source_params.horizontal_k_vector = [0 0];
+source_params.center_position = [1 1 1];
+source_params.grid_size = source_params.size;
+current_source = PlaneSource(source_params);
 
 %% solve the forward problem
-RI_type = 'flat';
+RI_type = 'metalens';
 RI = RI_patterns.(RI_type);
+[minRI, maxRI] = bounds(RI,"all");
 
 %1-1 CBS parameters
 params_CBS=params;
 params_CBS.use_GPU=true;
 params_CBS.boundary_thickness = [0 0 5];
-params_CBS.field_attenuation = [0 0 4];
+params_CBS.field_attenuation = [0 0 5];
 params_CBS.field_attenuation_sharpness = 0.5;
-params_CBS.potential_attenuation = [0 0 2];
-params_CBS.potential_attenuation_sharpness = 1;
-[minRI, maxRI] = bounds(RI,"all");
-params_CBS.RI_bg = real(minRI);
+params_CBS.potential_attenuation = [0 0 4];
+params_CBS.potential_attenuation_sharpness = 0.5;
+% params_CBS.boundary_thickness = [0 0 4];
+% params_CBS.field_attenuation_sharpness = 1;
+% params_CBS.potential_attenuation = [0 0 4];
+% params_CBS.potential_attenuation_sharpness = 0.5;
+params_CBS.RI_bg = minRI;
 
 %1-2 FDTD parameters
 params_FDTD=params;
 params_FDTD.use_GPU=false;
 params_FDTD.boundary_thickness = [0 0 0];
-params_FDTD.RI_bg=real(PDMS(wavelength));
+params_FDTD.RI_bg = real(minRI);
 params_FDTD.is_plane_wave = true;
 params_FDTD.PML_boundary = [false false true];
 params_FDTD.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
@@ -110,7 +117,7 @@ for isolver = 1:solver_num
     end
     forward_solver.set_RI(RI);
     tic;
-    [E_field_rst{isolver}, H_field_rst{isolver}] = forward_solver.solve(input_field);
+    [E_field_rst{isolver}, H_field_rst{isolver}] = forward_solver.solve(current_source);
     toc;
     E_field_3D = E_field_rst{isolver};
     H_field_3D = H_field_rst{isolver};
