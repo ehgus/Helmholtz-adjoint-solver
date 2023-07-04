@@ -14,7 +14,6 @@ diameter = 10;       % unit: micron
 focal_length = 0; % unit: micron
 z_padding = 3;    % padding along z direction
 substrate_type = 'SU8';  % substrate type: 'SU8' or 'air'
-verbose = false;
 
 % refractive index profile
 database = RefractiveIndexDB();
@@ -38,13 +37,13 @@ params.vector_simulation=true;  % True/false: dyadic/scalar Green's function
 params.size=size(RImap);        % 3D volume grid
 
 %2 incident field parameters
-field_generator_params=params;
-field_generator_params.illumination_number=1;
-field_generator_params.illumination_style='circle';%'circle';%'random';%'mesh'
-% create the incident field
-input_field_x = FieldGenerator.get_field(field_generator_params);
-input_field_y = -1i .* flip(input_field_x, 3);
-input_field = (input_field_x + input_field_y)./sqrt(2);
+source_params = params;
+source_params.polarization = [1 -1i 0]/sqrt(2);
+source_params.direction = 3;
+source_params.horizontal_k_vector = [0 0];
+source_params.center_position = [1 1 1];
+source_params.grid_size = source_params.size;
+current_source = PlaneSource(source_params);
 
 %% Forward solver
 
@@ -60,9 +59,8 @@ forward_solver=ConvergentBornSolver(params_CBS);
 forward_solver.set_RI(RImap);
 
 % Configuration for bulk material
-if verbose
-    display_RI_Efield(forward_solver,RImap,input_field,'before optimization')
-end
+display_RI_Efield(forward_solver,RImap,current_source,'before optimization')
+
 %% Adjoint method
 ROI_change = real(RImap) > 2;
 %Adjoint solver parameters
@@ -100,7 +98,7 @@ options.intensity_weight = intensity_weight;
 RI_optimized=adjoint_solver.solve(input_field,RImap,options);
 
 %% visualization
-[~,~,E_field] = forward_solver.solve(input_field);
+E_field = forward_solver.solve(current_source);
 E_intensity = sum(abs(E_field),4);
 viewerContinuous = viewer3d(BackgroundColor="white",BackgroundGradient="off",CameraZoom=2);
 hVolumeContinuous = volshow(real(RI_optimized), OverlayData=E_intensity, Parent= viewerContinuous, OverlayAlphamap = linspace(0,0.2,256),...

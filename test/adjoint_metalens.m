@@ -14,7 +14,6 @@ diameter = 3;       % unit: micron
 focal_length = 1; % unit: micron
 z_padding = 0.5;    % padding along z direction
 substrate_type = 'SU8';  % substrate type: 'SU8' or 'air'
-verbose = false;
 
 % refractive index profile
 database = RefractiveIndexDB();
@@ -44,11 +43,13 @@ params.use_abbe_sine=false;     % Abbe sine condition according to demagnificati
 params.size=size(RImap);        % 3D volume grid
 
 %2 incident field parameters
-field_generator_params=params;
-field_generator_params.illumination_number=1;
-field_generator_params.illumination_style='circle';%'circle';%'random';%'mesh'
-% create the incident field
-input_field=FieldGenerator.get_field(field_generator_params);
+source_params = params;
+source_params.polarization = [1 0 0];
+source_params.direction = 3;
+source_params.horizontal_k_vector = [0 0];
+source_params.center_position = [1 1 1];
+source_params.grid_size = source_params.size;
+current_source = PlaneSource(source_params);
 
 %% Forward solver
 
@@ -64,9 +65,8 @@ forward_solver=ConvergentBornSolver(params_CBS);
 forward_solver.set_RI(RImap);
 
 % Configuration for bulk material
-if verbose
-    display_RI_Efield(forward_solver,RImap,input_field,'before optimization')
-end
+display_RI_Efield(forward_solver,RImap,current_source,'before optimization')
+
 %% Adjoint method
 x_pixel_coord = transpose((1:size(RImap,1))-diameter_pixel/2);
 y_pixel_coord = (1:size(RImap,2))-diameter_pixel/2;
@@ -97,14 +97,14 @@ intensity_weight = padarray(intensity_weight,[0 0 sum(thickness_pixel)-size(inte
 options.intensity_weight = intensity_weight;
 
 % Execute the optimization code
-RI_optimized_byproduct=adjoint_solver.solve(input_field,RImap,options);
+RI_optimized_byproduct=adjoint_solver.solve(current_source,RImap,options);
 adjoint_solver.step = 0.1;
 adjoint_solver.itter_max = 100;
 adjoint_solver.binarization_step = 40;
 adjoint_params.spatial_filter_range = [1 Inf];
-RI_optimized=adjoint_solver.solve(input_field,RI_optimized_byproduct,options);
+RI_optimized=adjoint_solver.solve(current_source,RI_optimized_byproduct,options);
 % Configuration for optimized metamaterial
-display_RI_Efield(forward_solver,RI_optimized,input_field,'after optimization')
+display_RI_Efield(forward_solver,RI_optimized,current_source,'after optimization')
 
 %% optional: save RI configuration
 filename = sprintf('optimized lens on %s Diameter-%.2fum F-%.2fum.mat',substrate_type,diameter,focal_length);

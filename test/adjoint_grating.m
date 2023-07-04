@@ -34,11 +34,13 @@ params.use_abbe_sine=false;     % Abbe sine condition according to demagnificati
 params.size=grid_size;          % 3D volume grid
 
 %2 incident field parameters
-field_generator_params=params;
-field_generator_params.illumination_number=1;
-field_generator_params.illumination_style='circle';%'circle';%'random';%'mesh'
-% create the incident field
-input_field=FieldGenerator.get_field(field_generator_params);
+source_params = params;
+source_params.polarization = [1 0 0];
+source_params.direction = 3;
+source_params.horizontal_k_vector = [0 0];
+source_params.center_position = [1 1 1];
+source_params.grid_size = source_params.size;
+current_source = PlaneSource(source_params);
 
 %% forward solver
 
@@ -53,7 +55,7 @@ params_CBS.potential_attenuation_sharpness = 0.5;
 
 %compute the forward field using convergent Born series
 forward_solver=ConvergentBornSolver(params_CBS);
-display_RI_Efield(forward_solver,RI,input_field,'before optimization');
+display_RI_Efield(forward_solver,RI,current_source,'before optimization');
 %% Adjoint solver
 forward_solver.verbose = false;
 ROI_change = zeros(size(RI),'logical');
@@ -90,34 +92,24 @@ Nsize = options.forward_solver.size + 2*options.forward_solver.boundary_thicknes
 Nsize(4) = 3;
 
 for i = 1:length(options.E_field)
-    % E field
-    illum_order = i - 3;
-    sin_theta = (illum_order-1)*params_CBS.wavelength/(params_CBS.size(2)*params_CBS.resolution(2)*params_CBS.RI_bg);
-    cos_theta = sqrt(1-sin_theta^2);
-    if illum_order < 1
-        illum_order = illum_order + Nsize(2);
-    end
-    incident_field = zeros(Nsize([1 2 4]));
-    incident_field(1,illum_order,1) = prod(Nsize(1:2));
-    incident_field = ifft2(incident_field);
-    incident_field = options.forward_solver.padd_field2conv(incident_field);
-    incident_field = fft2(incident_field);
-    incident_field = reshape(incident_field, [size(incident_field,1),size(incident_field,2),1,size(incident_field,3)]).*options.forward_solver.refocusing_util;
-    incident_field = ifft2(incident_field);
-    options.E_field{i} = options.forward_solver.crop_conv2RI(incident_field);
-    % H field
-    incident_field_H = zeros(Nsize,'like',incident_field);
-    incident_field_H(:,:,:,2) = incident_field(:,:,:,1) * cos_theta;
-    incident_field_H(:,:,:,3) = incident_field(:,:,:,1) * (-sin_theta);
-    incident_field_H = incident_field_H/impedance;
-    options.H_field{i} = incident_field_H;
+    illum_order = i - 4;
+    k_y = 2*pi*illum_order/(params_CBS.size(2)*params_CBS.resolution(2));
+    adj_source_params = params_CBS;
+    adj_source_params.polarization = [-1 0 0];
+    adj_source_params.direction = 3;
+    adj_source_params.horizontal_k_vector = [0 k_y];
+    adj_source_params.center_position = [1 1 1-options.forward_solver.boundary_thickness_pixel(3)];
+    adj_source_params.grid_size = adj_source_params.size;
+    adj_current_source = PlaneSource(adj_source_params);
+    options.current_source{i} = adj_current_source;
+    options.E_field{i} = adj_current_source.generate_Efield(repmat(options.forward_solver.boundary_thickness_pixel,2,1));
+    options.H_field{i} = adj_current_source.generate_Hfield(repmat(options.forward_solver.boundary_thickness_pixel,2,1));
 end
 
 % Execute the optimization code
-RI_optimized=adjoint_solver.solve(input_field,RI,options);
+RI_optimized=adjoint_solver.solve(current_source,RI,options);
 % Configuration for optimized metamaterial
-display_RI_Efield(forward_solver,RI_optimized,input_field,'after optimization')
-
+display_RI_Efield(forward_solver,RI_optimized,current_source,'after optimization')
 %% optional: save RI configuration
 filename = 'CBS_optimized grating.mat';
 save_RI(filename, RI_optimized(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))), params.resolution, params.wavelength);
