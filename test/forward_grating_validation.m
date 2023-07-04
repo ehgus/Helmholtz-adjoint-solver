@@ -5,7 +5,7 @@ dirname = fileparts(fileparts(matlab.desktop.editor.getActiveFilename));
 addpath(genpath(dirname));
 %% basic optical parameters
 
-oversampling_rate = 2;
+oversampling_rate = 1;
 % load RI profiles
 sim_type = 'CBS'; % CBS, 2D_FDTD
 NA=1;
@@ -51,10 +51,13 @@ params.verbose = false;
 params.RI_bg = RI_list(1);
 
 %% incident field parameters
-field_generator_params=params;
-field_generator_params.illumination_number=1;
-field_generator_params.illumination_style='circle';
-input_field=FieldGenerator.get_field(field_generator_params);
+source_params = params;
+source_params.polarization = [1 0 0];
+source_params.direction = 3;
+source_params.horizontal_k_vector = [0 0];
+source_params.center_position = [1 1 1];
+source_params.grid_size = source_params.size;
+current_source = PlaneSource(source_params);
 
 %1-1 CBS parameters
 params_CBS=params;
@@ -93,7 +96,7 @@ for isolver = 1:solver_num
     end
     forward_solver.set_RI(RI_grating);
     tic;
-    [E_field_rst{isolver}, H_field_rst{isolver}] = forward_solver.solve(input_field);
+    [E_field_rst{isolver}, H_field_rst{isolver}] = forward_solver.solve(current_source);
     E_field_3D = E_field_rst{isolver};
     H_field_3D = H_field_rst{isolver};
     toc;
@@ -149,32 +152,21 @@ Nsize = CBS_forward_solver.size + 2*CBS_forward_solver.boundary_thickness_pixel;
 Nsize(4) = 3;
 
 for idx = 1:length(target_angle_mode)
-    % E field
     illum_order = target_angle_mode(idx);
-    sin_theta = illum_order*CBS_forward_solver.wavelength/(CBS_forward_solver.size(2)*CBS_forward_solver.resolution(2)*CBS_forward_solver.RI_bg);
-    cos_theta = sqrt(1-sin_theta^2);
-    if illum_order < 0
-        illum_order = illum_order + Nsize(2);
-    end
-    incident_field = zeros(Nsize([1 2 4]));
-    incident_field(1,illum_order + 1,1) = prod(Nsize(1:2));
-    incident_field = ifft2(incident_field);
-    incident_field = CBS_forward_solver.padd_field2conv(incident_field);
-    incident_field = fft2(incident_field);
-    incident_field = reshape(incident_field, [size(incident_field,1),size(incident_field,2),1,size(incident_field,3)]).*CBS_forward_solver.refocusing_util;
-    incident_field = ifft2(incident_field);
-    eigen_E_field{idx} = CBS_forward_solver.crop_conv2RI(incident_field);
-    % H field
-    incident_field_H = zeros(Nsize,'like',incident_field);
-    incident_field_H(:,:,:,2) = incident_field(:,:,:,1) * cos_theta;
-    incident_field_H(:,:,:,3) = incident_field(:,:,:,1) * (-sin_theta);
-    incident_field_H = incident_field_H/impedance;
-    eigen_H_field{idx} = incident_field_H;
-    
-    eigen_S_ref = 2*real(poynting_vector(eigen_E_field{idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:), eigen_H_field{idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)));
+    k_y = 2*pi*illum_order/(params_CBS.size(2)*params_CBS.resolution(2));
+    adj_source_params = params_CBS;
+    adj_source_params.polarization = [-1 0 0];
+    adj_source_params.direction = 3;
+    adj_source_params.horizontal_k_vector = [0 k_y];
+    adj_source_params.center_position = [1 1 1];
+    adj_source_params.grid_size = adj_source_params.size;
+    adj_current_source = PlaneSource(adj_source_params);
+
+    eigen_E_field{idx} = adj_current_source.generate_Efield(zeros(2,3));
+    eigen_H_field{idx} = adj_current_source.generate_Hfield(zeros(2,3));
+    eigen_S_ref = 2*real(poynting_vector(eigen_E_field{idx}, eigen_H_field{idx}));
     relative_transmission_ref(idx) = abs(sum(eigen_S_ref(:,:,end,3),'all'));
 end
-
 
 relative_transmission = zeros(1,length(target_transmission));
 for idx = 1:length(E_field_rst)
@@ -182,8 +174,7 @@ for idx = 1:length(E_field_rst)
     H_field = H_field_rst{idx};
     
     for field_idx = 1:length(target_transmission)
-        eigen_S = poynting_vector(E_field, eigen_H_field{field_idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)) +...
-            poynting_vector(conj(eigen_E_field{field_idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)), conj(H_field));
+        eigen_S = poynting_vector(E_field, eigen_H_field{field_idx}) + poynting_vector(conj(eigen_E_field{field_idx}), conj(H_field));
         relative_transmission(field_idx) = sum(eigen_S(:,:,end,3),'all');
     end
     fprintf("%s :",class(forward_solver_list{idx}));
@@ -195,15 +186,14 @@ ideal_E_field = zeros(size(E_field_rst{1}),'like',eigen_E_field{1});
 ideal_H_field = zeros(size(H_field_rst{1}),'like',eigen_H_field{1});
 relative_phase = sqrt(target_transmission);
 for idx = 1:length(target_transmission)
-    ideal_E_field = ideal_E_field + relative_phase(idx)*eigen_E_field{idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:);
-    ideal_H_field = ideal_H_field + relative_phase(idx)*eigen_H_field{idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:);
+    ideal_E_field = ideal_E_field + relative_phase(idx)*eigen_E_field{idx};
+    ideal_H_field = ideal_H_field + relative_phase(idx)*eigen_H_field{idx};
 end
 figure('Name',"Ideal case");
 imagesc(scale_xy, scale_xy, squeeze(sum(abs(ideal_E_field(center_RI(1),:,:,:)),4))',[0 max_E_val]);
 
 for idx = 1:length(target_transmission)
-    eigen_S = poynting_vector(ideal_E_field, eigen_H_field{idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)) +...
-              poynting_vector(conj(eigen_E_field{idx}(CBS_forward_solver.ROI(1):CBS_forward_solver.ROI(2),CBS_forward_solver.ROI(3):CBS_forward_solver.ROI(4),CBS_forward_solver.ROI(5):CBS_forward_solver.ROI(6),:)), conj(ideal_H_field));
+    eigen_S = poynting_vector(ideal_E_field, eigen_H_field{idx}) + poynting_vector(conj(eigen_E_field{idx}), conj(ideal_H_field));
     relative_transmission(idx) = sum(eigen_S(:,:,end,3),'all');
 end
 fprintf("Ideal case :");
