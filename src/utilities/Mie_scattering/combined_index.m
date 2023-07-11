@@ -1,5 +1,5 @@
 function [out1,out2] = combined_index(in1,in2)
-%% combined_index: internal function in tmatrix_Mie_v2: index of combined (n,m)
+%% combined_index: internal function in tmatrix_mie: index of combined (n,m)
 
 % combined_index.m - translates between (n,m) and combined index
 %                    ci = n * (n+1) + m

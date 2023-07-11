@@ -37,7 +37,7 @@ forward_FDTD_params.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
 
 % forward solver parameters - MIE
 forward_params_Mie=params;
-forward_params_Mie.use_GPU=true;
+forward_params_Mie.use_GPU=false;
 forward_params_Mie.truncated = true;
 forward_params_Mie.verbose = false;
 forward_params_Mie.boundary_thickness = [0 0 0];

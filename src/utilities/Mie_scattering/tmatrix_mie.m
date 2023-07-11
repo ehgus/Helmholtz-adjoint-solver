@@ -1,5 +1,5 @@
-function [T_ext,T_int,a,b,c,d] = tmatrix_mie_v2(lmax,k_medium,k_particle,radius,mu0,mu1)
-%% tmatrix_mie_v2: Make T matrix!
+function [T_ext,T_int,a,b,c,d] = tmatrix_mie(lmax,k_medium,k_particle,radius,mu0,mu1)
+%% tmatrix_mie: Make T matrix!
 
 % tmatrix_mie.m : Mie scattering and internal coefficients for uniform
 %                 sphere, arranged as a sparse T-matrix.

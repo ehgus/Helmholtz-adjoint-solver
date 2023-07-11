@@ -30,7 +30,7 @@ classdef MieTheorySolver < ForwardSolver
             k_vector = [kx ky sqrt(k_m^2 - kx^2 - ky^2)];
             [ktheta,kphi,~] = xcart2sph(k_vector(1),k_vector(2),k_vector(3));
             % Obtain T-matrix - The first T is scattered mode, 2nd T is the internal mode.
-            [T_ext, T_int] = tmatrix_mie_v2(obj.lmax,k_m,k_s,obj.radius,obj.mu0,obj.mu1);
+            [T_ext, T_int] = tmatrix_mie(obj.lmax,k_m,k_s,obj.radius,obj.mu0,obj.mu1);
             [xf0, yf0, zf0] = ndgrid(gather(obj.utility.image_space.coor{1}), gather(obj.utility.image_space.coor{2}),gather(obj.utility.image_space.coor{3}));
             [theta, phi, rad] = xcart2sph(xf0, yf0, zf0);  % Spherical grids
             rad = double(rad(:));phi = double(phi(:));theta = double(theta(:));
@@ -47,10 +47,14 @@ classdef MieTheorySolver < ForwardSolver
             %% Start computation
             alm = zeros(obj.lmax,2*obj.lmax+1); 
             blm = zeros('like', alm);
+            cos_ktheta = cos(ktheta);
+            legendre_val_higher = associated_Legendre(1,cos_ktheta);
             for l = 1:obj.lmax
             % Initialize parameters
                 cl=sqrt((2*l+1)/4/pi/l/(l+1));
-                [BB, CC] = vsh_MS(l,ktheta);
+                legendre_val = legendre_val_higher;
+                legendre_val_higher = associated_Legendre(l+1,cos_ktheta);
+                [BB, CC] = vec_spherical_harmonics(l,cos_ktheta,legendre_val,legendre_val_higher);
                 ms = reshape(-l:l,[],1);
                 phase = exp(-1i.*ms.*reshape(kphi,1,[]));
                 alm(l,1:size(BB,1)) = transpose(4*pi*cl*(-1).^ms.*(1i).^l    .* sum(phase .* conj(CC) .* reshape(pol_new_sph, 1, [], 3),2:3));
@@ -78,37 +82,50 @@ classdef MieTheorySolver < ForwardSolver
             % Make scattered field
             in_flag = rho < k_m*obj.radius; in_flag=in_flag(:);out_flag = rho >= k_m*obj.radius; out_flag=out_flag(:);
             % main
+            cos_theta = cos(theta);
+            if obj.use_GPU
+                cos_theta = gpuArray(cos_theta);
+            end
             if kx == 0 && ky == 0
                 m_list = [-1 1];
             else
                 m_list = -obj.lmax:obj.lmax;
             end
             for bulk = 1: obj.divide_section
-                length_bulk = ceil(length(theta) / obj.divide_section);
-                jj = (1+length_bulk * (bulk-1)) : min(length(theta), bulk*length_bulk);
+                length_bulk = ceil(length(cos_theta) / obj.divide_section);
+                jj = (1+length_bulk * (bulk-1)) : min(length(cos_theta), bulk*length_bulk);
                 M_in = zeros(numel(jj),3);
                 N_in = zeros(numel(jj),3);
                 M_outh = zeros(numel(jj),3);
                 N_outh = zeros(numel(jj),3);
-                partial_theta = theta(jj);
+                partial_cos_theta = cos_theta(jj);
                 partial_rho_s = rho_s(jj);
                 partial_rho = rho(jj);
                 partial_out_flag = out_flag(jj);
                 partial_in_flag = in_flag(jj);
+                legendre_val_higher = associated_Legendre(1,partial_cos_theta);
+                j_s_higher = sbesselj(1, partial_rho_s);j_s_higher=j_s_higher(:);j_s_higher(isnan(j_s_higher))=0;
+                h_m_higher = sbesselh1(1, partial_rho);h_m_higher=h_m_higher(:);h_m_higher(isnan(h_m_higher))=0;
                 for l = 1:obj.lmax
-                    [BB,CC,P] = vsh_MS(l,partial_theta);
+                    % reuse evaluated values
+                    legendre_val = legendre_val_higher;
+                    j_s = j_s_higher;
+                    h_m = h_m_higher;
+                    % vector spherical harmonics
+                    legendre_val_higher = associated_Legendre(l+1,partial_cos_theta);
+                    [BB,CC,P] = vec_spherical_harmonics(l,partial_cos_theta,legendre_val,legendre_val_higher);
                     BB = permute(BB,[2,3,1]);
                     CC = permute(CC,[2,3,1]);
                     P = permute(P,[2,3,1]);
                     cl=sqrt((2*l+1)/4/pi/l/(l+1));
                     % Spherical Bessel functions for internal field
-                    j_s = sbesselj(l, partial_rho_s);j_s=j_s(:);j_s(isnan(j_s))=0;
-                    dxi_s = ricbesjd(l, partial_rho_s);	dxi_s=dxi_s(:);dxi_s(isnan(dxi_s))=0;
+                    j_s_higher = sbesselj(l+1, partial_rho_s);j_s_higher=j_s_higher(:);j_s_higher(isnan(j_s_higher))=0;
+                    dxi_s = (l+1).*j_s-partial_rho_s.*j_s_higher;dxi_s=dxi_s(:);dxi_s(isnan(dxi_s))=0;
                     j_rho_s = H_Rho(j_s,partial_rho_s,l);j_rho_s(isnan(j_rho_s))=0;
                     dxi_rho_s = Dxi_Rho(dxi_s,partial_rho_s,l);dxi_rho_s(isnan(dxi_rho_s))=0;
                     % Spherical Bessel functions for external field
-                    h_m = sbesselh1(l, partial_rho);h_m=h_m(:);h_m(isnan(h_m))=0;
-                    dxih_m = ricbesh1d(l, partial_rho);dxih_m=dxih_m(:);dxih_m(isnan(dxih_m))=0;
+                    h_m_higher = sbesselh1(l+1, partial_rho);h_m_higher=h_m_higher(:);h_m_higher(isnan(h_m_higher))=0;
+                    dxih_m = (l+1).*h_m-partial_rho.*h_m_higher;dxih_m=dxih_m(:);dxih_m(isnan(dxih_m))=0;
                     h_rho_m = H_Rho(h_m,partial_rho,l);h_rho_m(isnan(h_rho_m))=0;
                     dxih_rho_m = Dxi_Rho(dxih_m,partial_rho,l);dxih_rho_m(isnan(dxih_rho_m))=0;
                     for m = m_list
@@ -127,7 +144,7 @@ classdef MieTheorySolver < ForwardSolver
                         M_outh(:) = h_m .* CC(:,:,idx);
                         N_outh(:) = l*(l+1).*h_rho_m.*P(:,:,idx) + dxih_rho_m .* BB(:,:,idx);
 
-                        E_scat_T(jj,:) = E_scat_T(jj,:) + (partial_out_flag .* (full(p_out(l*(l+1)+m)) .* M_outh + full(q_out(l*(l+1)+m)) .* N_outh) ... 
+                        E_scat_T(jj,:) = E_scat_T(jj,:) + gather(partial_out_flag .* (full(p_out(l*(l+1)+m)) .* M_outh + full(q_out(l*(l+1)+m)) .* N_outh) ... 
                                                         + partial_in_flag .* (full(p_in(l*(l+1)+m)) .* M_in + full(q_in(l*(l+1)+m)) .* N_in)) .* ((-1)^m * cl *phase);
                     end
                 end
@@ -137,7 +154,6 @@ classdef MieTheorySolver < ForwardSolver
             E_scat_T = reshape(E_scat_T,[size(xf0), 3]);
             E_field_ref = current_source.generate_Efield(zeros(2,3));
             Efield = E_field_ref.*out_flag + E_field_ref(floor((size(E_field_ref,1)+1)/2),floor((size(E_field_ref,2)+1)/2),floor((size(E_field_ref,3)+1)/2),:).*E_scat_T;
-            Efield = gather(Efield);
         end
     end
 end
