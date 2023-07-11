@@ -50,12 +50,7 @@ forward_params_Mie.divide_section = 10;
 % make the phantom
 RI=phantom_bead(params.size, [params.RI_bg, RI_sp], round(radius/params.resolution(3)));
 
-%create the incident field
 %2 illumination parameters
-field_generator_params=params;
-field_generator_params.illumination_number=1;
-field_generator_params.illumination_style='circle';
-input_field=FieldGenerator.get_field(field_generator_params);
 source_params = params;
 source_params.polarization = [1 0 0];
 source_params.direction = 3;
@@ -95,7 +90,7 @@ else
     forward_solver_Mie=MieTheorySolver(forward_params_Mie);
     forward_solver_Mie.set_RI(RI);
     tic;
-    [field_3D_Mie]=forward_solver_Mie.solve(input_field);
+    [field_3D_Mie]=forward_solver_Mie.solve(current_source);
     toc;
     save(mie_field_filename, 'field_3D_Mie');
 end
@@ -105,7 +100,7 @@ end
 % 3D field distribution: E field
 intensity_CBS=sum(abs(field_CBS(:,:,:,:,1)).^2,4);
 intensity_FDTD=single(sum(abs(field_FDTD(:,:,:,:,1)).^2,4));
-intensity_Mie=sum(abs(field_3D_Mie(:,:,:,:,1)).^2,4);
+intensity_Mie=single(sum(abs(field_3D_Mie(:,:,:,:,1)).^2,4));
 figure('Name','Intensity: CBS / FDTD / Mie scattering');
 orthosliceViewer(cat(2,intensity_CBS,intensity_FDTD,intensity_Mie));
 colormap parula;

@@ -18,35 +18,17 @@ classdef MieTheorySolver < ForwardSolver
             obj.RI=single(RI);%single computation are faster
             obj.utility=derive_utility(obj, size(obj.RI)); % the utility for the space with border
         end
-        function [Efield]=solve(obj,input_field)
-
-            assert(size(input_field,3) == 2, 'The 3rd dimension of input_field should indicate polarization')
-            if obj.verbose && size(input_field,3)==1
-                warning('Input is scalar but scalar equation is less precise');
-            end
-            if size(input_field,3)>2
-                error('Input field must be either a scalar or a 2D vector');
-            end
-            
-            input_field=fftshift(fft2(ifftshift(input_field)));
-            %2D to 3D field
-            source = obj.transform_field_3D(input_field);
+        function [Efield]=solve(obj,current_source)
+            assert(isa(current_source,'PlaneSource'), "PlaneSource is only supported")
+            assert(current_source.direction == 3, "Light should propagate along z-axis")
             % defined a k-vector for the illuminated plane & wavenumbers in both sample and background medium
-            [kx, ky] = find(source == max(source(:)));
-            kx = kx - floor(size(source,1)/2) - 1;
-            ky = ky - floor(size(source,2)/2) - 1;
-            kx = kx * obj.utility.fourier_space.res{1};
-            ky = ky * obj.utility.fourier_space.res{2};
+            kx = current_source.horizontal_k_vector(1);
+            ky = current_source.horizontal_k_vector(2);
 
-            k_m = obj.utility.k0_nm * 2 * pi;
-            k_s = k_m * obj.RI_sp / obj.RI_bg;
-            k_vector = [kx ky sqrt(k_m^2 - kx^2 - ky^2)]; %%% sqrt(k_m^2 - norm(k_vector)^2); ?? why norm?
+            k_m = 2 * pi * obj.RI_bg / obj.wavelength;
+            k_s = 2 * pi * obj.RI_sp / obj.wavelength;
+            k_vector = [kx ky sqrt(k_m^2 - kx^2 - ky^2)];
             [ktheta,kphi,~] = xcart2sph(k_vector(1),k_vector(2),k_vector(3));
-            % generate volumetric source
-            source = reshape(source, size(source, 1), size(source, 2), 1, size(source, 3)) .* ...
-                exp(obj.utility.refocusing_kernel.*obj.resolution(3) .* reshape(1-ceil(size(obj.RI,3)/2):floor(size(obj.RI,3)/2),1, 1, []));
-            source = fftshift(ifft2(ifftshift(source)));
-            incident_field = source;
             % Obtain T-matrix - The first T is scattered mode, 2nd T is the internal mode.
             [T_ext, T_int] = tmatrix_mie_v2(obj.lmax,k_m,k_s,obj.radius,obj.mu0,obj.mu1);
             [xf0, yf0, zf0] = ndgrid(gather(obj.utility.image_space.coor{1}), gather(obj.utility.image_space.coor{2}),gather(obj.utility.image_space.coor{3}));
@@ -153,8 +135,8 @@ classdef MieTheorySolver < ForwardSolver
             out_flag = reshape(out_flag,size(xf0));
             E_scat_T = sum(reshape(E_scat_T,[],1,3) .* reshape(Rx,[],3,3),3);
             E_scat_T = reshape(E_scat_T,[size(xf0), 3]);
-        
-            Efield = incident_field.*out_flag + incident_field(floor((size(incident_field,1)+1)/2),floor((size(incident_field,2)+1)/2),floor((size(incident_field,3)+1)/2),:).*E_scat_T;
+            E_field_ref = current_source.generate_Efield(zeros(2,3));
+            Efield = E_field_ref.*out_flag + E_field_ref(floor((size(E_field_ref,1)+1)/2),floor((size(E_field_ref,2)+1)/2),floor((size(E_field_ref,3)+1)/2),:).*E_scat_T;
             Efield = gather(Efield);
         end
     end
