@@ -18,6 +18,7 @@ function [ theta, phi, r ] = xcart2sph( x, y, z )
 %       Meßtechnik an der Universität Ulm (http://www.ilm-ulm.de)
 
 theta = pi/2. - atan(z./sqrt(x.^2 + y.^2));
+theta(isnan(theta))=0;
 phi = atan2(y,x);
 r = sqrt(x.^2 + y.^2 + z.^2);
 

@@ -127,7 +127,6 @@ classdef RefractiveIndexDB
         function RI_func = formula_9(c)
             %Exotic
             function RI = RI_func_nested(wavelength)
-                sq_wl = wavelength.^2;
                 RI = c(1) + c(2)./(wavelength.^2 - c(3));
                 RI = RI + c(4).*(wavelength - c(5))./((wavelength - c(5)).^2 + c(6));
             end

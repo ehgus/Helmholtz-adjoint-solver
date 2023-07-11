@@ -1,4 +1,5 @@
 function [Efield,Hfield]=solve(obj, current_source)
+    assert(~isempty(obj.RI), "RI should be set before")
     % generate incident field
     current_source.RI_bg = obj.RI_bg;
     incident_Efield = current_source.generate_Efield([obj.boundary_thickness_pixel; obj.boundary_thickness_pixel]);

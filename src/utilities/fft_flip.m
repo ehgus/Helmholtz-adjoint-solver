@@ -1,11 +1,10 @@
-function array=fft_flip(array,flip_bool, use_shift)
-%use_shift is set to true if the array has the zero frequency centered
-for idx = 1:length(flip_bool)
-    if flip_bool(idx)
-        array=flip(array,idx);
-        if mod(size(array,idx),2)==0 || ~use_shift
-            array=circshift(array,1,idx);
+function A=fft_flip(A,flip_bool)
+    % flip the array along the center of the array
+    % The zero frequency is assumed to be placed at A(1,1,1,....)
+    for idx = 1:length(flip_bool)
+        if flip_bool(idx)
+            A=flip(A,idx);
+            A=circshift(A,1,idx);
         end
     end
-end
 end

@@ -44,8 +44,9 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
     for idx = 1:length(obj.field_attenuation_mask)
         source=source.*obj.field_attenuation_mask{idx};
     end
+    isacyclic = ~all(obj.periodic_boudnary);
     for Born_order = 1:obj.Bornmax
-        if obj.acyclic
+        if isacyclic
             %flip the relevant quantities
             [Green_fn, flip_Green_fn] = deal(flip_Green_fn, Green_fn);
             [phase_ramp, conj_phase_ramp] = deal(conj_phase_ramp, phase_ramp);

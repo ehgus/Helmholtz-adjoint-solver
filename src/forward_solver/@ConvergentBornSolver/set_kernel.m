@@ -23,7 +23,7 @@ function set_kernel(obj)
     end
 
     % phase ramp
-    if obj.acyclic
+    if ~all(obj.periodic_boudnary)
         if all(obj.boundary_thickness_pixel(1:2)==0)
             x=exp(-1i.*pi.*((1:size(obj.V,3))-1)./size(obj.V,3)/2);
             x=x./x(floor(size(x,1)/2)+1,floor(size(x,2)/2)+1,floor(size(x,3)/2)+1);
@@ -42,21 +42,19 @@ function set_kernel(obj)
 
     % Helmholtz Green function in Fourier space
     shifted_coordinate = obj.utility.fourier_space.coor(1:3);
-    if obj.acyclic %shift all by kres/4 for acyclic convolution
-        if ~obj.cyclic_boundary_xy %shift only in z obj.acyclic
-            shifted_coordinate{1}=shifted_coordinate{1}+obj.utility.fourier_space.res{1}/4;
-            shifted_coordinate{2}=shifted_coordinate{2}+obj.utility.fourier_space.res{2}/4;
+    for axis = 1:3
+        if ~obj.periodic_boudnary(axis)
+            shifted_coordinate{axis}=shifted_coordinate{axis}+obj.utility.fourier_space.res{axis}/4;
         end
-        shifted_coordinate{3}=shifted_coordinate{3}+obj.utility.fourier_space.res{3}/4;
     end
     for axis = 1:3
         shifted_coordinate{axis}=2*pi*ifftshift(gather(shifted_coordinate{axis}));
     end
     k_square = (2*pi*obj.utility.k0_nm)^2+1i.*obj.eps_imag;
     Lz = (obj.ROI(6)-obj.ROI(5)+1)*obj.resolution(3);
-    if ~obj.acyclic
+    if all(obj.periodic_boudnary)
         Greenp = xyz_periodic_green(k_square, shifted_coordinate{:});
-    elseif obj.cyclic_boundary_xy
+    elseif all(obj.periodic_boudnary(1:2))
         Greenp = xy_periodic_green(k_square, Lz, shifted_coordinate{:});
     else
         warning("Totally non-periodic Green's function is not yet implemented." + newline + ...
@@ -64,13 +62,13 @@ function set_kernel(obj)
         Greenp = xy_periodic_green(k_square, Lz, shifted_coordinate{:});
     end
     
-    flip_Greenp = fft_flip(Greenp,[1 1 1],false);
+    flip_Greenp = fft_flip(Greenp,[1 1 1]);
     % dyadic term
     rads=...
         shifted_coordinate{1}.*reshape([1 0 0],1,1,1,[])+...
         shifted_coordinate{2}.*reshape([0 1 0],1,1,1,[])+...
         shifted_coordinate{3}.*reshape([0 0 1],1,1,1,[]);
-    flip_rads = fft_flip(rads, [1 1 1], false);
+    flip_rads = fft_flip(rads, [1 1 1]);
     rads = rads./sqrt(k_square);
     flip_rads = flip_rads./sqrt(k_square);
 

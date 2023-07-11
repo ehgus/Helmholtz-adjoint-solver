@@ -11,7 +11,7 @@ function [T_ext,T_int,a,b,c,d] = tmatrix_mie_v2(lmax,k_medium,k_particle,radius,
 %
 % PACKAGE INFO
 
-n=[1:lmax];
+n=1:lmax;
 
 m = k_particle/k_medium;
 mmu=mu1/mu0;
@@ -32,14 +32,14 @@ j0 = (sbesselj(n,r0)).';j1 = (sbesselj(n,r1)).';h0 = (sbesselh1(n,r0)).';
 % b = -(R1d.*R0 - m.*mmu.*R1.*R0d) ./ (R1d.*H0 - m.*mmu.*R1.*H0d);
 a = -(j0.*R1d - mmu.*j1.*R0d) ./ (h0.*R1d - mmu.*j1.*H0d);
 b = -(mmu.*j0.*R1d - m.^2.*j1.*R0d) ./ (mmu.*h0.*R1d - m.^2.*j1.*H0d);
-T_ext=sparse([1:2*(lmax^2+2*lmax)],[1:2*(lmax^2+2*lmax)],[a(indexing);b(indexing)]);
+T_ext=sparse(1:2*((lmax+1)^2-1),1:2*((lmax+1)^2-1),[a(indexing);b(indexing)]);
 
 if nargout>1
 %     c = m.*(R0.*H0d - R0d.*H0) ./ (R1.*H0d - m.*mmu.*R1d.*H0);
 %     d = m.*(R0d.*H0 - R0.*H0d) ./ (R1d.*H0 - m.*mmu.*R1.*H0d);
     c = (j0 + a.*h0) ./ j1;
     d = (j0 + b.*h0)./(m.*mmu.*j1);
-    T_int=sparse([1:2*(lmax^2+2*lmax)],[1:2*(lmax^2+2*lmax)],[c(indexing);d(indexing)]);
+    T_int=sparse(1:2*((lmax+1)^2-1),1:2*((lmax+1)^2-1),[c(indexing);d(indexing)]);
     
 end
 end

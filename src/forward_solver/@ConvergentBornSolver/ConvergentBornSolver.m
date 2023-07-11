@@ -21,15 +21,11 @@ classdef ConvergentBornSolver < ForwardSolver
         % CBS simulation option
         Bornmax;
         phase_ramp;
-        cyclic_boundary_xy;
-        acyclic logical = true;
+        periodic_boudnary = [true true false];
         Green_fn;
         flip_Green_fn;
         iterations_number=-1;
         eps_imag = Inf;
-        kernel_trans;
-        kernel_ref;
-        refocusing_util;
     end
     methods
         function obj=ConvergentBornSolver(params)
@@ -68,36 +64,6 @@ classdef ConvergentBornSolver < ForwardSolver
                 x = [window ones(1, obj.ROI(2*(dim-1)+2) - obj.ROI(2*(dim-1)+1) + 1 + 2*(max_L-L)) flip(window)];
                 obj.field_attenuation_mask{end+1} = reshape(x,circshift([1 1 length(x)],dim,2));
             end
-            %make the cropped green function (for forward and backward field)
-            sim_size = obj.size + 2*obj.boundary_thickness_pixel;
-            obj.utility = derive_utility(obj, sim_size);
-            obj.cyclic_boundary_xy=(all(obj.boundary_thickness(1:2)==0) && all(obj.expected_RI_size(1:2)==obj.size(1:2)));
-            
-            if obj.cyclic_boundary_xy
-                obj.refocusing_util=exp(obj.utility.refocusing_kernel.*obj.utility.image_space.coor{3});
-                obj.refocusing_util=ifftshift(gather(obj.refocusing_util));
-                shifted_NA_circle = ifftshift(obj.utility.fourier_space.coorxy  < obj.utility.k0_nm);
-                obj.refocusing_util= obj.refocusing_util.*shifted_NA_circle;
-            else
-                params_truncated_green=struct( ...
-                    'use_GPU', obj.use_GPU, ...
-                    'wavelength', obj.wavelength, ...
-                    'RI_bg', obj.RI_bg, ...
-                    'resolution', obj.resolution, ...
-                    'NA', obj.NA, ...
-                    'size', obj.expected_RI_size(:) + [obj.expected_RI_size(1) + obj.RI_center(1), obj.expected_RI_size(2) + obj.RI_center(2), 0]' ...
-                );
-                warning('off','all');
-                obj.refocusing_util=truncated_green_plus(params_truncated_green,true);
-                obj.refocusing_util=gather(obj.refocusing_util);
-                obj.refocusing_util=obj.refocusing_util(...
-                    1-min(0,obj.RI_center(1)):end-max(0,obj.RI_center(1)),...
-                    1-min(0,obj.RI_center(2)):end-max(0,obj.RI_center(2)),:);
-                obj.refocusing_util=circshift(obj.refocusing_util,[-obj.RI_center(1) -obj.RI_center(2) 0]);
-                obj.refocusing_util=ifft(ifftshift(obj.refocusing_util),[],3);
-                obj.refocusing_util=obj.refocusing_util*(obj.utility.image_space.res{1}*obj.utility.image_space.res{2});
-            end
-            obj.refocusing_util=fftshift(obj.refocusing_util,3);
         end
     end
 end
