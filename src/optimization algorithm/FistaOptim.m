@@ -1,27 +1,41 @@
 classdef FistaOptim < Optim
     properties
-        t_n = 0
-        t_np = 1
-        s_n = []
-        x_n = []
+        t_prev
+        t_curr
+        x_prev
+        x_curr
     end
     methods
-        function obj = reset(obj)
-            obj.t_n = 0;
-            obj.t_np = 1;
-            obj.s_n = [];
-            obj.x_n = [];
-        end
-        function arr_after = apply_gradient(obj, arr_after, arr_before, gradient, step)
-            if isempty(obj.s_n)
-                obj.s_n = arr_before;
-                obj.x_n = arr_before;
+        function obj = FistaOptim(optim_region, regularizer_sequence, grad_weight)
+            if nargin < 3
+                grad_weight = 0.1;
             end
-            obj.t_n = obj.t_np;
-            obj.t_np = (1+sqrt(1+4*obj.t_n^2))/2;
-            obj.s_n = apply_gradient@Optim(obj, obj.s_n, arr_before, gradient, step);
-            arr_after(:) = obj.s_n + (obj.t_n - 1)/obj.t_np*(obj.s_n - obj.x_n);
-            obj.x_n(:) = obj.s_n;
+            obj@Optim(optim_region, regularizer_sequence, grad_weight);
+        end
+        function obj = reset(obj)
+            reset@Optim(obj);
+            obj.t_prev = 0;
+            obj.t_curr = 1;
+            obj.x_curr = [];
+            obj.x_prev = [];
+        end
+        function arr = apply_gradient(obj, arr, gradient, iter_idx)
+            if isempty(obj.x_curr)
+                obj.x_prev = arr;
+                obj.x_curr = arr;
+            end
+            % x_k = p_L(y_k)
+            obj.x_curr(:) = arr;
+            obj.x_curr(obj.optim_region) = arr(obj.optim_region) + obj.grad_weight .* gradient(obj.optim_region);
+            % t_k = (1 + sqrt(1+4t_{k-1}^2)/2)
+            obj.t_prev = obj.t_curr;
+            obj.t_curr = (1+sqrt(1+4*obj.t_prev^2))/2;
+            % y_{k+1} = x_{k} + (t_{k-1} - 1)/t_k*(x_k - x_{k-1}) = (1 + (t_{k-1} - 1)/t_k)*x_k - (t_{k-1} - 1)/t_k*x_{k-1}
+            fista_weight = (obj.t_prev - 1)/obj.t_curr;
+            arr(:) = (1 + fista_weight).*obj.x_curr;
+            arr = arr - fista_weight.*obj.x_prev;
+            arr = obj.regularize_pattern(arr, iter_idx);
+            obj.x_prev(:) = obj.x_curr;
         end
     end
 end
