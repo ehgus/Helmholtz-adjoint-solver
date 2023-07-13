@@ -4,9 +4,8 @@ addpath(genpath(dirname));
 
 %% Basic optical parameters
 
-% user-defined optical parameter
+% User-defined optical parameter
 use_GPU = true; % accelerator option
-
 NA = 1;             % numerical aperature
 wavelength = 0.355; % unit: micron
 resolution = 0.01; % unit: micron
@@ -15,7 +14,7 @@ grid_size = [11 100 100];
 target_transmission = [0 0 0.15 0 0.63 0 0.22];
 verbose = false;
 
-% refractive index profile
+% Refractive index profile
 database = RefractiveIndexDB();
 PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
 TiO2 = database.material("main","TiO2","Siefke");
@@ -24,7 +23,7 @@ RI_list = cellfun(@(func) real(func(wavelength)), {PDMS TiO2 Microchem_SU8_2000}
 thickness_pixel = [0.20 mask_width]/resolution;
 RI = phantom_plate(grid_size, RI_list, thickness_pixel);
 
-%1 optical parameters
+% Optical parameters
 params.NA = NA;
 params.wavelength = wavelength;
 params.RI_bg=RI_list(1);        % Background RI - should be matched with mode decomposition area
@@ -32,52 +31,50 @@ params.resolution=ones(1,3) * resolution; % 3D Voxel size [um]
 params.use_abbe_sine=false;     % Abbe sine condition according to demagnification condition
 params.size=grid_size;          % 3D volume grid
 
-%2 incident field parameters
+% Incident field
 source_params = params;
 source_params.polarization = [1 0 0];
 source_params.direction = 3;
 source_params.horizontal_k_vector = [0 0];
 source_params.center_position = [1 1 1];
 source_params.grid_size = source_params.size;
+
 current_source = PlaneSource(source_params);
 
-%% forward solver
-
+%% Forward solver
 params_CBS=params;
 params_CBS.use_GPU=use_GPU;
-
 params_CBS.boundary_thickness = [0 0 5];
 params_CBS.field_attenuation = [0 0 5];
 params_CBS.field_attenuation_sharpness = 0.5;
 params_CBS.potential_attenuation = [0 0 4];
 params_CBS.potential_attenuation_sharpness = 0.5;
 
-%compute the forward field using convergent Born series
 forward_solver=ConvergentBornSolver(params_CBS);
+
+% Configuration for bulk material
 display_RI_Efield(forward_solver,RI,current_source,'before optimization');
+
 %% Adjoint solver
-forward_solver.verbose = false;
-ROI_change = zeros(size(RI),'logical');
-ROI_change(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))) = true;
-%Adjoint solver iteration parameters
+optim_region = zeros(size(RI),'logical');
+optim_region(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))) = true;
+regularizer_sequence = { ...
+    AvgRegularizer('x'), ...
+    AvgRegularizer('z'), ...
+    BinaryRegularizer(RI_list(2), RI_list(1), 1.5, 0.5, @(step) false)};
+grad_weight = 3;
+
+% Adjoint solver
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;
 adjoint_params.mode = "Transmission";
-adjoint_params.ROI_change = ROI_change;
-adjoint_params.step = 3;
-adjoint_params.itter_max = 100;
-adjoint_params.steepness = 2;
-adjoint_params.binarization_step = 150;
-adjoint_params.spatial_diameter = 0.1;
-adjoint_params.spatial_filter_range = [Inf Inf];
-adjoint_params.nmin = RI_list(1);
-adjoint_params.nmax = RI_list(2);
+adjoint_params.optim_region = optim_region;
+adjoint_params.max_iter = 100;
 adjoint_params.verbose = true;
-adjoint_params.averaging_filter = [true false true];
-%adjoint_params.optimizer = Optim;
 
 adjoint_solver = AdjointSolver(adjoint_params);
-%Adjoint field parameter
+
+% Adjoint design paramters
 options = struct;
 options.target_transmission = target_transmission;
 options.surface_vector = zeros(adjoint_params.size(1),adjoint_params.size(2),adjoint_params.size(3),3);
@@ -107,8 +104,10 @@ end
 
 % Execute the optimization code
 RI_optimized=adjoint_solver.solve(current_source,RI,options);
-% Configuration for optimized metamaterial
+
+%% Visualization
 display_RI_Efield(forward_solver,RI_optimized,current_source,'after optimization')
-%% optional: save RI configuration
+
+%% Optional: save RI configuration
 filename = 'CBS_optimized grating.mat';
 save_RI(filename, RI_optimized(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))), params.resolution, params.wavelength);
