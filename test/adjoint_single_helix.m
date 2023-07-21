@@ -59,18 +59,21 @@ forward_solver=ConvergentBornSolver(params_CBS);
 display_RI_Efield(forward_solver,RImap,current_source,'before optimization')
 
 %% Adjoint method
-optim_region = real(RImap) > 2;
+x_pixel_coord = transpose((1:size(RImap,1))-diameter_pixel/2-1/2);
+y_pixel_coord = (1:size(RImap,2))-diameter_pixel/2-1/2;
+optim_region_xy = x_pixel_coord.^2 + y_pixel_coord.^2 < diameter_pixel^2/4;
+optim_region = and(real(RImap) > 2, optim_region_xy);
 regularizer_sequence = { ...
     AvgRegularizer('z'), ...
-    CyclicConv2Regularizer(CyclicConv2Regularizer.conic(0.05/resolution),'z',@(step) step > 95), ...
-    BinaryRegularizer(RI_list(2), RI_list(1), 1.5, 0.5, @(step) max(0,ceil((step-40)/25)))};
+    CyclicConv2Regularizer(CyclicConv2Regularizer.conic(0.05/resolution),'z',@(step)(rem(step,4) == 0) && step  < 30), ...
+    BinaryRegularizer(RI_list(1), RI_list(2), 1.5, 0.51, @(step) max(0,ceil((step-30)/5)))};
 grad_weight = 0.5;
 
 % Adjoint solver
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;
-adjoint_params.mode = "Intensity";
-adjoint_params.max_iter = 100;
+adjoint_params.optim_mode = "Intensity";
+adjoint_params.max_iter = 60;
 adjoint_params.optimizer = FistaOptim(optim_region, regularizer_sequence, grad_weight);
 adjoint_params.verbose = true;
 
@@ -80,7 +83,7 @@ adjoint_solver = AdjointSolver(adjoint_params);
 radius_pixel = round(0.1/resolution);
 one_turn_length = round(2/resolution);
 distance = round(0.5/resolution);
-num_helix = 2;
+num_helix = 1;
 intensity_weight = phantom_multi_helix([diameter_pixel, diameter_pixel, round((z_padding)/2/resolution)], [-0.02 1], radius_pixel, one_turn_length, distance, num_helix);
 intensity_weight = padarray(intensity_weight,[0 0 sum(thickness_pixel)-size(intensity_weight,3)], 0,'pre');
 filter_axis = exp(-(-2:2).^2);
@@ -90,7 +93,7 @@ intensity_weight = convn(intensity_weight, blur_filter, 'same');
 options.intensity_weight = intensity_weight;
 
 % Execute the optimization code
-RI_optimized=adjoint_solver.solve(input_field,RImap,options);
+RI_optimized=adjoint_solver.solve(current_source,RImap,options);
 
 %% Visualization
 E_field = forward_solver.solve(current_source);

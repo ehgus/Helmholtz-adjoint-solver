@@ -44,12 +44,11 @@ current_source = PlaneSource(source_params);
 %% Forward solver
 params_CBS=params;
 params_CBS.use_GPU=use_GPU;
-params_CBS.boundary_thickness = [0 0 5];
-params_CBS.field_attenuation = [0 0 5];
+params_CBS.boundary_thickness = [0 0 3];
+params_CBS.field_attenuation = [0 0 3];
 params_CBS.field_attenuation_sharpness = 0.5;
-params_CBS.potential_attenuation = [0 0 4];
 params_CBS.potential_attenuation_sharpness = 0.5;
-
+parmas_CBS.verbose = true;
 forward_solver=ConvergentBornSolver(params_CBS);
 
 % Configuration for bulk material
@@ -59,16 +58,15 @@ display_RI_Efield(forward_solver,RI,current_source,'before optimization');
 optim_region = zeros(size(RI),'logical');
 optim_region(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))) = true;
 regularizer_sequence = { ...
-    AvgRegularizer('x'), ...
-    AvgRegularizer('z'), ...
-    BinaryRegularizer(RI_list(2), RI_list(1), 1.5, 0.5, @(step) false)};
-grad_weight = 3;
+    AvgRegularizer('xz'), ...
+    BinaryRegularizer(RI_list(1), RI_list(2), 1.5, 0.5, @(step) false)};
+grad_weight = 0.5;
 
 % Adjoint solver
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;
-adjoint_params.mode = "Transmission";
-adjoint_params.optim_region = optim_region;
+adjoint_params.optim_mode = "Transmission";
+adjoint_params.optimizer = FistaOptim(optim_region, regularizer_sequence, grad_weight);
 adjoint_params.max_iter = 100;
 adjoint_params.verbose = true;
 

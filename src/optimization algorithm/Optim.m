@@ -29,18 +29,58 @@ classdef Optim < handle
         function reset(~)
         end
 
-        function arr = apply_gradient(obj, arr, gradient, iter_idx)
-            arr(obj.optim_region) = arr(obj.optim_region) + obj.grad_weight .* gradient(obj.optim_region);
-            arr = obj.regularize_pattern(arr, iter_idx);
+        function arr = preprocess(obj, arr)
+            arr_region = arr(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
+            size_before = size(arr_region);
+            for idx = 1:length(obj.regularizer_sequence)
+                regularizer = obj.regularizer_sequence{idx};
+                arr_region = preprocess(regularizer, arr_region);
+            end
+            size_after = size(arr_region,1:3);
+            arr_region = repmat(arr_region, size_before./size_after);
+            arr(obj.optim_region) = arr_region(obj.optim_region(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:));
+        end
+        
+        function arr = postprocess(obj, arr)
+            arr_region = arr(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
+            size_before = size(arr_region);
+            for idx = 1:length(obj.regularizer_sequence)
+                regularizer = obj.regularizer_sequence{idx};
+                arr_region = postprocess(regularizer, arr_region);
+            end
+            size_after = size(arr_region,1:3);
+            arr_region = repmat(arr_region, size_before./size_after);
+            arr(obj.optim_region) = arr_region(obj.optim_region(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:));
         end
 
-        function arr = regularize_pattern(obj, arr, iter_idx)
+        function arr = apply_gradient(obj, arr, grad, iter_idx)
+            grad = obj.regularize_gradient(grad, iter_idx);
+            arr(obj.optim_region) = arr(obj.optim_region) + obj.grad_weight .* grad(obj.optim_region);
+            arr = obj.regularize(arr, iter_idx);
+        end
+        
+        function grad = regularize_gradient(obj, grad, arr, iter_idx)
+            grad_region = grad(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
+            arr_region = arr(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
+            size_before = size(grad_region);
+
+            for idx = 1:length(obj.regularizer_sequence)
+                regularizer = obj.regularizer_sequence{idx};
+                [grad_region, arr_region] = regularize_gradient(regularizer, grad_region, arr_region, iter_idx);
+            end
+            size_after = size(grad_region,1:3);
+            grad_region = repmat(grad_region, size_before./size_after);
+            grad(~obj.optim_region) = 0;
+            grad(obj.optim_region) = grad_region(obj.optim_region(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:));
+        end
+
+        function arr = regularize(obj, arr, iter_idx)
             arr_region = arr(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
             size_before = size(arr_region);
 
             for idx = 1:length(obj.regularizer_sequence)
                 regularizer = obj.regularizer_sequence{idx};
-                arr_region = conditional_apply(regularizer, arr_region, iter_idx);
+                arr_region = regularize(regularizer, arr_region, iter_idx);
             end
             size_after = size(arr_region,1:3);
             arr_region = repmat(arr_region, size_before./size_after);

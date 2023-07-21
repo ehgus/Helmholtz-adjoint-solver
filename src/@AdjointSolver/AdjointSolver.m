@@ -21,9 +21,7 @@ classdef AdjointSolver < OpticalSimulation
             obj.optimizer.reset();
             obj.gradient = complex(zeros(size(RI,1:4),'single'));
             options = obj.preprocess_params(options);
-            if obj.verbose
-                figure();
-            end
+            RI_opt = obj.optimizer.preprocess(RI_opt);
             % main
             for iter_idx = 1:obj.max_iter
                 fprintf('Iteration: %d\n', iter_idx);
@@ -36,11 +34,15 @@ classdef AdjointSolver < OpticalSimulation
                 RI_opt = obj.optimizer.apply_gradient(RI_opt, obj.gradient, iter_idx);
                 t_end = toc(t_start);
                 if obj.verbose
+                    figure(1)
                     line(1:iter_idx, figure_of_merit(1:iter_idx))
+                    figure(2)
+                    imagesc(real(RI_opt(:,:,16)))
                     fprintf('Elapsed time is %.6f seconds\n',t_end)
                     drawnow;
                 end
             end
+            RI_opt = obj.optimizer.postprocess(RI_opt);
             RI_opt=gather(RI_opt);
         end
 

@@ -24,6 +24,7 @@ classdef FistaOptim < Optim
                 obj.x_prev = arr;
                 obj.x_curr = arr;
             end
+            gradient = obj.regularize_gradient(gradient, arr, iter_idx);
             % x_k = p_L(y_k)
             obj.x_curr(:) = arr;
             obj.x_curr(obj.optim_region) = arr(obj.optim_region) + obj.grad_weight .* gradient(obj.optim_region);
@@ -34,7 +35,7 @@ classdef FistaOptim < Optim
             fista_weight = (obj.t_prev - 1)/obj.t_curr;
             arr(:) = (1 + fista_weight).*obj.x_curr;
             arr = arr - fista_weight.*obj.x_prev;
-            arr = obj.regularize_pattern(arr, iter_idx);
+            arr = obj.regularize(arr, iter_idx);
             obj.x_prev(:) = obj.x_curr;
         end
     end

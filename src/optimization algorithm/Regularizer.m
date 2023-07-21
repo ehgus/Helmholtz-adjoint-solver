@@ -1,15 +1,22 @@
-classdef Regularizer < handle
+classdef (Abstract) Regularizer < handle
     properties
         condition_callback = @(step) true
     end
     methods(Abstract)
-        A = apply(obj, A, degree)
+        A = preprocess(obj, A)
+        A = postprocess(obj, A)
     end
     methods
-        function A = conditional_apply(obj, A, step)
-            degree = obj.condition_callback(step);
-            if degree ~= 0
-                A = apply(obj, A, degree);
+        function [grad, arr] = regularize_gradient(obj, grad, arr, iter_idx)
+            degree = obj.condition_callback(iter_idx);
+            if degree == 0
+                return
+            end
+        end
+        function A = regularize(obj, A, iter_idx)
+            degree = obj.condition_callback(iter_idx);
+            if degree == 0
+                return
             end
         end
     end

@@ -46,8 +46,9 @@ classdef CyclicConv2Regularizer < Regularizer
             obj.kernel_sum = sum(kernel,'all');
             obj.slice_axis = slice_axis - 'x' + 1;
         end
-        function A = apply(obj, A, ~)
-            if isempty(obj.A_slice) || all(size(obj.A_slice) ~= size(A))
+        function A = preprocess(obj, A)
+            other_axis = rem([obj.slice_axis obj.slice_axis+1],3) + 1;
+            if isempty(obj.A_slice) || any(size(obj.A_slice,other_axis) ~= size(A,other_axis))
                 vecdim = rem([obj.slice_axis obj.slice_axis + 1],3) + 1;
                 obj.A_slice = zeros(size(A, vecdim));
             end
@@ -68,6 +69,19 @@ classdef CyclicConv2Regularizer < Regularizer
                     A(:,:,slice_num) = obj.A_slice;
                 end
             end
+        end
+        function A = postprocess(obj, A)
+            A = preprocess(obj, A);
+        end
+        function [grad, arr]  = regularize_gradient(obj, grad, arr, iter_idx)
+            degree = obj.condition_callback(iter_idx);
+            if degree == 0
+                return
+            end
+            grad = preprocess(obj, grad);
+        end
+        function A = regularize(~, A, ~)
+            return
         end
     end
 end

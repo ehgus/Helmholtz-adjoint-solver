@@ -1,18 +1,21 @@
-classdef AvgRegularizer < Regularizer
+classdef MirrorSymRegularizer < Regularizer
     properties
         direction
     end
     methods
-        function obj = AvgRegularizer(direction, condition_callback)
+        function obj = MirrorSymRegularizer(direction, condition_callback)
             arguments
                 direction {mustBeMember(direction,'xyz')}
                 condition_callback = @(~) true
             end
             obj.condition_callback = condition_callback;
-            obj.direction = direction - 'x' + 1; % 'x' => 1, 'y' => 2, 'z' => 3
+            obj.direction = direction - 'x' + 1;
         end
-        function avg_A = preprocess(obj, A)
-            avg_A = mean(A, obj.direction);
+        function A = preprocess(obj, A)
+            for axis = obj.direction
+                A = A + flip(A, axis);
+            end
+            A = A./(2^length(obj.direction));
         end
         function A = postprocess(~, A)
             return
@@ -23,10 +26,9 @@ classdef AvgRegularizer < Regularizer
                 return
             end
             grad = preprocess(obj, grad);
-            arr = preprocess(obj, arr);
         end
-        function avg_A = regularize(obj, A, ~)
-            avg_A = preprocess(obj, A);
+        function A = regularize(~, A, ~)
+            return
         end
     end
 end
