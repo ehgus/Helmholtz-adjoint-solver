@@ -1,18 +1,12 @@
 classdef FDTDsolver < ForwardSolver
     properties
         % scattering object w/ boundary
-        boundary_thickness_pixel;
-        padding_source = 1;
-        boundary_thickness = 38;
-        boundary_strength = 0.085;
-        boundary_sharpness = 2;
-        ROI;
-        initial_ZP_3;
+        boundary_thickness_pixel
+        boundary_thickness
+        ROI
         % FDTD option
-        xtol = 1e-5;
-        dt_stability_factor = 0.99;
-        is_plane_wave = false;
-        PML_boundary = [false false true];
+        is_plane_wave = false
+        PML_boundary = [false false true]
         % interative GUI
         hide_GUI = true
         % save directory
@@ -62,13 +56,7 @@ classdef FDTDsolver < ForwardSolver
         end
         function set_RI(obj,RI)
             obj.RI= RI;
-            obj.initial_ZP_3=size(obj.RI,3);%size before adding boundary
             obj.create_boundary_RI();%modify the RI (add padding and boundary)
-            obj.RI= double(obj.RI); % Lumerical only accept double-type variables
-            grid_size = size(obj.RI);
-            warning('off','all');
-            obj.utility=derive_utility(obj, grid_size); % the utility for the space with border
-            warning('on','all');
         end
         function create_boundary_RI(obj)
             %% SHOULD BE REMOVED: boundary_thickness_pixel is the half from the previous definition
@@ -86,6 +74,7 @@ classdef FDTDsolver < ForwardSolver
             rep_size = ones(1,3);
             rep_size(~obj.PML_boundary) = 3;
             obj.RI = repmat(obj.RI, rep_size);
+            obj.RI= double(obj.RI); % Lumerical only accept double-type variables
         end
         function [Efield, Hfield]=solve(obj,current_source)
             assert(isa(current_source, 'PlaneSource'), "PlaneSource is the only available source")
