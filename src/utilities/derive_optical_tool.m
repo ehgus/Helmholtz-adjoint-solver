@@ -20,7 +20,7 @@ for space_type_idx = 1:2
     space_type = space_type_list{space_type_idx};
     space_res = utility.(space_type).res;
     for dim = 1:3
-        coor_axis = single(1-ceil(utility.size(dim)/2):floor(utility.size(dim)/2));
+        coor_axis = single(ceil(-utility.size(dim)/2):ceil(utility.size(dim)/2-1));
         coor_axis = coor_axis*space_res{dim};
         coor_axis = reshape(coor_axis, circshift([1 1 utility.size(dim)],dim));
         if use_gpu

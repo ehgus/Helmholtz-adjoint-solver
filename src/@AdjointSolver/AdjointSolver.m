@@ -37,7 +37,7 @@ classdef AdjointSolver < OpticalSimulation
                     figure(1)
                     line(1:iter_idx, figure_of_merit(1:iter_idx))
                     figure(2)
-                    imagesc(real(RI_opt(:,:,16)))
+                    imagesc(real(RI_opt(:,:,8)))
                     fprintf('Elapsed time is %.6f seconds\n',t_end)
                     drawnow;
                 end

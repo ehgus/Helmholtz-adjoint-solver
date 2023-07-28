@@ -1,4 +1,4 @@
- clc, clear;
+clc, clear;
 dirname = fileparts(fileparts(matlab.desktop.editor.getActiveFilename));
 addpath(genpath(dirname));
 
@@ -8,20 +8,20 @@ addpath(genpath(dirname));
 use_GPU = true; % accelerator option
 NA = 1;             % numerical aperature
 wavelength = 0.355; % unit: micron
-resolution = 0.025;  % unit: micron
+resolution = 0.05;  % unit: micron
 diameter = 10;       % unit: micron
-focal_length = 0; % unit: micron
+focal_length = 3; % unit: micron
 z_padding = 3;    % padding along z direction
 substrate_type = 'SU8';  % substrate type: 'SU8' or 'air'
 
 % Refractive index profile
 database = RefractiveIndexDB();
 substrate = database.material("other","resists","Microchem SU-8 2000");
-plate_thickness = 0.3;
+plate_thickness = 0.15;
 PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
 TiO2 = database.material("main","TiO2","Siefke");
 RI_list = cellfun(@(func) func(wavelength), {PDMS TiO2 substrate});
-thickness_pixel = round([wavelength plate_thickness z_padding]/resolution);
+thickness_pixel = round([wavelength plate_thickness (focal_length + z_padding)]/resolution);
 diameter_pixel = ceil(diameter/resolution);
 RImap = phantom_plate([diameter_pixel diameter_pixel sum(thickness_pixel)], RI_list, thickness_pixel);
 
@@ -32,7 +32,6 @@ params.wavelength=wavelength;   % unit: micron
 params.RI_bg=minRI;            % Background RI
 params.resolution=ones(1,3) * resolution;         % 3D Voxel size [um]
 params.use_abbe_sine=false;     % Abbe sine condition according to demagnification condition
-params.vector_simulation=true;  % True/false: dyadic/scalar Green's function
 params.size=size(RImap);        % 3D volume grid
 
 % Incident field
@@ -48,8 +47,8 @@ current_source = PlaneSource(source_params);
 %% Forward solver
 params_CBS=params;
 params_CBS.use_GPU=use_GPU;
-params_CBS.boundary_thickness = [0 0 4];
-params_CBS.field_attenuation = [0 0 4];
+params_CBS.boundary_thickness = [0 0 3];
+params_CBS.field_attenuation = [0 0 3];
 params_CBS.field_attenuation_sharpness = 0.5;
 params_CBS.RI_bg = double(sqrt((minRI^2+maxRI^2)/2));
 
@@ -59,22 +58,22 @@ forward_solver=ConvergentBornSolver(params_CBS);
 display_RI_Efield(forward_solver,RImap,current_source,'before optimization')
 
 %% Adjoint method
-x_pixel_coord = transpose((1:size(RImap,1))-diameter_pixel/2-1/2);
-y_pixel_coord = (1:size(RImap,2))-diameter_pixel/2-1/2;
-optim_region_xy = x_pixel_coord.^2 + y_pixel_coord.^2 < diameter_pixel^2/4;
-optim_region = and(real(RImap) > 2, optim_region_xy);
+optim_region = real(RImap) > 2;
 regularizer_sequence = { ...
     AvgRegularizer('z'), ...
     RotSymRegularizer('z',2), ...
-    CyclicConv2Regularizer(CyclicConv2Regularizer.conic(0.05/resolution),'z',@(step)(rem(step,4) == 0 || rem(step,4) == 1) && step  < 40), ...
-    BinaryRegularizer(RI_list(1), RI_list(2), 1.5, 0.5, @(step) max(0,ceil((step-30)/5)))};
+    CyclicConv2Regularizer(CyclicConv2Regularizer.conic(0.1/resolution),'z'), ...
+    BinaryRegularizer2(RI_list(1), RI_list(2), 0.1, 0.1, @(step) max(ceil((step-40)/10), 0)), ...
+    BinaryRegularizer(RI_list(1), RI_list(2), 0.1, 0.1, @(step) max(ceil((step-40)/10), 0)), ...
+    MinimumLengthRegularizer(RI_list(1),RI_list(2),1,10,[0.1 0.9],@(step) ceil((step-50)/5) > 0) ...
+};
 grad_weight = 0.5;
 
 % Adjoint solver
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;
 adjoint_params.optim_mode = "Intensity";
-adjoint_params.max_iter = 60;
+adjoint_params.max_iter = 100;
 adjoint_params.optimizer = FistaOptim(optim_region, regularizer_sequence, grad_weight);
 adjoint_params.verbose = true;
 
@@ -82,10 +81,10 @@ adjoint_solver = AdjointSolver(adjoint_params);
 
 % Adjoint design paramters
 radius_pixel = round(0.1/resolution);
-one_turn_length = round(2/resolution);
-distance = round(0.5/resolution);
+one_turn_length = round(2.5/resolution);
+distance = round(0.65/resolution);
 num_helix = 2;
-intensity_weight = phantom_multi_helix([diameter_pixel, diameter_pixel, round((z_padding)/2/resolution)], [-0.02 1], radius_pixel, one_turn_length, distance, num_helix);
+intensity_weight = phantom_multi_helix([diameter_pixel, diameter_pixel, round(2*z_padding/resolution)], [0 1], radius_pixel, one_turn_length, distance, num_helix);
 intensity_weight = padarray(intensity_weight,[0 0 sum(thickness_pixel)-size(intensity_weight,3)], 0,'pre');
 filter_axis = exp(-(-2:2).^2);
 blur_filter = reshape(filter_axis,[],1).*reshape(filter_axis,1,[]).*reshape(filter_axis,1,1,[]);
@@ -108,7 +107,7 @@ num_frames = 12;
 dist = sqrt(sum(size(E_intensity).^2));
 center = size(E_intensity)/2;
 viewerContinuous.CameraTarget = center;
-filename = "helical_structre.gif";
+filename = "double_helical_structre.gif";
 for idx = 1:num_frames
     angle = 2*pi*idx/num_frames;
     viewerContinuous.CameraPosition = center + ([cos(angle) sin(angle) 0.1]*dist);
@@ -122,5 +121,5 @@ for idx = 1:num_frames
 end
 
 %% Optional: save RI configuration
-filename = sprintf('optimized helical lens on %s Diameter-%.2fum num-helix-%d.mat',substrate_type,diameter,num_helix);
+filename = sprintf('optimized helical lens on %s Diameter-%.2fum F-%.2fum PSFlength-%.fum num-helix-%d.mat',substrate_type,diameter,focal_length,2*z_padding,num_helix);
 save_RI(filename, RI_optimized, params.resolution, params.wavelength);
