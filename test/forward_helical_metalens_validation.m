@@ -18,7 +18,8 @@ addpath(genpath(dirname));
 NA=1;
 oversampling_rate = 2;
 %% load RI profiles
-[RI_metalens, resolution, wavelength] = load_RI('02_optimized helical lens on SU8 Diameter-10.00um F-3.00um PSFlength-6um num-helix-1.mat'); %MUST CHANGE%
+pattern_idx = 0; %MUST CHANGE%
+[RI_metalens, resolution, wavelength] = load_RI(dir(sprintf('0%d_optimized*.mat',pattern_idx)).name);
 resolution = resolution/oversampling_rate;
 if oversampling_rate < 1
     RI_metalens = imresize3(RI_metalens, oversampling_rate, 'linear');
@@ -39,7 +40,7 @@ RI_flat = real(RI_flat);
 RI_homogeneous = zeros(size(RI_metalens),'like',RI_metalens);
 RI_homogeneous(:) = real(PDMS(wavelength));
 
-RI_type = 'helical_metalens_02'; %MUST CHANGE%
+RI_type = sprintf('helical_metalens_0%d',pattern_idx);
 
 RI_patterns = struct( ...
     RI_type, RI_metalens, ...
@@ -80,11 +81,9 @@ RI = RI_patterns.(RI_type);
 %1-1 CBS parameters
 params_CBS=params;
 params_CBS.use_GPU=true;
-params_CBS.boundary_thickness = [0 0 5];
-params_CBS.field_attenuation = [0 0 5];
+params_CBS.boundary_thickness = [0 0 3];
+params_CBS.field_attenuation = [0 0 3];
 params_CBS.field_attenuation_sharpness = 0.5;
-params_CBS.potential_attenuation = [0 0 4];
-params_CBS.potential_attenuation_sharpness = 0.5;
 params_CBS.RI_bg = minRI;
 
 %1-2 FDTD parameters
@@ -98,7 +97,7 @@ params_FDTD.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
 params_FDTD.hide_GUI = false;
 
 forward_solver_list = { ...
-%    ConvergentBornSolver(params_CBS), ...
+    ConvergentBornSolver(params_CBS), ...
     FDTDsolver(params_FDTD) ...
 };
 solver_num = length(forward_solver_list);
