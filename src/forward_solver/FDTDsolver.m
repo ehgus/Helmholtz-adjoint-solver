@@ -71,9 +71,9 @@ classdef FDTDsolver < ForwardSolver
                 obj.boundary_thickness_pixel(3)+1 obj.boundary_thickness_pixel(3)+old_RI_size(3)];
             obj.RI = potential2RI(pott,obj.wavelength,obj.RI_bg);
             % replicate along the periodic axis
-            rep_size = ones(1,3);
-            rep_size(~obj.PML_boundary) = 3;
-            obj.RI = repmat(obj.RI, rep_size);
+            padding_size = ones(1,3);
+            padding_size(obj.PML_boundary) = 0;
+            obj.RI = padarray(obj.RI, padding_size, "circular","both");
             obj.RI= double(obj.RI); % Lumerical only accept double-type variables
         end
         function [Efield, Hfield]=solve(obj,current_source)
@@ -110,9 +110,9 @@ classdef FDTDsolver < ForwardSolver
                                           sprintf('max_%s = get("%s max");',target_name, target_name));
                     num_code = sprintf('num_%s = get("data %s points");',target_name, target_name);
                 else
-                    min_max_code = strcat(sprintf('min_%s = (get("%s min")-d%s)*2/3 + get("%s max")*1/3+d%s;', target_name, target_name, target_name, target_name, target_name), ...
-                                          sprintf('max_%s = (get("%s min")-d%s)*1/3 + get("%s max")*2/3;', target_name, target_name, target_name, target_name));
-                    num_code = sprintf('num_%s = get("data %s points")/3;',target_name, target_name);
+                    min_max_code = strcat(sprintf('min_%s = get("%s min")+d%s;', target_name, target_name, target_name), ...
+                                          sprintf('max_%s = get("%s max")-d%s;', target_name, target_name, target_name));
+                    num_code = sprintf('num_%s = get("data %s points")-2;',target_name, target_name);
                 end
                 appevalscript(obj.lumerical_session,strcat(min_max_code, num_code));
             end

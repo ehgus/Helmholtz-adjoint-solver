@@ -96,6 +96,7 @@ params_FDTD.RI_bg = real(minRI);
 params_FDTD.is_plane_wave = true;
 params_FDTD.PML_boundary = [false false true];
 params_FDTD.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
+params_FDTD.hide_GUI = false;
 
 forward_solver_list = { ...
     ConvergentBornSolver(params_CBS), ...
