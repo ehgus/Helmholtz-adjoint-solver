@@ -5,6 +5,9 @@ classdef AdjointSolver < OpticalSimulation
         optim_mode   {mustBeMember(optim_mode,["Intensity","Transmission"])} = "Intensity"
         max_iter     {mustBePositive, mustBeInteger} = 100
         optimizer
+        % verbose feature
+        sectioning_axis  {mustBeMember(sectioning_axis,["x","y","z"])} = "z"
+        sectioning_position {mustBeInteger, mustBePositive} % default: see center of RI
     end
     properties(Hidden)
         gradient
@@ -17,6 +20,11 @@ classdef AdjointSolver < OpticalSimulation
         function RI_opt=solve(obj, current_source, RI, options)
             % initialize parameters
             RI_opt=single(RI);
+            RI_section = obj.sectioning_position;
+            if isempty(RI_section)
+                axis = find(["x","y","z"] == obj.sectioning_axis);
+                RI_section = ceil(size(RI_opt,axis)/2);
+            end
             figure_of_merit=NaN(1,obj.max_iter);
             obj.optimizer.reset();
             obj.gradient = complex(zeros(size(RI,1:4),'single'));
@@ -37,7 +45,13 @@ classdef AdjointSolver < OpticalSimulation
                     figure(1)
                     line(1:iter_idx, figure_of_merit(1:iter_idx))
                     figure(2)
-                    imagesc(real(RI_opt(:,:,8)))
+                    if obj.sectioning_axis == "x"
+                        imagesc(squeeze(real(RI_opt(RI_section,:,:))))
+                    elseif obj.sectioning_axis == "y"
+                        imagesc(squeeze(real(RI_opt(:,RI_section,:))))
+                    else
+                        imagesc(real(RI_opt(:,:,RI_section)))
+                    end
                     fprintf('Elapsed time is %.6f seconds\n',t_end)
                     drawnow;
                 end

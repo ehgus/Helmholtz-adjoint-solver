@@ -69,6 +69,7 @@ adjoint_params.optim_mode = "Transmission";
 adjoint_params.optimizer = FistaOptim(optim_region, regularizer_sequence, grad_weight);
 adjoint_params.max_iter = 100;
 adjoint_params.verbose = true;
+adjoint_params.sectioning_axis = "x";
 
 adjoint_solver = AdjointSolver(adjoint_params);
 
