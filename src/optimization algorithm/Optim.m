@@ -54,7 +54,7 @@ classdef Optim < handle
         end
 
         function arr = apply_gradient(obj, arr, grad, iter_idx)
-            grad = obj.regularize_gradient(grad, iter_idx);
+            grad = obj.regularize_gradient(grad, arr, iter_idx);
             arr(obj.optim_region) = arr(obj.optim_region) + obj.grad_weight .* grad(obj.optim_region);
             arr = obj.regularize(arr, iter_idx);
         end
