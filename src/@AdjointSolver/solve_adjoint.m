@@ -15,6 +15,7 @@ function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
     if obj.optim_mode == "Intensity"
         FoM = - sum(abs(E_fwd).^2.*options.intensity_weight,'all') / numel(E_fwd);
         adjoint_field(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:) = -conj(E_fwd).*options.intensity_weight;
+        obj.forward_solver.set_RI(conj(obj.forward_solver.RI));
         Field = obj.forward_solver.eval_scattered_field(adjoint_field);
     elseif obj.optim_mode == "Transmission"
         % Calculate transmission rate of plane wave
@@ -36,7 +37,7 @@ function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
 
         % figure of merit
         FoM = mean(abs(adjoint_source_weight).^2,'all');
-        options.forward_solver.set_RI(obj.forward_solver.RI);
+        options.forward_solver.set_RI(conj(obj.forward_solver.RI));
         Field = options.forward_solver.eval_scattered_field(adjoint_field);
     end
     % Evaluate output field
