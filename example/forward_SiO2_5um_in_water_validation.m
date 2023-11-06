@@ -59,7 +59,7 @@ source_params.center_position = [1 1 1];
 source_params.grid_size = source_params.size;
 current_source = PlaneSource(source_params);
 %% solve the forward problem
-cbs_file = "SiO2_5um_bead_CBS.mat";
+cbs_file =fullfile(dirname,"example/SiO2_5um_bead_CBS.mat");
 if isfile(cbs_file)
     load(cbs_file, 'field_CBS', 'Hfield_CBS');
 else
@@ -71,7 +71,7 @@ else
     save(cbs_file, 'field_CBS', 'Hfield_CBS');
 end
 
-fdtd_file = "SiO2_5um_bead_FDTD.mat";
+fdtd_file =fullfile(dirname,"example/SiO2_5um_bead_FDTD.mat");
 if isfile(fdtd_file)
     load(fdtd_file, 'field_FDTD', 'Hfield_FDTD');
 else
@@ -83,7 +83,7 @@ else
     save(fdtd_file, 'field_FDTD', 'Hfield_FDTD');
 end
 %compute the forward field - Mie
-mie_field_filename = fullfile(dirname,'test/Mie_field.mat');
+mie_field_filename = fullfile(dirname,'example/Mie_field.mat');
 if isfile(mie_field_filename)
     load(mie_field_filename, 'field_3D_Mie');
 else

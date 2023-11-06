@@ -74,7 +74,7 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         for idx = 1:length(phase_ramp)
             psi = psi.*phase_ramp{idx};
         end
-        PSI = Green_fn(PSI, psi);
+        PSI = conv(Green_fn, psi, PSI);
         for idx = 1:length(phase_ramp)
             PSI = PSI.*conj_phase_ramp{idx};
         end

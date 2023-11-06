@@ -19,7 +19,6 @@ function set_kernel(obj)
     
     if obj.verbose
         display(['number of step : ' num2str(obj.Bornmax)])
-        display(['step pixel size : ' num2str(round(step/obj.resolution(3)))])
     end
 
     % phase ramp
@@ -41,73 +40,27 @@ function set_kernel(obj)
     end
 
     % Helmholtz Green function in Fourier space
-    shifted_coordinate = obj.utility.fourier_space.coor(1:3);
+    shifted_coordinate = gather(obj.utility.fourier_space.coor);
+    flip_shifted_coordinate = gather(obj.utility.fourier_space.coor);
     for axis = 1:3
+        shifted_coordinate{axis}=2*pi*ifftshift(shifted_coordinate{axis});
+        flip_shifted_coordinate{axis}=2*pi*ifftshift(flip_shifted_coordinate{axis});
         if ~obj.periodic_boudnary(axis)
-            shifted_coordinate{axis}=shifted_coordinate{axis}+obj.utility.fourier_space.res{axis}/4;
+            shifted_coordinate{axis}=shifted_coordinate{axis}+2*pi*obj.utility.fourier_space.res{axis}/4;
+            flip_shifted_coordinate{axis}=flip_shifted_coordinate{axis}-2*pi*obj.utility.fourier_space.res{axis}/4;
         end
-    end
-    for axis = 1:3
-        shifted_coordinate{axis}=2*pi*ifftshift(gather(shifted_coordinate{axis}));
+
     end
     k_square = (2*pi*obj.utility.k0_nm)^2+1i.*obj.eps_imag;
-    Lz = (obj.ROI(6)-obj.ROI(5)+1)*obj.resolution(3);
-    if all(obj.periodic_boudnary)
-        Greenp = xyz_periodic_green(k_square, shifted_coordinate{:});
-    elseif all(obj.periodic_boudnary(1:2))
-        Greenp = xy_periodic_green(k_square, Lz, shifted_coordinate{:});
-    else
-        warning("Totally non-periodic Green's function is not yet implemented." + newline + ...
-            "For now, xy-periodic green function is used.")
-        Greenp = xy_periodic_green(k_square, Lz, shifted_coordinate{:});
-    end
-    
-    flip_Greenp = fft_flip(Greenp,[1 1 1]);
-    % dyadic term
-    rads=...
-        shifted_coordinate{1}.*reshape([1 0 0],1,1,1,[])+...
-        shifted_coordinate{2}.*reshape([0 1 0],1,1,1,[])+...
-        shifted_coordinate{3}.*reshape([0 0 1],1,1,1,[]);
-    flip_rads = fft_flip(rads, [1 1 1]);
-    rads = rads./sqrt(k_square);
-    flip_rads = flip_rads./sqrt(k_square);
 
     if obj.use_GPU
-        Greenp = gpuArray(Greenp);
-        flip_Greenp = gpuArray(flip_Greenp);
-        rads = gpuArray(rads);
-        flip_rads = gpuArray(flip_rads);
+        k_square = gpuArray(k_square);
+        for axis = 1:3
+            shifted_coordinate{axis}=gpuArray(shifted_coordinate{axis});
+            flip_shifted_coordinate{axis}=gpuArray(flip_shifted_coordinate{axis});
+        end
     end
 
-    obj.Green_fn = @(PSI, psi) apply_dyadic_Green(PSI, psi, Greenp, rads);
-    obj.flip_Green_fn = @(PSI, psi) apply_dyadic_Green(PSI, psi, flip_Greenp, flip_rads);
-end
-
-function PSI = apply_dyadic_Green(PSI, psi, Greenp, rads)
-    for axis = 1:3
-        psi(:,:,:,axis) = fftn(psi(:,:,:,axis));
-    end
-    % identity term
-    PSI(:) = Greenp.*psi;
-    % dyadic term
-    psi(:) = PSI.*rads;
-    for axis = 1:3
-        PSI(:) = PSI - rads.*psi(:,:,:,axis);
-    end
-    for axis = 1:3
-        PSI(:,:,:,axis) = ifftn(PSI(:,:,:,axis));
-    end
-end
-
-function Greenp = xyz_periodic_green(k_square, kx, ky, kz)
-    % Totally periodic Green's function
-    Greenp = 1 ./ (abs(kx.^2 + ky.^2 + kz.^2)-k_square);
-end
-
-function Greenp = xy_periodic_green(k_square, Lz, kx, ky, kz)
-    % Z-axis-truncated Green's function
-    % It is YX periodic
-    Greenp = xyz_periodic_green(k_square, kx, ky, kz);
-    k0 = sqrt(k_square - kx.^2 - ky.^2);
-    Greenp = Greenp .* (1- exp(1i*Lz*k0) .* (cos(kz*Lz) - 1i*kz./k0.*sin(kz*Lz)));
+    obj.Green_fn = DyadicGreen(k_square,shifted_coordinate{:});
+    obj.flip_Green_fn = DyadicGreen(k_square,flip_shifted_coordinate{:});
 end
