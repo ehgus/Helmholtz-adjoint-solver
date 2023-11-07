@@ -1,16 +1,15 @@
 function [dst_x,dst_y,dst_z] = multiply_Green(src_x, src_y, src_z, kx, ky, kz, k_square)
     % multiply dyadic term
     % note: `arrayfun` only support element-wise multiplication
-    kxx = 1-kx.*kx./k_square;
-    kyy = 1-ky.*ky./k_square;
-    kzz = 1-kz.*kz./k_square;
-    kxy =  -kx.*ky./k_square;
-    kxz =  -kx.*kz./k_square;
-    kyz =  -ky.*kz./k_square;
+    dst_x = (kx.*src_x + ky.*src_y + kz.*src_z)./k_square;
+    
+    dst_z = kz.*dst_x;
+    dst_y = ky.*dst_x;
+    dst_x = kx.*dst_x;
 
-    dst_x = kxx.*src_x + kxy.*src_y + kxz.*src_z;
-    dst_y = kxy.*src_x + kyy.*src_y + kyz.*src_z;
-    dst_z = kxz.*src_x + kyz.*src_y + kzz.*src_z;
+    dst_x = src_x - dst_x;
+    dst_y = src_y - dst_y;
+    dst_z = src_z - dst_z;
     % multiply scalar Green's function
     Green_fn = 1 ./ (abs(kx.^2 + ky.^2 + kz.^2)-k_square);
 

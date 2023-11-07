@@ -20,12 +20,7 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
     end
     Green_fn = obj.Green_fn;
     flip_Green_fn = obj.flip_Green_fn;
-    phase_ramp = cell(1,length(obj.phase_ramp));
-    conj_phase_ramp = cell(1,length(obj.phase_ramp));
-    for idx = 1:length(phase_ramp)
-        phase_ramp{idx} = array_func(obj.phase_ramp{idx});
-        conj_phase_ramp{idx} = conj(phase_ramp{idx});
-    end
+
     psi = zeros(size_field,array_option{:});
     PSI = zeros(size_field,array_option{:});
     Field = zeros(size_field,array_option{:});
@@ -49,7 +44,6 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
         if isacyclic
             %flip the relevant quantities
             [Green_fn, flip_Green_fn] = deal(flip_Green_fn, Green_fn);
-            [phase_ramp, conj_phase_ramp] = deal(conj_phase_ramp, phase_ramp);
         end
         
         %init other quantities
@@ -70,15 +64,9 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
             psi = (1i/obj.eps_imag)*psi;
             Field_n = Field_n - psi;
         end
-        % multiply G
-        for idx = 1:length(phase_ramp)
-            psi = psi.*phase_ramp{idx};
-        end
+        % Convolution with G
         PSI = conv(Green_fn, psi, PSI);
-        for idx = 1:length(phase_ramp)
-            PSI = PSI.*conj_phase_ramp{idx};
-        end
-        % multiply V
+        % element-wise multiplication of V
         if is_isotropic
             Field_n = Field_n + obj.V .* PSI;
         else

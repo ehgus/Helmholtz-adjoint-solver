@@ -1,6 +1,9 @@
 function rst = curl_field(obj, field)
     % curl operator
     rst = zeros(size(field),'like',field);
+    warning('off','all');
+    obj.utility = derive_utility(obj, size(rst,1:3)); % the utility for the space with border
+    warning('on','all');
     % 2pi*i/L * grid number = fourier_coord
     fourier_coord = cellfun(@(x) 2i*pi*ifftshift(x),obj.utility.fourier_space.coor,'UniformOutput',false);
     for axis = 1:3

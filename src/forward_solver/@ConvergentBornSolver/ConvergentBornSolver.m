@@ -20,7 +20,6 @@ classdef ConvergentBornSolver < ForwardSolver
         ROI;
         % CBS simulation option
         Bornmax;
-        phase_ramp;
         periodic_boudnary = [true true false];
         Green_fn;
         flip_Green_fn;
