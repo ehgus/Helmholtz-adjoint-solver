@@ -82,14 +82,13 @@ classdef AdjointSolver < OpticalSimulation
             isRItensor = size(RI,4) == 3;
             obj.gradient(:) = 0;
             if isRItensor
-                obj.gradient(:) = E_adj.*E_old;
+                obj.gradient(:) = E_adj.*conj(E_old);
             else
                 for axis = 1:3
-                    obj.gradient(:) = obj.gradient + E_adj(:,:,:,axis).*E_old(:,:,:,axis);
+                    obj.gradient(:) = obj.gradient + E_adj(:,:,:,axis).*conj(E_old(:,:,:,axis));
                 end
             end
-            % (RI + RI_gradient)^2 ~ V + gradient => RI_gradient = gradient/(2RI)
-            obj.gradient(:) = obj.gradient./RI;
+            obj.gradient(:) = 2*(2*pi/obj.wavelength)^2*obj.gradient.*conj(RI);
         end
     end
 end

@@ -15,8 +15,9 @@ function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
     if obj.optim_mode == "Intensity"
         FoM = - sum(abs(E_fwd).^2.*options.intensity_weight,'all') / numel(E_fwd);
         adjoint_field(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:) = -conj(E_fwd).*options.intensity_weight;
-        obj.forward_solver.set_RI(conj(obj.forward_solver.RI));
+        obj.forward_solver.set_RI(obj.forward_solver.RI);
         Field = obj.forward_solver.eval_scattered_field(adjoint_field);
+        Field = conj(Field);
     elseif obj.optim_mode == "Transmission"
         % Calculate transmission rate of plane wave
         % relative intensity: Matrix of relative intensity
@@ -29,7 +30,7 @@ function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
         adjoint_source_weight = (abs(relative_transmission).^2 - options.target_transmission).*(relative_transmission./abs(relative_transmission));
         disp(abs(relative_transmission).^2)
         for idx = 1:length(options.E_field)
-            adjoint_field = adjoint_field - 1i * conj(options.E_field{idx}* adjoint_source_weight(idx));
+            adjoint_field = adjoint_field + 1i * conj(options.E_field{idx}* adjoint_source_weight(idx));
         end
         
         % ad-hoc solution: It places input field at the edge of the simulation region.
@@ -37,7 +38,7 @@ function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
 
         % figure of merit
         FoM = mean(abs(adjoint_source_weight).^2,'all');
-        options.forward_solver.set_RI(conj(obj.forward_solver.RI));
+        options.forward_solver.set_RI(obj.forward_solver.RI);
         is_isotropic = size(options.forward_solver.V, 4) == 1;
         if is_isotropic
             source = options.forward_solver.V .* adjoint_field;
@@ -51,5 +52,6 @@ function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
         Field = options.forward_solver.eval_scattered_field(source);
         % Evaluate output field
         Field = Field + gather(adjoint_field(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:));
+        Field = conj(Field);
     end
 end

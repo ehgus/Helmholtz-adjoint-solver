@@ -60,13 +60,13 @@ optim_region(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))) = true;
 regularizer_sequence = { ...
     AvgRegularizer('xz'), ...
     BinaryRegularizer(RI_list(1), RI_list(2), 1.5, 0.5, @(step) false)};
-grad_weight = 1;
+grad_weight = 6e-4;
 
 % Adjoint solver
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;
 adjoint_params.optim_mode = "Transmission";
-adjoint_params.optimizer = FistaOptim(optim_region, regularizer_sequence, grad_weight);
+adjoint_params.optimizer = Optim(optim_region, regularizer_sequence, grad_weight);
 adjoint_params.max_iter = 100;
 adjoint_params.verbose = true;
 adjoint_params.sectioning_axis = "x";
