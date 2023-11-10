@@ -1,4 +1,4 @@
-function [Field, Hfield] =eval_scattered_field(obj,incident_field)
+function [Field, Hfield] =eval_scattered_field(obj,source)
     % Convergence Born series
     % E1 = r*G*S/4
     % E2 = r*G_flip*S/4
@@ -25,16 +25,6 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
     PSI = zeros(size_field,array_option{:});
     Field = zeros(size_field,array_option{:});
     Field_n = zeros(size_field,array_option{:});
-    
-    if is_isotropic
-        source = obj.V .* incident_field;
-    else % tensor
-        source = zeros('like',incident_field);
-        for axis = 1:3
-            source = source + obj.V(:,:,:,:,axis) .* incident_field(:,:,:,axis);
-        end
-    end
-    source = source + 1i*obj.eps_imag * incident_field;
     % Attenuation
     for idx = 1:length(obj.field_attenuation_mask)
         source=source.*obj.field_attenuation_mask{idx};
@@ -46,10 +36,6 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
             [Green_fn, flip_Green_fn] = deal(flip_Green_fn, Green_fn);
         end
         
-        %init other quantities
-        PSI(:) = 0;
-        psi(:) = 0;
-        
         if Born_order <= 2 % source
             Field_n(:)=0;
             psi(:) = (1i/obj.eps_imag/4)*source;
@@ -57,6 +43,7 @@ function [Field, Hfield] =eval_scattered_field(obj,incident_field)
             if is_isotropic
                 psi = obj.V .* Field_n;
             else
+                psi(:) = 0;
                 for axis = 1:3
                     psi = psi + obj.V(:,:,:,:,axis) .* Field_n(:,:,:,axis);
                 end

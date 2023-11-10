@@ -38,8 +38,11 @@ classdef BinaryRegularizer < Regularizer
                 obj.density_map = zeros(size(A));
             end
             obj.density_map(:) = real(A - obj.min_val)./real(obj.max_val-obj.min_val);
-            obj.density_map(obj.density_map >= 0.5) = 1;
-            obj.density_map(obj.density_map < 0.5) = 0;
+            degree = obj.condition_callback(Inf)
+            if degree > 0
+                obj.density_map(obj.density_map >= 0.5) = 1;
+                obj.density_map(obj.density_map < 0.5) = 0;
+            end
             A(:) = obj.density_map*(obj.max_val-obj.min_val) + obj.min_val;
         end
         function [grad, arr] = regularize_gradient(obj, grad, arr, iter_idx)

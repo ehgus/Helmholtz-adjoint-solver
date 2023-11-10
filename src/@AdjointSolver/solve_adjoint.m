@@ -38,8 +38,18 @@ function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
         % figure of merit
         FoM = mean(abs(adjoint_source_weight).^2,'all');
         options.forward_solver.set_RI(conj(obj.forward_solver.RI));
-        Field = options.forward_solver.eval_scattered_field(adjoint_field);
+        is_isotropic = size(options.forward_solver.V, 4) == 1;
+        if is_isotropic
+            source = options.forward_solver.V .* adjoint_field;
+        else % tensor
+            source = zeros('like',adjoint_field);
+            for axis = 1:3
+                source = source + options.forward_solver.V(:,:,:,:,axis) .* adjoint_field(:,:,:,axis);
+            end
+        end
+        source = source + 1i*options.forward_solver.eps_imag * adjoint_field;
+        Field = options.forward_solver.eval_scattered_field(source);
+        % Evaluate output field
+        Field = Field + gather(adjoint_field(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:));
     end
-    % Evaluate output field
-    Field = Field + gather(adjoint_field(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:));
 end
