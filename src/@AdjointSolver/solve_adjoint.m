@@ -17,7 +17,6 @@ function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
         adjoint_field(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:) = -conj(E_fwd).*options.intensity_weight;
         obj.forward_solver.set_RI(obj.forward_solver.RI);
         Field = obj.forward_solver.eval_scattered_field(adjoint_field);
-        Field = conj(Field);
     elseif obj.optim_mode == "Transmission"
         % Calculate transmission rate of plane wave
         % relative intensity: Matrix of relative intensity
@@ -52,6 +51,5 @@ function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
         Field = options.forward_solver.eval_scattered_field(source);
         % Evaluate output field
         Field = Field + gather(adjoint_field(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:));
-        Field = conj(Field);
     end
 end

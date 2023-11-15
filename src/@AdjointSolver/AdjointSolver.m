@@ -77,18 +77,19 @@ classdef AdjointSolver < OpticalSimulation
             end
         end
 
-        function get_gradient(obj, E_adj, E_old, RI)
+        function get_gradient(obj, E_adj, E_fwd, RI)
             % 3D gradient
             isRItensor = size(RI,4) == 3;
-            obj.gradient(:) = 0;
             if isRItensor
-                obj.gradient(:) = E_adj.*conj(E_old);
+                obj.gradient(:) = E_adj.*E_fwd;
             else
+                obj.gradient(:) = 0;
                 for axis = 1:3
-                    obj.gradient(:) = obj.gradient + E_adj(:,:,:,axis).*conj(E_old(:,:,:,axis));
+                    obj.gradient(:) = obj.gradient + E_adj(:,:,:,axis).*E_fwd(:,:,:,axis);
                 end
             end
-            obj.gradient(:) = 2*(2*pi/obj.wavelength)^2*obj.gradient.*conj(RI);
+            obj.gradient = 2*(2*pi/obj.wavelength)^2*obj.gradient.*RI;
+            obj.gradient = conj(obj.gradient);
         end
     end
 end
