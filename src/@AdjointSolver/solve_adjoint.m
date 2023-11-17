@@ -24,8 +24,9 @@ function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
         for idx = 1:length(options.E_field)
             eigen_S = poynting_vector(E_fwd, options.H_field{idx}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)) ...
                     + poynting_vector(conj(options.E_field{idx}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)), conj(H_fwd));
-            relative_transmission(idx) = mean(sum(eigen_S(:,:,end,3),1:2)./options.normal_transmission{idx},'all');
+            relative_transmission(idx) = sum(eigen_S(:,:,end,3),'all');
         end
+        relative_transmission = relative_transmission./options.normal_transmission;
         adjoint_source_weight = (abs(relative_transmission).^2 - options.target_transmission).*(relative_transmission./abs(relative_transmission));
         disp(abs(relative_transmission).^2)
         for idx = 1:length(options.E_field)
@@ -36,7 +37,7 @@ function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
         adjoint_field(:,:,obj.forward_solver.ROI(6)+1:end,:) = flip(adjoint_field(:,:,2*obj.forward_solver.ROI(6)-end+1:obj.forward_solver.ROI(6),:),3);
 
         % figure of merit
-        FoM = mean(abs(adjoint_source_weight).^2,'all');
+        FoM = sum(abs(adjoint_source_weight).^2,'all');
         options.forward_solver.set_RI(obj.forward_solver.RI);
         is_isotropic = size(options.forward_solver.V, 4) == 1;
         if is_isotropic

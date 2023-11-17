@@ -14,6 +14,8 @@ for idx = 1:2
     sim_type = sim_type_list{idx};
     [RI_grating_pattern{idx}, ~, wavelength] = load_RI(fullfile(fileparts(matlab.desktop.editor.getActiveFilename),sprintf('%s_optimized grating.mat',sim_type)));
 end
+steps = -23; % replace grating pattern manually
+RI_grating_pattern{1} = circshift(RI_grating_pattern{1},steps,2);
 resolution = 0.01;
 mask_width = 0.15;
 grid_size = [11 100 200];
@@ -144,8 +146,8 @@ plot(scale_z,squeeze(E_intensity_list{2}(center_RI(1),center_RI(2),:)));
 legend(sim_type_list(1),sim_type_list(2))
 ylim([0 max_E_val]);
 % field transmittance for each plane wave mode
-target_angle_mode = -4:4;
-target_transmission = [0 0 0 0.15 0 0.63 0 0.22 0];
+target_angle_mode = -3:3;
+target_transmission = [0 0 0.15 0 0.63 0 0.22];
 eigen_E_field = cell(1,length(target_transmission));
 eigen_H_field = cell(1,length(target_transmission));
 relative_transmission_ref = zeros(1,length(target_transmission));
@@ -185,9 +187,10 @@ for idx = 1:length(E_field_rst)
         eigen_S = poynting_vector(E_field, eigen_H_field{field_idx}) + poynting_vector(conj(eigen_E_field{field_idx}), conj(H_field));
         relative_transmission(field_idx) = sum(eigen_S(:,:,end,3),'all');
     end
+    relative_transmission = relative_transmission./relative_transmission_ref;
     fprintf("%10s :",sim_type_list(idx));
-    disp(abs(relative_transmission./relative_transmission_ref).^2);
-    fprintf("       FoM = %f\n\n",sum((abs(relative_transmission./relative_transmission_ref).^2 -target_transmission).^2));
+    disp(abs(relative_transmission).^2);
+    fprintf("%10s = %f\n\n","FoM",sum((abs(relative_transmission).^2 -target_transmission).^2));
 end
 
 % theoretical view

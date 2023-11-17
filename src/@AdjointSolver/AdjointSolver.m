@@ -68,11 +68,11 @@ classdef AdjointSolver < OpticalSimulation
                 assert(isfield(options, 'target_transmission'));
                 assert(isfield(options, 'E_field')); % {x,y,z,direction}
                 assert(isfield(options, 'H_field')); % {x,y,z,direction}: H_field is consistant with E_field
-                options.normal_transmission = cell(1,length(options.E_field));
+                options.normal_transmission = zeros(1,length(options.E_field));
                 for idx = 1:length(options.E_field)
                     normal_S = 2 * real(poynting_vector(options.E_field{idx}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:), ...
                                                         options.H_field{idx}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)));
-                    options.normal_transmission{idx} = abs(sum(normal_S(:,:,end,3),1:2));
+                    options.normal_transmission(idx) = abs(sum(normal_S(:,:,end,3),1:2));
                 end
             end
         end
