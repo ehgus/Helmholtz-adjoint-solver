@@ -12,7 +12,8 @@ NA=1;
 RI_grating_pattern = cell(1,2);
 for idx = 1:2
     sim_type = sim_type_list{idx};
-    [RI_grating_pattern{idx}, ~, wavelength] = load_RI(fullfile(fileparts(matlab.desktop.editor.getActiveFilename),sprintf('%s_optimized grating.mat',sim_type)));
+    fname = fullfile(fileparts(matlab.desktop.editor.getActiveFilename),sprintf('%s_optimized grating.mat',sim_type));
+    [RI_grating_pattern{idx}, ~, wavelength] = load_RI(fname);
 end
 steps = -23; % replace grating pattern manually
 RI_grating_pattern{1} = circshift(RI_grating_pattern{1},steps,2);
@@ -24,7 +25,7 @@ database = RefractiveIndexDB();
 PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
 TiO2 = database.material("main","TiO2","Siefke");
 Microchem_SU8_2000 = database.material("other","resists","Microchem SU-8 2000");
-RI_list = cellfun(@(func) real(func(wavelength)), {PDMS TiO2 Microchem_SU8_2000});
+RI_list = cellfun(@(func) func(wavelength), {PDMS TiO2 Microchem_SU8_2000});
 RI_list(2) = 0;
 thickness_pixel = [0.2 mask_width]/resolution;
 background_plate = phantom_plate(grid_size, RI_list, thickness_pixel);
@@ -43,7 +44,7 @@ for idx = 1:2
     end
 
     subplot(2,1,idx)
-    imagesc(squeeze(RI_grating_pattern{idx}(1,:,:))', real([PDMS(wavelength), TiO2(wavelength)]));
+    imagesc(squeeze(real(RI_grating{idx}(1,:,:))), real([PDMS(wavelength), TiO2(wavelength)]));
     colormap gray;
 end
 %% set optical parameters
@@ -74,40 +75,21 @@ current_source = PlaneSource(source_params);
 %1-1 CBS parameters
 params_CBS=params;
 params_CBS.use_GPU=true;
-params_CBS.boundary_thickness = [0 0 5];
-params_CBS.field_attenuation = [0 0 5];
-params_CBS.field_attenuation_sharpness = 1;
-params_CBS.potential_attenuation = [0 0 3];
-params_CBS.potential_attenuation_sharpness = 0.2;
+params_CBS.boundary_thickness = [0 0 3];
+params_CBS.field_attenuation = [0 0 3];
+params_CBS.field_attenuation_sharpness = 0.5;
+params_CBS.potential_attenuation_sharpness = 0.5;
 
-%1-2 FDTD parameters
-params_FDTD=params;
-params_FDTD.use_GPU=false;
-params_FDTD.boundary_thickness = [0 0 0];
-params_FDTD.is_plane_wave = true;
-params_FDTD.PML_boundary = [false false true];
-params_FDTD.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
-params_FDTD.hide_GUI = true;
 forward_solver=ConvergentBornSolver(params_CBS);
 sim_num = length(sim_type_list);
 E_field_rst = cell(1,sim_num);
 H_field_rst = cell(1,sim_num);
 
 for idx = 1:sim_num
-    save_title = sprintf("grating_pattern_%s_oversample_%d_%s.mat",sim_type_list(idx), oversampling_rate, sim_type);
-    if isfile(save_title)
-        load(save_title)
-        E_field_rst{idx} = E_field_3D;
-        H_field_rst{idx} = H_field_3D;
-        continue
-    end
     forward_solver.set_RI(RI_grating{idx});
-    tic;
     [E_field_rst{idx}, H_field_rst{idx}] = forward_solver.solve(current_source);
     E_field_3D = E_field_rst{idx};
     H_field_3D = H_field_rst{idx};
-    toc;
-    save(save_title, 'E_field_3D','H_field_3D');
 end
 
 %% draw results
