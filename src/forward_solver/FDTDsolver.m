@@ -95,7 +95,7 @@ classdef FDTDsolver < ForwardSolver
             for axis = 1:3
                 appputvar(obj.lumerical_session, strcat('d', axis_name_list{axis}), resolution(axis));
             end
-            fsp_name = fullfile(obj.save_directory, "temp.fsp");
+            fsp_name = fullfile(obj.save_directory, "Temp.fsp");
             appevalscript(obj.lumerical_session, sprintf('save("%s");',fsp_name));
             % add material
             appputvar(obj.lumerical_session, 'RI', obj.RI);

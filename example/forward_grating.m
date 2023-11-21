@@ -8,6 +8,7 @@ addpath(genpath(dirname));
 oversampling_rate = 1;
 % load RI profiles
 sim_type_list = ["CBS","2D_FDTD"];
+target_solver = "CBS"; % "CBS" or "FDTD"
 NA=1;
 RI_grating_pattern = cell(1,2);
 for idx = 1:2
@@ -72,15 +73,26 @@ source_params.center_position = [1 1 1];
 source_params.grid_size = source_params.size;
 current_source = PlaneSource(source_params);
 
-%1-1 CBS parameters
+%1-1 forward solver parameters
 params_CBS=params;
 params_CBS.use_GPU=true;
 params_CBS.boundary_thickness = [0 0 3];
 params_CBS.field_attenuation = [0 0 3];
 params_CBS.field_attenuation_sharpness = 0.5;
 params_CBS.potential_attenuation_sharpness = 0.5;
+if target_solver == "CBS"
+    forward_solver=ConvergentBornSolver(params_CBS);
+else
+    params_FDTD=params;
+    params_FDTD.use_GPU=false;
+    params_FDTD.boundary_thickness = [0 0 0];
+    params_FDTD.is_plane_wave = true;
+    params_FDTD.PML_boundary = [false false true];
+    params_FDTD.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
+    params_FDTD.hide_GUI = false;
 
-forward_solver=ConvergentBornSolver(params_CBS);
+    forward_solver=FDTDsolver(params_FDTD);
+end
 sim_num = length(sim_type_list);
 E_field_rst = cell(1,sim_num);
 H_field_rst = cell(1,sim_num);
