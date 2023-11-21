@@ -16,7 +16,7 @@ for idx = 1:2
     fname = fullfile(fileparts(matlab.desktop.editor.getActiveFilename),sprintf('%s_optimized grating.mat',sim_type));
     [RI_grating_pattern{idx}, ~, wavelength] = load_RI(fname);
 end
-steps = -23; % replace grating pattern manually
+steps = -43; % replace grating pattern manually
 RI_grating_pattern{1} = circshift(RI_grating_pattern{1},steps,2);
 resolution = 0.01;
 mask_width = 0.15;
@@ -45,7 +45,7 @@ for idx = 1:2
     end
 
     subplot(2,1,idx)
-    imagesc(squeeze(real(RI_grating{idx}(1,:,:))), real([PDMS(wavelength), TiO2(wavelength)]));
+    imagesc(squeeze(real(RI_grating{idx}(1,:,thickness_pixel(1)+1:sum(thickness_pixel))))', real([PDMS(wavelength), TiO2(wavelength)]));
     colormap gray;
 end
 %% set optical parameters
