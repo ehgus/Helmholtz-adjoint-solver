@@ -1,8 +1,10 @@
 classdef MinimumLengthRegularizer < Regularizer
     % see "Minimum length scale in topology optimization by geometric constraints"
     properties
-        min_val
+        % RI bound used to convert RImap into density map
+        min_RI
         max_val
+        %
         weight
         decay_rate
         prob_threshold
@@ -14,17 +16,17 @@ classdef MinimumLengthRegularizer < Regularizer
         void_inflection
     end
     methods
-        function obj = MinimumLengthRegularizer(min_val, max_val,weight, decay_rate,prob_threshold, condition_callback)
+        function obj = MinimumLengthRegularizer(min_RI, max_RI,weight, decay_rate,prob_threshold, condition_callback)
             arguments
-                min_val
-                max_val
+                min_RI
+                max_RI
                 weight
                 decay_rate {mustBePositive}
                 prob_threshold
                 condition_callback = @(~) true
             end
-            obj.min_val = min_val;
-            obj.max_val = max_val;
+            obj.min_RI = min_RI;
+            obj.max_val = max_RI;
             obj.condition_callback = condition_callback;
             obj.weight = weight;
             obj.decay_rate = decay_rate;
@@ -45,15 +47,15 @@ classdef MinimumLengthRegularizer < Regularizer
                 obj.solid_inflection = zeros(size(A));
                 obj.void_inflection = zeros(size(A));
             end
-            obj.density_map(:) = real(A - obj.min_val)./real(obj.max_val-obj.min_val);
+            obj.density_map(:) = real(A - obj.min_RI)./real(obj.max_val-obj.min_RI);
             obj.hessian_map(:) = abs(cconv2(obj.density_map, [-1 0 1])).^2;
             obj.hessian_map = obj.hessian_map +abs(cconv2(obj.density_map, [-1 0 1]')).^2;
             obj.hessian_map = exp(-obj.decay_rate.*obj.hessian_map);
             obj.solid_inflection(:) = obj.density_map.*obj.hessian_map;
             obj.void_inflection(:) = (1-obj.density_map).*obj.hessian_map;
             % add gradient
-            grad = grad - 2*obj.weight*(obj.max_val-obj.min_val).*obj.solid_inflection.*min(obj.density_map-obj.prob_threshold(2),0);
-            grad = grad + 2*obj.weight*(obj.max_val-obj.min_val).*obj.void_inflection.*min(obj.prob_threshold(1)-obj.density_map,0);
+            grad = grad - 2*obj.weight*(obj.max_val-obj.min_RI).*obj.solid_inflection.*min(obj.density_map-obj.prob_threshold(2),0);
+            grad = grad + 2*obj.weight*(obj.max_val-obj.min_RI).*obj.void_inflection.*min(obj.prob_threshold(1)-obj.density_map,0);
         end
         function A = regularize(obj, A, iter_idx)
         end

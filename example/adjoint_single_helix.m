@@ -8,10 +8,10 @@ addpath(genpath(dirname));
 use_GPU = true; % accelerator option
 NA = 1;             % numerical aperature
 wavelength = 0.355; % unit: micron
-resolution = 0.05;  % unit: micron
+resolution = 0.025;  % unit: micron
 diameter = 10;       % unit: micron
 focal_length = 3; % unit: micron
-z_padding = 1;    % padding along z direction
+z_padding = 3;    % padding along z direction
 substrate_type = 'SU8';  % substrate type: 'SU8' or 'air'
 
 % Refractive index profile
@@ -62,20 +62,21 @@ optim_region = real(RImap) > 2;
 regularizer_sequence = { ...
     AvgRegularizer('z'), ...
     CyclicConv2Regularizer(CyclicConv2Regularizer.conic(0.1/resolution),'z'), ...
-    BinaryRegularizer2(RI_list(1), RI_list(2), 0.1, 0.1, @(step) max(ceil((step-40)/10), 0)), ...
-    BinaryRegularizer(RI_list(1), RI_list(2), 0.1, 0.1, @(step) max(ceil((step-40)/10), 0)), ...
-    MinimumLengthRegularizer(RI_list(1),RI_list(2),1,10,[0.1 0.9],@(step) ceil((step-50)/5) > 0) ...
+    BinaryRegularizer2(RI_list(1), RI_list(2), 0.1, 0.1, @(step) max(ceil((step-25)/10), 0)), ...
+    BinaryRegularizer(RI_list(1), RI_list(2), 0.1, 0.1, @(step) max(ceil((step-25)/10), 0)), ...
+    MinimumLengthRegularizer(RI_list(1),RI_list(2),1,10,[0.2 0.9],@(step) ceil((step-35)/5) > 0) ...
 };
-grad_weight = 0.5;
+grad_weight = 0.1;
 
 % Adjoint solver
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;
 adjoint_params.optim_mode = "Intensity";
-adjoint_params.max_iter = 70;
+adjoint_params.max_iter = 60;
 adjoint_params.optimizer = FistaOptim(optim_region, regularizer_sequence, grad_weight);
 adjoint_params.verbose = true;
-adjoint_params.sectioning_axis = "x";
+adjoint_params.sectioning_axis = "z";
+adjoint_params.sectioning_position = thickness_pixel(1)+1;
 
 adjoint_solver = AdjointSolver(adjoint_params);
 
@@ -122,4 +123,4 @@ end
 
 %% Optional: save RI configuration
 filename = sprintf('optimized helical lens on %s Diameter-%.2fum F-%.2fum num-helix-%d.mat',substrate_type,diameter,focal_length,num_helix);
-save_RI(filename, RI_optimized, params.resolution, params.wavelength);
+save_RI(filename, RI_optimized, params.resolution, params.wavelength,E_field);
