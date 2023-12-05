@@ -11,24 +11,27 @@ classdef MirrorSymRegularizer < Regularizer
             obj.condition_callback = condition_callback;
             obj.direction = direction - 'x' + 1;
         end
-        function A = preprocess(obj, A)
-            for axis = obj.direction
-                A = A + flip(A, axis);
-            end
-            A = A./(2^length(obj.direction));
-        end
-        function A = postprocess(~, A)
-            return
-        end
-        function [grad, arr] = regularize_gradient(obj, grad, arr, iter_idx)
-            degree = obj.condition_callback(iter_idx);
-            if degree == 0
+        function [grad,degree] = regularize_gradient(obj, grad, arr, iter_idx)
+            [~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
+            if degree <= 0
                 return
             end
-            grad = preprocess(obj, grad);
+            grad = project(obj,grad);
         end
-        function A = regularize(~, A, ~)
-            return
+        function [arr,degree] = try_preprocess(obj, arr, iter_idx)
+            [~,degree] = try_preprocess@Regularizer(obj,arr,iter_idx);
+            if degree <= 0
+                return
+            end
+            arr = project(obj,arr);
+        end
+    end
+    methods(Hidden)
+        function arr = project(obj, arr)
+            for axis = obj.direction
+                arr = arr + flip(arr, axis);
+            end
+            arr = arr./(2^length(obj.direction));
         end
     end
 end

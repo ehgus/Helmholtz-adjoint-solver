@@ -6,7 +6,7 @@ classdef CyclicConv2Regularizer < Regularizer
         slice_axis
     end
     properties(Hidden)
-        A_slice
+        arr_slice
         kernel_sum
     end
     methods (Static)
@@ -46,42 +46,45 @@ classdef CyclicConv2Regularizer < Regularizer
             obj.kernel_sum = sum(kernel,'all');
             obj.slice_axis = slice_axis - 'x' + 1;
         end
-        function A = preprocess(obj, A)
-            other_axis = rem([obj.slice_axis obj.slice_axis+1],3) + 1;
-            if isempty(obj.A_slice) || any(size(obj.A_slice,other_axis) ~= size(A,other_axis))
-                vecdim = rem([obj.slice_axis obj.slice_axis + 1],3) + 1;
-                obj.A_slice = zeros(size(A, vecdim));
-            end
-            for slice_num = 1:size(A,obj.slice_axis)
-                if obj.slice_axis == 1
-                    obj.A_slice(:) = reshape(A(slice_num,:,:), size(obj.A_slice));
-                elseif obj.slice_axis == 2
-                    obj.A_slice(:) = reshape(A(:,slice_num,:), size(obj.A_slice));
-                else
-                    obj.A_slice(:) = reshape(A(:,:,slice_num), size(obj.A_slice));
-                end
-                obj.A_slice = cconv2(obj.A_slice, obj.kernel)./obj.kernel_sum;
-                if obj.slice_axis == 1
-                    A(slice_num,:,:) = obj.A_slice;
-                elseif obj.slice_axis == 2
-                    A(:,slice_num,:) = obj.A_slice;
-                else
-                    A(:,:,slice_num) = obj.A_slice;
-                end
-            end
-        end
-        function A = postprocess(obj, A)
-            A = preprocess(obj, A);
-        end
-        function [grad, arr]  = regularize_gradient(obj, grad, arr, iter_idx)
-            degree = obj.condition_callback(iter_idx);
-            if degree == 0
+        function [grad,degree] = regularize_gradient(obj, grad, arr, iter_idx)
+            [~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
+            if degree <= 0
                 return
             end
-            grad = preprocess(obj, grad);
+            grad = project(obj,grad);
         end
-        function A = regularize(~, A, ~)
-            return
+        function [arr,degree] = try_preprocess(obj, arr, iter_idx)
+            [~,degree] = try_preprocess@Regularizer(obj,arr,iter_idx);
+            if degree <= 0
+                return
+            end
+            arr = project(obj,arr);
+        end
+    end
+    methods(Hidden)
+        function arr = project(obj, arr)
+            other_axis = rem([obj.slice_axis obj.slice_axis+1],3) + 1;
+            if isempty(obj.arr_slice) || any(size(obj.arr_slice,other_axis) ~= size(arr,other_axis))
+                vecdim = rem([obj.slice_axis obj.slice_axis + 1],3) + 1;
+                obj.arr_slice = zeros(size(arr, vecdim));
+            end
+            for slice_num = 1:size(arr,obj.slice_axis)
+                if obj.slice_axis == 1
+                    obj.arr_slice(:) = reshape(arr(slice_num,:,:), size(obj.arr_slice));
+                elseif obj.slice_axis == 2
+                    obj.arr_slice(:) = reshape(arr(:,slice_num,:), size(obj.arr_slice));
+                else
+                    obj.arr_slice(:) = reshape(arr(:,:,slice_num), size(obj.arr_slice));
+                end
+                obj.arr_slice = cconv2(obj.arr_slice, obj.kernel)./obj.kernel_sum;
+                if obj.slice_axis == 1
+                    arr(slice_num,:,:) = obj.arr_slice;
+                elseif obj.slice_axis == 2
+                    arr(:,slice_num,:) = obj.arr_slice;
+                else
+                    arr(:,:,slice_num) = obj.arr_slice;
+                end
+            end
         end
     end
 end

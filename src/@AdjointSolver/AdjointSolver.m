@@ -5,9 +5,11 @@ classdef AdjointSolver < OpticalSimulation
         optim_mode   {mustBeMember(optim_mode,["Intensity","Transmission"])} = "Intensity"
         max_iter     {mustBePositive, mustBeInteger} = 100
         optimizer
-        % verbose feature
+        % level-0 verbose feature
         sectioning_axis  {mustBeMember(sectioning_axis,["x","y","z"])} = "z"
         sectioning_position {mustBeInteger, mustBePositive} % default: see center of RI
+        % level-1 verbose feature
+        temp_save_dir {isfolder} = 'tmp'
     end
     properties(Hidden)
         gradient
@@ -29,12 +31,12 @@ classdef AdjointSolver < OpticalSimulation
             obj.optimizer.reset();
             obj.gradient = complex(zeros(size(RI,1:4),'single'));
             options = obj.preprocess_params(options);
-            RI_opt = obj.optimizer.preprocess(RI_opt);
             % main
             for iter_idx = 1:obj.max_iter
                 fprintf('Iteration: %d\n', iter_idx);
                 t_start = tic;
                 % Calculated gradient RI based on intensity mode
+                RI_opt = obj.optimizer.try_preprocess(RI_opt, iter_idx);
                 obj.forward_solver.set_RI(RI_opt);
                 [E_fwd, H_fwd] = obj.forward_solver.solve(current_source);
                 [E_adj, figure_of_merit(iter_idx)]=obj.solve_adjoint(E_fwd, H_fwd, options);
@@ -54,9 +56,16 @@ classdef AdjointSolver < OpticalSimulation
                     end
                     fprintf('Elapsed time is %.6f seconds\n',t_end)
                     drawnow;
+                    if obj.verbose_level >= 1
+                        if ~isfolder(obj.temp_save_dir)
+                            mkdir(obj.temp_save_dir)
+                        end
+                        temp_fname = fullfile(obj.temp_save_dir,sprintf("iter_%d.mat",iter_idx));
+                        save(temp_fname,"RI_opt","E_fwd","E_adj")
+                    end
                 end
             end
-            RI_opt = obj.optimizer.postprocess(RI_opt);
+            RI_opt = obj.optimizer.try_postprocess(RI_opt);
             RI_opt=gather(RI_opt);
         end
 

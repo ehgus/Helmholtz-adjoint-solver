@@ -11,22 +11,24 @@ classdef AvgRegularizer < Regularizer
             obj.condition_callback = condition_callback;
             obj.direction = direction - 'x' + 1; % 'x' => 1, 'y' => 2, 'z' => 3
         end
-        function avg_A = preprocess(obj, A)
-            avg_A = mean(A, obj.direction);
-        end
-        function A = postprocess(~, A)
-            return
-        end
-        function [grad, arr] = regularize_gradient(obj, grad, arr, iter_idx)
-            degree = obj.condition_callback(iter_idx);
-            if degree == 0
+        function [grad,degree] = regularize_gradient(obj, grad, arr, iter_idx)
+            [~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
+            if degree <= 0
                 return
             end
-            grad = preprocess(obj, grad);
-            arr = preprocess(obj, arr);
+            grad = project(obj,grad);
         end
-        function avg_A = regularize(obj, A, ~)
-            avg_A = preprocess(obj, A);
+        function [arr,degree] = try_preprocess(obj, arr, iter_idx)
+            [~,degree] = try_preprocess@Regularizer(obj,arr,iter_idx);
+            if degree <= 0
+                return
+            end
+            arr = project(obj,arr);
+        end
+    end
+    methods(Hidden)
+        function arr = project(obj, arr)
+            arr = mean(arr,obj.direction);
         end
     end
 end

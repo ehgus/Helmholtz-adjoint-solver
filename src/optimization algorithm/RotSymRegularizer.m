@@ -14,33 +14,35 @@ classdef RotSymRegularizer < Regularizer
             obj.rot_axis = rot_axis - 'x' + 1;
             obj.angle_coeff = angle_coeff;
         end
-        function A = preprocess(obj, A)
+        function [grad,degree] = regularize_gradient(obj, grad, arr, iter_idx)
+            [~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
+            if degree <= 0
+                return
+            end
+            grad = project(obj,grad);
+        end
+        function [arr,degree] = try_preprocess(obj, arr, iter_idx)
+            [~,degree] = try_preprocess@Regularizer(obj,arr,iter_idx);
+            if degree <= 0
+                return
+            end
+            arr = project(obj,arr);
+        end
+    end
+    methods(Hidden)
+        function arr = project(obj, arr)
             permute_dim = rem([obj.rot_axis obj.rot_axis+1 1],3) + 1;
             permute_dim(3) = obj.rot_axis;
             inverse_permute_dim = permute(1:3, permute_dim);
-            
-            permute_A = permute(A, permute_dim);
-            for slice_idx = 1:size(permute_A,3)
+            permute_arr = permute(arr, permute_dim);
+            for slice_idx = 1:size(permute_arr,3)
                 for k = obj.angle_coeff
-                    slice_A = permute_A(:,:,slice_idx);
-                    permute_A(:,:,slice_idx) = slice_A + rot90(slice_A, k);
+                    slice_arr = permute_arr(:,:,slice_idx);
+                    permute_arr(:,:,slice_idx) = slice_arr + rot90(slice_arr, k);
                 end
             end
-            permute_A = permute_A./(2^length(obj.angle_coeff));
-            A = permute(permute_A, inverse_permute_dim);
-        end
-        function A = postprocess(~, A)
-            return
-        end
-        function [grad, arr] = regularize_gradient(obj, grad, arr, iter_idx)
-            degree = obj.condition_callback(iter_idx);
-            if degree == 0
-                return
-            end
-            grad = preprocess(obj, grad);
-        end
-        function A = regularize(~, A, ~)
-            return
+            permute_arr = permute_arr./(2^length(obj.angle_coeff));
+            arr = permute(permute_arr, inverse_permute_dim);
         end
     end
 end

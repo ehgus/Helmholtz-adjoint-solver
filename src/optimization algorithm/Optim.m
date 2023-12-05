@@ -26,27 +26,31 @@ classdef Optim < handle
             reset(obj);
         end
 
-        function reset(~)
+        function reset(obj)
+            for idx = 1:length(obj.regularizer_sequence)
+                regularizer = obj.regularizer_sequence{idx};
+                reset(regularizer);
+            end
         end
 
-        function arr = preprocess(obj, arr)
+        function arr = try_preprocess(obj, arr,iter_idx)
             arr_region = arr(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
             size_before = size(arr_region);
             for idx = 1:length(obj.regularizer_sequence)
                 regularizer = obj.regularizer_sequence{idx};
-                arr_region = preprocess(regularizer, arr_region);
+                arr_region = try_preprocess(regularizer, arr_region, iter_idx);
             end
             size_after = size(arr_region,1:3);
             arr_region = repmat(arr_region, size_before./size_after);
             arr(obj.optim_region) = arr_region(obj.optim_region(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:));
         end
         
-        function arr = postprocess(obj, arr)
+        function arr = try_postprocess(obj, arr)
             arr_region = arr(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
             size_before = size(arr_region);
             for idx = 1:length(obj.regularizer_sequence)
                 regularizer = obj.regularizer_sequence{idx};
-                arr_region = postprocess(regularizer, arr_region);
+                arr_region = try_postprocess(regularizer, arr_region);
             end
             size_after = size(arr_region,1:3);
             arr_region = repmat(arr_region, size_before./size_after);
@@ -66,7 +70,7 @@ classdef Optim < handle
 
             for idx = 1:length(obj.regularizer_sequence)
                 regularizer = obj.regularizer_sequence{idx};
-                [grad_region, arr_region] = regularize_gradient(regularizer, grad_region, arr_region, iter_idx);
+                grad_region = regularize_gradient(regularizer, grad_region, arr_region, iter_idx);
             end
             size_after = size(grad_region,1:3);
             grad_region = repmat(grad_region, size_before./size_after);

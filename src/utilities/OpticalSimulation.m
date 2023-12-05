@@ -11,6 +11,7 @@ classdef (Abstract) OpticalSimulation < handle
         resolution(1,3) = [1 1 1];          %3D Voxel size [um]
         % configuration
         verbose = false;                    %verbose option for narrative report
+        verbose_level = 0;                  %degree of verbosity
     end
     methods
         function obj = OpticalSimulation(options)
