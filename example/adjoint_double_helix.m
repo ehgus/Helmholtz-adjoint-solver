@@ -58,38 +58,14 @@ forward_solver=ConvergentBornSolver(params_CBS);
 display_RI_Efield(forward_solver,RImap,current_source,'before optimization')
 
 %% Adjoint method
-optim_region = real(RImap) > 2;
-regularizer_sequence = { ...
-    AvgRegularizer('z', @(step) max(ceil((step-15)/10), 0)), ...
-    RotSymRegularizer('z',2, @(step) max(ceil((step-15/10)), 0)), ...
-    CyclicConv2Regularizer(CyclicConv2Regularizer.conic(0.1/resolution),'z', @(step) max(ceil((step-15)/10), 0)), ...
-    BoundRegularizer(RI_list(1), RI_list(2),@(step) (step <= 25)), ...
-    BinaryRegularizer2(RI_list(1), RI_list(2), 0.1, 0.1, @(step) max(ceil((step-25)/10), 0)), ...
-    BinaryRegularizer(RI_list(1), RI_list(2), 0.1, 0.1, @(step) max(ceil((step-25)/10), 0)), ...
-    MinimumLengthRegularizer(RI_list(1),RI_list(2),1,1,[0.2 0.9],@(step) ceil((step-35)/5) > 0) ...
-};
-grad_weight = 0.1;
 
-% Adjoint solver
-adjoint_params=params;
-adjoint_params.forward_solver = forward_solver;
-adjoint_params.optim_mode = "Intensity";
-adjoint_params.max_iter = 60;
-adjoint_params.optimizer = FistaOptim(optim_region, regularizer_sequence, grad_weight);
-adjoint_params.verbose = true;
-adjoint_params.verbose_level = 1;
-adjoint_params.sectioning_axis = "z";
-adjoint_params.sectioning_position = thickness_pixel(1)+1;
-adjoint_params.temp_save_dir = "temp_double_helix";
-
-adjoint_solver = AdjointSolver(adjoint_params);
-
-% Adjoint design paramters
+% Target design paramters
 radius_pixel = round(0.1/resolution);
 one_turn_length = round(2.5/resolution);
 distance = round(0.65/resolution);
 num_helix = 2;
 intensity_weight = phantom_multi_helix([diameter_pixel, diameter_pixel, round(2*z_padding/resolution)], [0 1], radius_pixel, one_turn_length, distance, num_helix);
+intensity_weight = intensity_weight.*reshape(linspace(1,0.2,size(intensity_weight,3)),1,1,[]);
 intensity_weight = padarray(intensity_weight,[0 0 sum(thickness_pixel)-size(intensity_weight,3)], 0,'pre');
 filter_axis = exp(-(-2:2).^2);
 blur_filter = reshape(filter_axis,[],1).*reshape(filter_axis,1,[]).*reshape(filter_axis,1,1,[]);
@@ -97,34 +73,90 @@ blur_filter = blur_filter./sum(blur_filter,'all');
 intensity_weight = convn(intensity_weight, blur_filter, 'same');
 options.intensity_weight = intensity_weight;
 
+%% Design case: single plate model
+optim_region = real(RImap) > 2;
+regularizer_sequence = { ...
+    AvgRegularizer('z', @(step) max(ceil((step-15)/10), 0)), ...
+    RotSymRegularizer('z',2, @(step) max(ceil((step-15/10)), 0)), ...
+    CyclicConv2Regularizer(CyclicConv2Regularizer.conic(0.1/resolution),'z', @(step) max(ceil((step-15)/10), 0)), ...
+    BoundRegularizer(RI_list(1), RI_list(2),@(step) (step <= 40)), ...
+    BinaryRegularizer2(RI_list(1), RI_list(2), 0.1, 0.1, @(step) max(ceil((step-40)/5), 0)), ...
+    BinaryRegularizer(RI_list(1), RI_list(2), 0.1, 0.1, @(step) max(ceil((step-40)/5), 0)), ...
+    MinimumLengthRegularizer(RI_list(1),RI_list(2),1,1,[0.2 0.9],@(step) ceil((step-50)/5) > 0) ...
+};
+grad_weight = 0.1;
+
+adjoint_params=params;
+adjoint_params.forward_solver = forward_solver;
+adjoint_params.optim_mode = "Intensity";
+adjoint_params.max_iter = 70;
+adjoint_params.optimizer = FistaOptim(optim_region, regularizer_sequence, grad_weight);
+adjoint_params.verbose = true;
+adjoint_params.verbose_level = 1;
+adjoint_params.sectioning_axis = "z";
+adjoint_params.sectioning_position = thickness_pixel(1)+1;
+adjoint_params.temp_save_dir = "temp_double_helix_sinlge_plate";
+
+adjoint_solver = AdjointSolver(adjoint_params);
+
 % Execute the optimization code
-RI_optimized=adjoint_solver.solve(current_source,RImap,options);
+RI_optimized_single=adjoint_solver.solve(current_source,RImap,options);
+
+%% Design case: double plate model
+optim_region = real(RImap) > 2;
+pixel_period = round(0.075/resolution);
+regularizer_sequence = { ...
+    PeriodicAvgRegularizer('z', pixel_period, @(step) max(ceil((step-15)/10), 0)), ...
+    RotSymRegularizer('z',2, @(step) max(ceil((step-15/10)), 0)), ...
+    CyclicConv2Regularizer(CyclicConv2Regularizer.conic(0.1/resolution),'z', @(step) max(ceil((step-15)/10), 0)), ...
+    BoundRegularizer(RI_list(1), RI_list(2),@(step) (step <= 40)), ...
+    BinaryRegularizer2(RI_list(1), RI_list(2), 0.1, 0.1, @(step) max(ceil((step-40)/5), 0)), ...
+    BinaryRegularizer(RI_list(1), RI_list(2), 0.1, 0.1, @(step) max(ceil((step-40)/5), 0)), ...
+    MinimumLengthRegularizer(RI_list(1),RI_list(2),1,1,[0.2 0.9],@(step) ceil((step-50)/5) > 0) ...
+};
+grad_weight = 0.1;
+
+adjoint_params=params;
+adjoint_params.forward_solver = forward_solver;
+adjoint_params.optim_mode = "Intensity";
+adjoint_params.max_iter = 70;
+adjoint_params.optimizer = FistaOptim(optim_region, regularizer_sequence, grad_weight);
+adjoint_params.verbose = true;
+adjoint_params.verbose_level = 1;
+adjoint_params.sectioning_axis = "x";
+adjoint_params.temp_save_dir = "temp_double_helix_two_plate";
+
+adjoint_solver = AdjointSolver(adjoint_params);
+
+% Execute the optimization code
+RI_optimized_double=adjoint_solver.solve(current_source,RImap,options);
 
 %% Visualization
-forward_solver.set_RI(RI_optimized);
-E_field = forward_solver.solve(current_source);
-E_intensity = sum(abs(E_field),4);
-viewerContinuous = viewer3d(BackgroundColor="white",BackgroundGradient="off",CameraZoom=2);
-hVolumeContinuous = volshow(real(RI_optimized), OverlayData=E_intensity, Parent= viewerContinuous, OverlayAlphamap = linspace(0,0.2,256),...
-    OverlayRenderingStyle = "GradientOverlay", RenderingStyle = "GradientOpacity", OverlayColormap=parula);
-
-num_frames = 12;
-dist = sqrt(sum(size(E_intensity).^2));
-center = size(E_intensity)/2;
-viewerContinuous.CameraTarget = center;
-filename = "double_helical_structre.gif";
-for idx = 1:num_frames
-    angle = 2*pi*idx/num_frames;
-    viewerContinuous.CameraPosition = center + ([cos(angle) sin(angle) 0.1]*dist);
-    I = getframe(viewerContinuous.Parent);
-    [idxI, cm] = rgb2ind(I.cdata, 256);
-    if idx == 1
-        imwrite(idxI,cm,filename,"gif",Loopcount=inf,DelayTime=0.1)
+for i = 1:2
+    if i == 1
+        RI_optimized = RI_optimized_single;
+        plate_type = "single";
     else
-        imwrite(idxI,cm,filename,"gif",WriteMode="append",DelayTime=0.1)
+        RI_optimized = RI_optimized_double;
+        plate_type = "double";
     end
+    forward_solver.set_RI(RI_optimized);
+    E_field = forward_solver.solve(current_source);
+    E_intensity = sum(abs(E_field),4);
+    viewerContinuous = viewer3d(BackgroundColor="white",BackgroundGradient="off",CameraZoom=2);
+    hVolumeContinuous = volshow(real(RI_optimized), OverlayData=E_intensity, Parent= viewerContinuous, OverlayAlphamap = linspace(0,0.2,256),...
+        OverlayRenderingStyle = "GradientOverlay", RenderingStyle = "GradientOpacity", OverlayColormap=parula);
+
+    center = size(E_intensity)/2;
+    viewerContinuous.CameraTarget = center;
+    
+    final_cost = sum(intensity_weight.*E_intensity,'all');
+    fprintf("final cost of %s plate: %g\n\n",plate_type,final_cost)
 end
+disp("Higher the cost, better the result")
 
 %% Optional: save RI configuration
-filename = sprintf('optimized helical lens on %s Diameter-%.2fum F-%.2fum PSFlength-%.fum num-helix-%d.mat',substrate_type,diameter,focal_length,2*z_padding,num_helix);
-save_RI(filename, RI_optimized, params.resolution, params.wavelength,E_field);
+filename = sprintf('optimized double helix mask_Diameter-%.2fum_single plate.mat',diameter);
+save_RI(filename, RI_optimized_single, params.resolution, params.wavelength,E_field);
+filename = sprintf('optimized double helix mask_Diameter-%.2fum_double plate.mat',diameter);
+save_RI(filename, RI_optimized_double, params.resolution, params.wavelength,E_field);
