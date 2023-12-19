@@ -15,9 +15,9 @@ z_padding = 1;    % padding along z direction
 substrate_type = 'SU8';  % substrate type: 'SU8' or 'air'
 
 % Refractive index profile
-database = RefractiveIndexDB();
+RI_database = RefractiveIndexDB();
 if strcmp(substrate_type,'SU8')
-    substrate = database.material("other","resists","Microchem SU-8 2000");
+    substrate = RI_database.material("other","resists","Microchem SU-8 2000");
     plate_thickness = 0.15;
 elseif strcmp(substrate_type, 'air')
     substrate = @(x)1;
@@ -25,8 +25,8 @@ elseif strcmp(substrate_type, 'air')
 else
     error(['The substrate "' substrate_type '" is not supported'])
 end
-PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
-TiO2 = database.material("main","TiO2","Siefke");
+PDMS = RI_database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
+TiO2 = RI_database.material("main","TiO2","Siefke");
 RI_list = cellfun(@(func) func(wavelength), {PDMS TiO2 substrate});
 thickness_pixel = round([wavelength plate_thickness (focal_length + z_padding)]/resolution);
 diameter_pixel = ceil(diameter/resolution);

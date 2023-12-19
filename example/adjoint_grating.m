@@ -15,10 +15,10 @@ target_transmission = [0 0 0.15 0 0.63 0 0.22];
 verbose = false;
 
 % Refractive index profile
-database = RefractiveIndexDB();
-PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
-TiO2 = database.material("main","TiO2","Siefke");
-Microchem_SU8_2000 = database.material("other","resists","Microchem SU-8 2000");
+RI_database = RefractiveIndexDB();
+PDMS = RI_database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
+TiO2 = RI_database.material("main","TiO2","Siefke");
+Microchem_SU8_2000 = RI_database.material("other","resists","Microchem SU-8 2000");
 RI_list = cellfun(@(func) func(wavelength), {PDMS TiO2 Microchem_SU8_2000});
 thickness_pixel = [0.20 mask_width]/resolution;
 RI = phantom_plate(grid_size, RI_list, thickness_pixel);

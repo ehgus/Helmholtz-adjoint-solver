@@ -15,11 +15,11 @@ z_padding = 3;    % padding along z direction
 substrate_type = 'SU8';  % substrate type: 'SU8' or 'air'
 
 % Refractive index profile
-database = RefractiveIndexDB();
-substrate = database.material("other","resists","Microchem SU-8 2000");
+RI_database = RefractiveIndexDB();
+substrate = RI_database.material("other","resists","Microchem SU-8 2000");
 plate_thickness = 0.15;
-PDMS = database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
-TiO2 = database.material("main","TiO2","Siefke");
+PDMS = RI_database.material("organic","(C2H6OSi)n - polydimethylsiloxane","Gupta");
+TiO2 = RI_database.material("main","TiO2","Siefke");
 RI_list = cellfun(@(func) func(wavelength), {PDMS TiO2 substrate});
 thickness_pixel = round([wavelength plate_thickness (focal_length + z_padding)]/resolution);
 diameter_pixel = ceil(diameter/resolution);
@@ -65,7 +65,7 @@ one_turn_length = round(2.5/resolution);
 distance = round(0.65/resolution);
 num_helix = 2;
 intensity_weight = phantom_multi_helix([diameter_pixel, diameter_pixel, round(2*z_padding/resolution)], [0 1], radius_pixel, one_turn_length, distance, num_helix);
-intensity_weight = intensity_weight.*reshape(linspace(1,0.2,size(intensity_weight,3)),1,1,[]);
+intensity_weight = intensity_weight.*reshape(linspace(1,0.35,size(intensity_weight,3)),1,1,[]);
 intensity_weight = padarray(intensity_weight,[0 0 sum(thickness_pixel)-size(intensity_weight,3)], 0,'pre');
 filter_axis = exp(-(-2:2).^2);
 blur_filter = reshape(filter_axis,[],1).*reshape(filter_axis,1,[]).*reshape(filter_axis,1,1,[]);
@@ -95,7 +95,7 @@ adjoint_params.verbose = true;
 adjoint_params.verbose_level = 1;
 adjoint_params.sectioning_axis = "z";
 adjoint_params.sectioning_position = thickness_pixel(1)+1;
-adjoint_params.temp_save_dir = "temp_double_helix_sinlge_plate";
+adjoint_params.temp_save_dir = "temp_double_helix_single_plate";
 
 adjoint_solver = AdjointSolver(adjoint_params);
 
@@ -122,9 +122,8 @@ adjoint_params.optim_mode = "Intensity";
 adjoint_params.max_iter = 70;
 adjoint_params.optimizer = FistaOptim(optim_region, regularizer_sequence, grad_weight);
 adjoint_params.verbose = true;
-adjoint_params.verbose_level = 1;
+adjoint_params.verbose_level = 0;
 adjoint_params.sectioning_axis = "x";
-adjoint_params.temp_save_dir = "temp_double_helix_two_plate";
 
 adjoint_solver = AdjointSolver(adjoint_params);
 
