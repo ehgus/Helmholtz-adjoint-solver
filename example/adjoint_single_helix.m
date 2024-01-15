@@ -129,13 +129,7 @@ adjoint_solver = AdjointSolver(adjoint_params);
 RI_optimized_double=adjoint_solver.solve(current_source,RImap,options);
 
 %% Visualization
-intensity_weight = phantom_multi_helix([diameter_pixel, diameter_pixel, round(2*z_padding/resolution)], [0 1], radius_pixel, one_turn_length, distance, num_helix);
-intensity_weight = padarray(intensity_weight,[0 0 sum(thickness_pixel)-size(intensity_weight,3)], 0,'pre');
-filter_axis = exp(-(-2:2).^2);
-blur_filter = reshape(filter_axis,[],1).*reshape(filter_axis,1,[]).*reshape(filter_axis,1,1,[]);
-blur_filter = blur_filter./sum(blur_filter,'all');
-intensity_weight = convn(intensity_weight, blur_filter, 'same');
-
+E_field_list = cell(2,1);
 for i = 1:2
     if i == 1
         RI_optimized = RI_optimized_single;
@@ -156,11 +150,12 @@ for i = 1:2
     
     final_cost = sum(intensity_weight.*E_intensity,'all');
     fprintf("final cost of %s plate: %g\n\n",plate_type,final_cost)
+    E_field_list{i} = E_field;
 end
 disp("Higher the cost, better the result")
 
 %% Optional: save RI configuration
 filename = sprintf('optimized single helix mask_Diameter-%.2fum_single plate.mat',diameter);
-save_RI(filename, RI_optimized_single, params.resolution, params.wavelength,E_field);
+save_RI(filename, RI_optimized_single, params.resolution, params.wavelength,E_field_list{1});
 filename = sprintf('optimized single helix mask_Diameter-%.2fum_double plate.mat',diameter);
-save_RI(filename, RI_optimized_double, params.resolution, params.wavelength,E_field);
+save_RI(filename, RI_optimized_double, params.resolution, params.wavelength,E_field_list{2});
