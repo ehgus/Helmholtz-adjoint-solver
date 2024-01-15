@@ -1,8 +1,7 @@
-% modulated grating simulator
-
 clc, clear;close all
 dirname = fileparts(fileparts(matlab.desktop.editor.getActiveFilename));
 addpath(genpath(dirname));
+
 %% basic optical parameters
 
 oversampling_rate = 1;

@@ -1,4 +1,4 @@
- clc, clear;
+clc, clear;
 dirname = fileparts(fileparts(matlab.desktop.editor.getActiveFilename));
 addpath(genpath(dirname));
 
