@@ -23,7 +23,7 @@ classdef BoundRegularizer < Regularizer
             if degree <= 0
                 return
             end
-            grad = real(grad)./real(obj.max_val-obj.min_val);
+            grad = real(grad)./real(obj.max_val-obj.min_val).*(obj.max_val-obj.min_val);
         end
         function [arr,degree] = regularize(obj,arr,iter_idx)
             [~,degree] = regularize@Regularizer(obj, arr, iter_idx);

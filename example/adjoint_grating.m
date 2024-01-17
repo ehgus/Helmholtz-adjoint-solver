@@ -59,7 +59,8 @@ optim_region = zeros(size(RI),'logical');
 optim_region(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))) = true;
 regularizer_sequence = { ...
     AvgRegularizer('xz'), ...
-    BinaryRegularizer(RI_list(1), RI_list(2), 1.5, 0.5, @(step) false)};
+    BoundRegularizer(RI_list(1), RI_list(2)) ...
+};
 grad_weight = 6e-4;
 
 % Adjoint solver
