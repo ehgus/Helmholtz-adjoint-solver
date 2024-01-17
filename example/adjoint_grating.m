@@ -48,7 +48,7 @@ params_CBS.boundary_thickness = [0 0 3];
 params_CBS.field_attenuation = [0 0 3];
 params_CBS.field_attenuation_sharpness = 0.5;
 params_CBS.potential_attenuation_sharpness = 0.5;
-parmas_CBS.verbose = true;
+params_CBS.verbose = false;
 forward_solver=ConvergentBornSolver(params_CBS);
 
 % Configuration for bulk material
