@@ -46,8 +46,8 @@ classdef CyclicConv2Regularizer < Regularizer
             obj.kernel_sum = sum(kernel,'all');
             obj.slice_axis = slice_axis - 'x' + 1;
         end
-        function [grad,degree] = regularize_gradient(obj, grad, arr, iter_idx)
-            [~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
+        function [grad,arr,degree] = regularize_gradient(obj, grad, arr, iter_idx)
+            [~,~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
             if degree <= 0
                 return
             end

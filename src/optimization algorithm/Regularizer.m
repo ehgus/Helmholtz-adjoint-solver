@@ -12,7 +12,7 @@ classdef (Abstract) Regularizer < handle
         function reset(obj)
             obj.activate_postprocess = false;
         end
-        function [grad,degree] = regularize_gradient(obj,grad,arr,iter_idx)
+        function [grad,arr,degree] = regularize_gradient(obj,grad,arr,iter_idx)
             degree = obj.condition_callback(iter_idx);
             if degree <= 0
                 return
@@ -26,7 +26,8 @@ classdef (Abstract) Regularizer < handle
         end
         function [arr,degree] = try_preprocess(obj,arr,iter_idx)
             degree = obj.condition_callback(iter_idx);
-            if degree <= 0
+            if obj.activate_postprocess || degree <= 0
+                degree = 0;
                 return
             end
             obj.activate_postprocess = true;

@@ -70,7 +70,7 @@ classdef Optim < handle
 
             for idx = 1:length(obj.regularizer_sequence)
                 regularizer = obj.regularizer_sequence{idx};
-                grad_region = regularize_gradient(regularizer, grad_region, arr_region, iter_idx);
+                [grad_region,arr_region] = regularize_gradient(regularizer, grad_region, arr_region, iter_idx);
             end
             size_after = size(grad_region,1:3);
             grad_region = repmat(grad_region, size_before./size_after);

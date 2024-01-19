@@ -1,4 +1,4 @@
-classdef BoundRegularizer < Regularizer
+classdef InverseBoundRegularizer < Regularizer
     % give addtional weight using entropy
     properties
         max_val
@@ -8,14 +8,14 @@ classdef BoundRegularizer < Regularizer
         density_map
     end
     methods
-        function obj = BoundRegularizer(min_val, max_val, condition_callback)
+        function obj = InverseBoundRegularizer(min_val, max_val, condition_callback)
             arguments
                 min_val
                 max_val
                 condition_callback = @(~) true
             end
-            obj.min_val = min_val;
             obj.max_val = max_val;
+            obj.min_val = min_val;
             obj.condition_callback = condition_callback; 
         end
         function [grad,arr,degree] = regularize_gradient(obj, grad, arr, iter_idx)
@@ -23,7 +23,7 @@ classdef BoundRegularizer < Regularizer
             if degree <= 0
                 return
             end
-            grad = real(grad./(obj.max_val-obj.min_val));
+            grad = grad.*(obj.max_val-obj.min_val);
             arr = bound_values(obj,arr);
         end
         function [arr,degree] = regularize(obj,arr,iter_idx)
@@ -51,10 +51,8 @@ classdef BoundRegularizer < Regularizer
     methods(Hidden)
         function arr = bound_values(obj,arr)
             init_density_map(obj, arr);
-            obj.density_map(:) = real((arr-obj.min_val)./(obj.max_val-obj.min_val));
-            obj.density_map(obj.density_map > 1) = 1;
-            obj.density_map(obj.density_map < 0) = 0;
-            arr(:) = obj.density_map;
+            obj.density_map(:) = real(arr);
+            arr(:) = obj.density_map*(obj.max_val-obj.min_val)+obj.min_val;
         end
         function init_density_map(obj, arr)
             if isempty(obj.density_map) || any(size(obj.density_map,1:3) ~= size(arr,1:3))

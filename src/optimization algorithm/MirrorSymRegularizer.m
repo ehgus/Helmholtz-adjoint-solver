@@ -11,8 +11,8 @@ classdef MirrorSymRegularizer < Regularizer
             obj.condition_callback = condition_callback;
             obj.direction = direction - 'x' + 1;
         end
-        function [grad,degree] = regularize_gradient(obj, grad, arr, iter_idx)
-            [~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
+        function [grad,arr,degree] = regularize_gradient(obj, grad, arr, iter_idx)
+            [~,~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
             if degree <= 0
                 return
             end
@@ -20,6 +20,13 @@ classdef MirrorSymRegularizer < Regularizer
         end
         function [arr,degree] = try_preprocess(obj, arr, iter_idx)
             [~,degree] = try_preprocess@Regularizer(obj,arr,iter_idx);
+            if degree <= 0
+                return
+            end
+            arr = project(obj,arr);
+        end
+        function [arr,degree] = regularize(obj, arr, iter_idx)
+            [~,degree] = regularize@Regularizer(obj,arr,iter_idx);
             if degree <= 0
                 return
             end

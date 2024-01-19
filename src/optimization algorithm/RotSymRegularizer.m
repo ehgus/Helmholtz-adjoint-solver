@@ -14,8 +14,8 @@ classdef RotSymRegularizer < Regularizer
             obj.rot_axis = rot_axis - 'x' + 1;
             obj.angle_coeff = angle_coeff;
         end
-        function [grad,degree] = regularize_gradient(obj, grad, arr, iter_idx)
-            [~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
+        function [grad,arr,degree] = regularize_gradient(obj, grad, arr, iter_idx)
+            [~,~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
             if degree <= 0
                 return
             end

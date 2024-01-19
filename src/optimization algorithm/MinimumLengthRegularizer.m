@@ -32,8 +32,8 @@ classdef MinimumLengthRegularizer < Regularizer
             obj.decay_rate = decay_rate;
             obj.prob_threshold = prob_threshold;
         end
-        function [grad,degree] = regularize_gradient(obj, grad, arr, iter_idx)
-            [~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
+        function [grad,arr,degree] = regularize_gradient(obj, grad, arr, iter_idx)
+            [~,~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
             if degree <= 0
                 return
             end
@@ -43,15 +43,15 @@ classdef MinimumLengthRegularizer < Regularizer
                 obj.solid_inflection = zeros(size(arr));
                 obj.void_inflection = zeros(size(arr));
             end
-            obj.density_map(:) = real(arr - obj.min_RI)./real(obj.max_val-obj.min_RI);
+            obj.density_map(:) = real(arr);
             obj.hessian_map(:) = abs(cconv2(obj.density_map, [-1 0 1])).^2;
             obj.hessian_map = obj.hessian_map +abs(cconv2(obj.density_map, [-1 0 1]')).^2;
             obj.hessian_map = exp(-obj.decay_rate.*obj.hessian_map);
             obj.solid_inflection(:) = obj.density_map.*obj.hessian_map;
             obj.void_inflection(:) = (1-obj.density_map).*obj.hessian_map;
             % add gradient
-            grad = grad - 2*obj.weight*(obj.max_val-obj.min_RI).*obj.solid_inflection.*min(obj.density_map-obj.prob_threshold(2),0);
-            grad = grad + 2*obj.weight*(obj.max_val-obj.min_RI).*obj.void_inflection.*min(obj.prob_threshold(1)-obj.density_map,0);
+            grad = grad - 2*obj.weight.*obj.solid_inflection.*min(obj.density_map-obj.prob_threshold(2),0);
+            grad = grad + 2*obj.weight.*obj.void_inflection.*min(obj.prob_threshold(1)-obj.density_map,0);
         end
     end
 
