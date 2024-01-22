@@ -53,8 +53,8 @@ classdef CyclicConv2Regularizer < Regularizer
             end
             grad = project(obj,grad);
         end
-        function [arr,degree] = try_preprocess(obj, arr, iter_idx)
-            [~,degree] = try_preprocess@Regularizer(obj,arr,iter_idx);
+        function [arr,degree] = regularize(obj, arr, iter_idx)
+            [~,degree] = regularize@Regularizer(obj,arr,iter_idx);
             if degree <= 0
                 return
             end
