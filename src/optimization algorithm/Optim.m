@@ -1,4 +1,16 @@
 classdef Optim < handle
+    % < optimization process >
+    %    
+    %       grad -->--[regularize_grad]-->-- regularized grad
+    %        ^                                      v            
+    %        |                               [feedback grad]
+    %        |                                      v
+    %  [calculate grad]                        new density
+    %        ^                                      v
+    %        |                                 [projection]
+    %        |                                      v
+    %        RI --<--[interpolate density]--<-- density projected
+    %
     properties
         % weight
         grad_weight {mustBePositive} = 0.1
@@ -6,9 +18,12 @@ classdef Optim < handle
         optim_region logical
         optim_ROI
         regularizer_sequence
+        density_projection_sequence
+        % intermediate representation
+        density
     end
     methods
-        function obj = Optim(optim_region, regularizer_sequence, grad_weight)
+        function obj = Optim(optim_region, regularizer_sequence, density_projection_sequence, grad_weight)
             optim_ROI = zeros(2,3);
             for axis = 1:3
                 vecdim = rem([axis, axis+1],3) + 1;
@@ -20,75 +35,82 @@ classdef Optim < handle
             obj.optim_region = optim_region;
             obj.optim_ROI = optim_ROI;
             obj.regularizer_sequence = regularizer_sequence;
+            obj.density_projection_sequence = density_projection_sequence;
             if nargin > 2
                 obj.grad_weight = grad_weight;
             end
-            reset(obj);
+            init(obj);
         end
 
-        function reset(obj)
+        function init(obj)
             for idx = 1:length(obj.regularizer_sequence)
                 regularizer = obj.regularizer_sequence{idx};
-                reset(regularizer);
+                init(regularizer);
+            end
+            obj.density = [];
+        end
+
+        function RI = try_preprocess(obj, RI, iter_idx)
+            % RI -> density
+            if isempty(obj.density)
+                obj.density = RI(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
+            end
+            for idx = 1:length(obj.regularizer_sequence)
+                regularizer = obj.regularizer_sequence{idx};
+                obj.density = try_preprocess(regularizer, obj.density, iter_idx);
+            end
+            RI = interpolate(obj, RI, iter_idx);
+        end
+
+        function RI = try_postprocess(obj, RI)
+            % density -> RI
+            arr_part = obj.density;
+            for idx = length(obj.regularizer_sequence):-1:1
+                regularizer = obj.regularizer_sequence{idx};
+                arr_part = try_postprocess(regularizer, arr_part);
+            end
+            RI(obj.optim_region) = arr_part;
+        end
+
+        function RI = interpolate(obj, RI, iter_idx)
+            % density -> intermediate RI
+            arr_part = obj.density;
+            for idx = length(obj.regularizer_sequence):-1:1
+                regularizer = obj.regularizer_sequence{idx};
+                arr_part = interpolate(regularizer, arr_part, iter_idx);
+            end
+            RI(obj.optim_region) = arr_part;
+        end
+
+        function density_grad = regularize_gradient(obj, grad, RI, iter_idx)
+            % grad w.r.t intermediate RI -> grad w.r.t density
+            density_grad = grad(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
+            RI_region = RI(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
+            figure(3)%doritos
+            subplot(2,length(obj.regularizer_sequence)+1,1);imagesc(real(density_grad(:,:,1)))
+            subplot(2,length(obj.regularizer_sequence)+1,length(obj.regularizer_sequence)+2);imagesc(real(RI_region(:,:,1)))
+            for idx = 1:length(obj.regularizer_sequence)
+                regularizer = obj.regularizer_sequence{idx};
+                [density_grad,RI_region] = regularize_gradient(regularizer, density_grad, RI_region, iter_idx);
+                subplot(2,length(obj.regularizer_sequence)+1,idx+1);imagesc(real(density_grad(:,:,1)))
+                subplot(2,length(obj.regularizer_sequence)+1,length(obj.regularizer_sequence)+idx+2);imagesc(real(RI_region(:,:,1)))
             end
         end
 
-        function arr = try_preprocess(obj, arr,iter_idx)
-            arr_region = arr(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
-            size_before = size(arr_region);
-            for idx = 1:length(obj.regularizer_sequence)
-                regularizer = obj.regularizer_sequence{idx};
-                arr_region = try_preprocess(regularizer, arr_region, iter_idx);
+        function density = project_density(obj, density, iter_idx)
+            % density -> density projected
+            for idx = 1:length(obj.density_projection_sequence)
+                regularizer = obj.density_projection_sequence{idx};
+                density = interpolate(regularizer, density, iter_idx);
             end
-            size_after = size(arr_region,1:3);
-            arr_region = repmat(arr_region, size_before./size_after);
-            arr(obj.optim_region) = arr_region(obj.optim_region(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:));
-        end
-        
-        function arr = try_postprocess(obj, arr)
-            arr_region = arr(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
-            size_before = size(arr_region);
-            for idx = 1:length(obj.regularizer_sequence)
-                regularizer = obj.regularizer_sequence{idx};
-                arr_region = try_postprocess(regularizer, arr_region);
-            end
-            size_after = size(arr_region,1:3);
-            arr_region = repmat(arr_region, size_before./size_after);
-            arr(obj.optim_region) = arr_region(obj.optim_region(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:));
         end
 
-        function arr = apply_gradient(obj, arr, grad, iter_idx)
-            grad = obj.regularize_gradient(grad, arr, iter_idx);
-            arr(obj.optim_region) = arr(obj.optim_region) - obj.grad_weight .* grad(obj.optim_region);
-            arr = obj.regularize(arr, iter_idx);
-        end
-        
-        function grad = regularize_gradient(obj, grad, arr, iter_idx)
-            grad_region = grad(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
-            arr_region = arr(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
-            size_before = size(grad_region);
-
-            for idx = 1:length(obj.regularizer_sequence)
-                regularizer = obj.regularizer_sequence{idx};
-                [grad_region,arr_region] = regularize_gradient(regularizer, grad_region, arr_region, iter_idx);
-            end
-            size_after = size(grad_region,1:3);
-            grad_region = repmat(grad_region, size_before./size_after);
-            grad(~obj.optim_region) = 0;
-            grad(obj.optim_region) = grad_region(obj.optim_region(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:));
-        end
-
-        function arr = regularize(obj, arr, iter_idx)
-            arr_region = arr(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
-            size_before = size(arr_region);
-
-            for idx = 1:length(obj.regularizer_sequence)
-                regularizer = obj.regularizer_sequence{idx};
-                arr_region = regularize(regularizer, arr_region, iter_idx);
-            end
-            size_after = size(arr_region,1:3);
-            arr_region = repmat(arr_region, size_before./size_after);
-            arr(obj.optim_region) = arr_region(obj.optim_region(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:));
+        function RI = apply_gradient(obj, RI, grad, iter_idx)
+            % grad for intermediate RI -> grad for density 
+            density_grad = obj.regularize_gradient(grad, RI, iter_idx);
+            obj.density = obj.density - obj.grad_weight .* density_grad;
+            obj.density = project_density(obj, obj.density, iter_idx);
+            RI = obj.interpolate(RI, iter_idx);
         end
     end
 end

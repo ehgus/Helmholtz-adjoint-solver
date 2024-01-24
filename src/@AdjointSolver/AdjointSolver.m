@@ -28,7 +28,7 @@ classdef AdjointSolver < OpticalSimulation
                 RI_section = ceil(size(RI_opt,axis)/2);
             end
             figure_of_merit=NaN(1,obj.max_iter);
-            obj.optimizer.reset();
+            obj.optimizer.init();
             obj.gradient = complex(zeros(size(RI,1:4),'single'));
             options = obj.preprocess_params(options);
             % main

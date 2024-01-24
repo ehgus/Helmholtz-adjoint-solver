@@ -18,6 +18,7 @@ classdef CyclicConv2Regularizer < Regularizer
             coord = -pixel_radius:pixel_radius;
             kernel = exp(-(coord.^2 + coord'.^2)./(2*sigma^2));
             kernel(coord.^2 + coord'.^2 > pixel_radius.^2) = 0;
+            kernel = kernel./sum(kernel,"all");
         end
         function kernel = conic(pixel_radius)
             arguments
@@ -26,12 +27,14 @@ classdef CyclicConv2Regularizer < Regularizer
             coord = -pixel_radius:pixel_radius;
             kernel = 1-sqrt(coord.^2 + coord'.^2)./pixel_radius;
             kernel(coord.^2 + coord'.^2 > pixel_radius.^2) = 0;
+            kernel = kernel./sum(kernel,"all");
         end
         function kernel = uniform_circle(pixel_radius)
             arguments
                 pixel_radius {mustBePositive,mustBeInteger}
             end
             kernel = coord.^2 + coord'.^2 < pixel_radius.^2;
+            kernel = kernel./sum(kernel,"all");
         end
     end
     methods
@@ -46,23 +49,32 @@ classdef CyclicConv2Regularizer < Regularizer
             obj.kernel_sum = sum(kernel,'all');
             obj.slice_axis = slice_axis - 'x' + 1;
         end
+        function [arr,degree] = try_preprocess(obj, arr, iter_idx)
+            [~,degree] = try_preprocess@Regularizer(obj, arr, iter_idx);
+            if degree <= 0
+                return
+            end
+            arr = apply_conv(obj,arr);
+        end
+
+        function [arr,degree] = interpolate(obj, arr, iter_idx)
+            [~,degree] = interpolate@Regularizer(obj, arr, iter_idx);
+            if degree <= 0
+                return
+            end
+            arr = apply_conv(obj,arr);
+        end
+
         function [grad,arr,degree] = regularize_gradient(obj, grad, arr, iter_idx)
             [~,~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
             if degree <= 0
                 return
             end
-            grad = project(obj,grad);
-        end
-        function [arr,degree] = regularize(obj, arr, iter_idx)
-            [~,degree] = regularize@Regularizer(obj,arr,iter_idx);
-            if degree <= 0
-                return
-            end
-            arr = project(obj,arr);
+            grad = apply_conv(obj,grad);
         end
     end
     methods(Hidden)
-        function arr = project(obj, arr)
+        function arr = apply_conv(obj, arr)
             other_axis = rem([obj.slice_axis obj.slice_axis+1],3) + 1;
             if isempty(obj.arr_slice) || any(size(obj.arr_slice,other_axis) ~= size(arr,other_axis))
                 vecdim = rem([obj.slice_axis obj.slice_axis + 1],3) + 1;

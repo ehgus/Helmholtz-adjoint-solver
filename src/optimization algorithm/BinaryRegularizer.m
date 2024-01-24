@@ -1,8 +1,5 @@
 classdef BinaryRegularizer < Regularizer
     % Binarize RI by minimizing addional cost function
-    % 
-    % cost function = nα(ρ log_2(ρ) + (1-ρ)log_2(1-ρ))
-    % where ρ = β(density_map-1/2)+1/2
     properties
         min_val
         max_val
@@ -27,19 +24,7 @@ classdef BinaryRegularizer < Regularizer
             obj.eta = eta;
             obj.unit_beta = unit_beta;
         end
-        function [arr,degree] = regularize(obj,arr,iter_idx)
-            [~,degree] = regularize@Regularizer(obj,arr,iter_idx);
-            if degree <= 0
-                return
-            end
-            beta = degree.*obj.unit_beta;
-            init_density_map(obj, arr);
-            obj.density_map(:) = real(arr);
-            denorminator = tanh(beta*obj.eta)+tanh(beta*(1-obj.eta));
-            obj.density_map = tanh(beta.*(obj.density_map-obj.eta));
-            obj.density_map = (tanh(beta*obj.eta)+obj.density_map)./denorminator;
-            arr(:) = obj.density_map;
-        end
+
         function [arr,degree] = try_postprocess(obj, arr)
             [~,degree] = try_postprocess@Regularizer(obj, arr);
             if degree <= 0
@@ -51,7 +36,42 @@ classdef BinaryRegularizer < Regularizer
             obj.density_map(obj.density_map < 0.5) = 0;
             arr(:) = obj.density_map;
         end
+
+        function [arr,degree] = interpolate(obj,arr,iter_idx)
+            [~,degree] = interpolate@Regularizer(obj,arr,iter_idx);
+            if degree <= 0
+                return
+            end
+            init_density_map(obj, arr);
+            beta = degree.*obj.unit_beta;
+            obj.density_map(:) = real(arr);
+
+            denorminator = tanh(beta*obj.eta)+tanh(beta*(1-obj.eta));
+            obj.density_map = tanh(beta.*(obj.density_map-obj.eta));
+            obj.density_map = (tanh(beta*obj.eta)+obj.density_map)./denorminator;
+            arr(:) = obj.density_map;
+        end
+
+        function [grad,arr,degree] = regularize_gradient(obj, grad, arr, iter_idx)
+            [~,~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx-1);
+            if degree <= 0
+                return
+            end
+            init_density_map(obj, arr);
+            obj.density_map(:) = real(arr);
+            beta = degree.*obj.unit_beta;
+
+            denorminator = tanh(beta*obj.eta)+tanh(beta*(1-obj.eta));
+            obj.density_map = obj.density_map.*denorminator;
+            obj.density_map = obj.density_map-tanh(beta*obj.eta);
+            obj.density_map = atanh(obj.density_map)./beta+obj.eta;
+            arr = obj.density_map;
+
+            obj.density_map = beta.*sech(obj.density_map).^2;
+            grad = grad.*obj.density_map./denorminator;
+        end
     end
+
     methods(Hidden)
         function init_density_map(obj, arr)
             if isempty(obj.density_map) || any(size(obj.density_map,1:3) ~= size(arr,1:3))

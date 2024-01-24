@@ -14,19 +14,37 @@ classdef RotSymRegularizer < Regularizer
             obj.rot_axis = rot_axis - 'x' + 1;
             obj.angle_coeff = angle_coeff;
         end
-        function [grad,arr,degree] = regularize_gradient(obj, grad, arr, iter_idx)
-            [~,~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
-            if degree <= 0
-                return
-            end
-            grad = project(obj,grad);
-        end
+
         function [arr,degree] = try_preprocess(obj, arr, iter_idx)
             [~,degree] = try_preprocess@Regularizer(obj,arr,iter_idx);
             if degree <= 0
                 return
             end
             arr = project(obj,arr);
+        end
+
+        function [arr,degree] = try_postprocess(obj, arr)
+            [~,degree] = try_postprocess@Regularizer(obj,arr);
+            if degree <= 0
+                return
+            end
+            arr = project(obj,arr);
+        end
+
+        function [arr,degree] = interpolate(obj, arr, iter_idx)
+            [~,degree] = interpolate@Regularizer(obj,arr,iter_idx);
+            if degree <= 0
+                return
+            end
+            arr = project(obj,arr);
+        end
+
+        function [grad,arr,degree] = regularize_gradient(obj, grad, arr, iter_idx)
+            [~,~,degree] = regularize_gradient@Regularizer(obj, grad, arr, iter_idx);
+            if degree <= 0
+                return
+            end
+            grad = project(obj,grad);
         end
     end
     methods(Hidden)

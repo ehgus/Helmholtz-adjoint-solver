@@ -9,20 +9,8 @@ classdef (Abstract) Regularizer < handle
         activate_postprocess = false
     end
     methods
-        function reset(obj)
+        function init(obj)
             obj.activate_postprocess = false;
-        end
-        function [grad,arr,degree] = regularize_gradient(obj,grad,arr,iter_idx)
-            degree = obj.condition_callback(iter_idx);
-            if degree <= 0
-                return
-            end
-        end
-        function [arr,degree] = regularize(obj,arr,iter_idx)
-            degree = obj.condition_callback(iter_idx);
-            if degree <= 0
-                return
-            end
         end
         function [arr,degree] = try_preprocess(obj,arr,iter_idx)
             degree = obj.condition_callback(iter_idx);
@@ -34,6 +22,18 @@ classdef (Abstract) Regularizer < handle
         end
         function [arr,degree] = try_postprocess(obj, arr)
             degree = double(obj.activate_postprocess);
+        end
+        function [arr,degree] = interpolate(obj,arr,iter_idx)
+            degree = obj.condition_callback(iter_idx);
+            if degree <= 0
+                return
+            end
+        end
+        function [grad,arr,degree] = regularize_gradient(obj,grad,arr,iter_idx)
+            degree = obj.condition_callback(iter_idx);
+            if degree <= 0
+                return
+            end
         end
     end
 end
