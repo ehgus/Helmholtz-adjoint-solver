@@ -29,7 +29,7 @@ classdef PeriodicAvgRegularizer < AvgRegularizer
                     for idx = (period*(i-1)+1):(period*i)
                         arr(:,idx,:) = arr_tmp;
                     end
-                elseif obj.direction == period % z direction
+                else % z direction
                     arr_tmp = mean(arr(:,:,(period*(i-1)+1):(period*i),:),obj.direction);
                     for idx = (period*(i-1)+1):(period*i)
                         arr(:,:,idx,:) = arr_tmp;
@@ -49,7 +49,7 @@ classdef PeriodicAvgRegularizer < AvgRegularizer
                     for idx = (period*floor(size(arr,obj.direction)/period)+1):size(arr,obj.direction)
                         arr(:,idx,:) = arr_tmp;
                     end
-                elseif obj.direction == period % z direction
+                else % z direction
                     arr_tmp = mean(arr(:,:,(period*floor(size(arr,obj.direction)/period)+1):end,:),obj.direction);
                     for idx = (period*floor(size(arr,obj.direction)/period)+1):size(arr,obj.direction)
                         arr(:,:,idx,:) = arr_tmp;
