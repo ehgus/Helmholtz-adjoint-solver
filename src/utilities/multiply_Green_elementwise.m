@@ -1,4 +1,4 @@
-function [dst_x,dst_y,dst_z] = multiply_Green(src_x, src_y, src_z, kx, ky, kz, k_square)
+function [dst_x,dst_y,dst_z] = multiply_Green_elementwise(src_x, src_y, src_z, kx, ky, kz, k_square)
     % multiply dyadic term
     % note: `arrayfun` only support element-wise multiplication
     dst_x = (kx.*src_x + ky.*src_y + kz.*src_z)./k_square;

@@ -4,6 +4,7 @@ classdef DyadicGreen
         k_square
         k_idx
         phase_ramp
+        cpu_Green_fn
     end
     methods
         function obj=DyadicGreen(use_GPU, k_square,arr_size, resolution, subpixel_shift)
@@ -26,6 +27,8 @@ classdef DyadicGreen
                     obj.k_idx{axis} = gpuArray(obj.k_idx{axis});
                     obj.phase_ramp{axis} = gpuArray(obj.phase_ramp{axis});
                 end
+            else
+                obj.cpu_Green_fn = 1 ./ (abs(obj.k_idx{1}.^2 + obj.k_idx{2}.^2 + obj.k_idx{3}.^2)-obj.k_square);
             end
         end
         function dst = conv(obj,src,dst)
@@ -52,9 +55,9 @@ classdef DyadicGreen
             end
             % multiply dyadic Green's function
             if obj.use_GPU
-                [dst(:,:,:,1),dst(:,:,:,2),dst(:,:,:,3)] = arrayfun(@multiply_Green,src(:,:,:,1),src(:,:,:,2),src(:,:,:,3),obj.k_idx{:},obj.k_square);
+                dst = obj.multiply_Green_gpu(dst, src);
             else
-                [dst(:,:,:,1),dst(:,:,:,2),dst(:,:,:,3)] = multiply_Green(src(:,:,:,1),src(:,:,:,2),src(:,:,:,3),obj.k_idx{:},obj.k_square);
+                dst = obj.multiply_Green_cpu(dst, src);
             end
             % back to real space
             for axis = 1:3
@@ -74,6 +77,26 @@ classdef DyadicGreen
                     dst(:) = dst./obj.phase_ramp{3};
                 end
             end
+        end
+        function dst = multiply_Green_gpu(obj, dst, src)
+            [dst(:,:,:,1),dst(:,:,:,2),dst(:,:,:,3)] = arrayfun(@multiply_Green_elementwise,src(:,:,:,1),src(:,:,:,2),src(:,:,:,3),obj.k_idx{:},obj.k_square);
+        end
+        function dst = multiply_Green_cpu(obj, dst, src)
+            kx = obj.k_idx{1};
+            ky = obj.k_idx{2};
+            kz = obj.k_idx{3};
+
+            dst(:,:,:,1) = kx.*src(:,:,:,1);
+            dst(:,:,:,1) = dst(:,:,:,1) + ky.*src(:,:,:,2);
+            dst(:,:,:,1) = dst(:,:,:,1) + kz.*src(:,:,:,3);
+            dst(:,:,:,1) = dst(:,:,:,1)./obj.k_square;
+            
+            dst(:,:,:,3) = kz.*dst(:,:,:,1);
+            dst(:,:,:,2) = ky.*dst(:,:,:,1);
+            dst(:,:,:,1) = kx.*dst(:,:,:,1);
+
+            dst = src - dst;
+            dst = dst.*obj.cpu_Green_fn;
         end
     end
 end
