@@ -74,12 +74,12 @@ intensity_weight = convn(intensity_weight, blur_filter, 'same');
 options.intensity_weight = intensity_weight;
 
 filter = CyclicConv2Regularizer.conic(round(0.2/resolution));
-%% Design case: single plate model
 optim_region = real(RImap) > 2;
 
+%% Design case: single plate model
 regularizer_sequence = { ...
     BoundRegularizer(RI_list(1), RI_list(2)), ...
-    BinaryRegularizer(RI_list(1), RI_list(2), 0.5, 1, @(step) (step>=50)*(1+(step-50)/10)), ...
+    BinaryRegularizer(RI_list(1), RI_list(2), 0.5, 1, @(step) (step>=50)*(1+(step-50)/20)), ...
     AvgRegularizer('z', @(step) 15<=step), ...
     CyclicConv2Regularizer(filter,'z', @(step) 15<=step), ...
 };
@@ -104,16 +104,11 @@ adjoint_solver = AdjointSolver(adjoint_params);
 % Execute the optimization code
 RI_optimized_single=adjoint_solver.solve(current_source,RImap,options);
 %% Design case: double plate model
-pixel_period = thickness_pixel(2);
-double_layer_thickness_pixel = thickness_pixel;
-double_layer_thickness_pixel(1) = double_layer_thickness_pixel(1)-double_layer_thickness_pixel(2);
-double_layer_thickness_pixel(2) = 2*double_layer_thickness_pixel(2);
-double_layer_RImap = phantom_plate([diameter_pixel diameter_pixel sum(thickness_pixel)], RI_list, double_layer_thickness_pixel);
-optim_region = real(double_layer_RImap) > 2;
+pixel_period = round(thickness_pixel(2)/2);
 
 regularizer_sequence = { ...
     BoundRegularizer(RI_list(1), RI_list(2)), ...
-    BinaryRegularizer(RI_list(1), RI_list(2), 0.5, 1, @(step) (step>=50)*(1+(step-50)/10)), ...
+    BinaryRegularizer(RI_list(1), RI_list(2), 0.5, 1, @(step) (step>=50)*(1+(step-50)/20)), ...
     PeriodicAvgRegularizer('z', pixel_period, @(step) 15<=step), ...
     CyclicConv2Regularizer(filter,'z', @(step) 15<=step), ...
 };
@@ -136,7 +131,7 @@ adjoint_params.sectioning_position = thickness_pixel(1)+1;
 adjoint_solver = AdjointSolver(adjoint_params);
 
 % Execute the optimization code
-RI_optimized_double=adjoint_solver.solve(current_source,double_layer_RImap,options);
+RI_optimized_double=adjoint_solver.solve(current_source,RImap,options);
 %% Visualization
 E_field_list = cell(2,1);
 for i = 1:2
