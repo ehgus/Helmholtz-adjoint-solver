@@ -56,10 +56,6 @@ classdef FDTDsolver < ForwardSolver
         end
         function set_RI(obj,RI)
             obj.RI= RI;
-            obj.create_boundary_RI();%modify the RI (add padding and boundary)
-        end
-        function create_boundary_RI(obj)
-            %% SHOULD BE REMOVED: boundary_thickness_pixel is the half from the previous definition
             old_RI_size=size(obj.RI);
             pott=RI2potential(obj.RI,obj.wavelength,obj.RI_bg);
             pott=padarray(pott,double(obj.boundary_thickness_pixel),'replicate');
