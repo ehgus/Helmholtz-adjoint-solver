@@ -20,17 +20,8 @@ function condition_RI(obj)
 
     % apply edge filter
     % See appendix B of "Ultra-thin boundary layer for high-accuracy simulation of light propagation"
-    for dim = 1:3
-        max_L = obj.boundary_thickness_pixel(dim);
-        L = min(max_L, obj.potential_attenuation_pixel(dim));
-        if L == 0
-            continue
-        end
-        window = (tanh(linspace(-3,3,L))/tanh(3)-tanh(-3))/2;
-        window = window*obj.potential_attenuation_sharpness + (1-obj.potential_attenuation_sharpness);
-
-        filter =[window ones(1, obj.ROI(2*(dim-1)+2) - obj.ROI(2*(dim-1)+1) + 1 + 2*(max_L-L)) flip(window)];
-        filter = reshape(filter, circshift([1, 1, length(filter)], [0 dim]));
+    for i = 1:length(obj.field_attenuation_mask)
+        filter = obj.field_attenuation_mask{i};
         obj.V = obj.V .* filter;
     end
 end

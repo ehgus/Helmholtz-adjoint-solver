@@ -60,8 +60,8 @@ classdef ConvergentBornSolver < ForwardSolver
                 end
                 window = (tanh(linspace(-2.5,2.5,L))/tanh(3)-tanh(-3))/2;
                 window = window*obj.field_attenuation_sharpness + (1-obj.field_attenuation_sharpness);
-                x = [window ones(1, obj.ROI(2*(dim-1)+2) - obj.ROI(2*(dim-1)+1) + 1 + 2*(max_L-L)) flip(window)];
-                obj.field_attenuation_mask{end+1} = reshape(x,circshift([1 1 length(x)],dim,2));
+                filter = [window ones(1, obj.ROI(2*(dim-1)+2) - obj.ROI(2*(dim-1)+1) + 1 + 2*(max_L-L)) flip(window)];
+                obj.field_attenuation_mask{end+1} = reshape(filter, circshift([1 1 length(filter)],dim,2));
             end
         end
     end
