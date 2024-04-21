@@ -6,12 +6,8 @@ function set_RI(obj, RI)
             num2str(obj.expected_RI_size(1)) ' ' num2str(obj.expected_RI_size(2)) ' ' num2str(obj.expected_RI_size(3))]);
     end
     obj.RI=single(RI);%single computation are faster
-    before_eps_imag = obj.eps_imag;
     obj.condition_RI();%modify the RI (add padding and boundary)
-    after_eps_imag = obj.eps_imag;
-    if after_eps_imag < 10000*abs(before_eps_imag-after_eps_imag) % to prevent redundant Green function evaluation
-        obj.set_kernel();%init the parameter for the forward model
-    end
+    obj.set_kernel();%init the parameter for the forward model
 end
 
 
