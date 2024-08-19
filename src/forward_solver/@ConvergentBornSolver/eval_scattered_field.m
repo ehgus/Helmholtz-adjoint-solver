@@ -21,14 +21,11 @@ function [Field, Hfield] =eval_scattered_field(obj,source)
     Green_fn = obj.Green_fn;
     flip_Green_fn = obj.flip_Green_fn;
 
-    psi = zeros(size_field,array_option{:});
-    PSI = zeros(size_field,array_option{:});
-    Field = zeros(size_field,array_option{:});
-    Field_n = zeros(size_field,array_option{:});
-    % Attenuation
-    for idx = 1:length(obj.field_attenuation_mask)
-        source=source.*obj.field_attenuation_mask{idx};
-    end
+    psi = complex(zeros(size_field,array_option{:}));
+    PSI = complex(zeros(size_field,array_option{:}));
+    Field = complex(zeros(size_field,array_option{:}));
+    Field_n = complex(zeros(size_field,array_option{:}));
+
     isacyclic = ~all(obj.periodic_boudnary);
     for Born_order = 1:obj.Bornmax
         if isacyclic
@@ -39,6 +36,10 @@ function [Field, Hfield] =eval_scattered_field(obj,source)
         if Born_order <= 2 % source
             Field_n(:)=0;
             psi(:) = (1i/obj.eps_imag/4)*source;
+            for idx = 1:length(obj.field_attenuation_mask)
+                % Attenuation
+                psi=psi.*obj.field_attenuation_mask{idx};
+            end
         else % gamma * E
             if is_isotropic
                 psi = obj.V .* Field_n;

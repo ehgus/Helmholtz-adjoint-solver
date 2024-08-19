@@ -4,7 +4,8 @@ function [Efield,Hfield]=solve(obj, current_source)
     current_source.RI_bg = obj.RI_bg;
     incident_Efield = current_source.generate_Efield([obj.boundary_thickness_pixel; obj.boundary_thickness_pixel]);
     if obj.use_GPU
-        incident_Efield = gpuArray(incident_Efield);
+        incident_Efield = gpuArray(single(incident_Efield));
+        obj.V = gpuArray(single(obj.V));
     end
     is_isotropic = size(obj.V, 4) == 1;
     if is_isotropic
