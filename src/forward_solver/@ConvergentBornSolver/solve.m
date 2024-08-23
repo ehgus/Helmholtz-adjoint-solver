@@ -1,8 +1,12 @@
 function [Efield,Hfield]=solve(obj, current_source)
     assert(~isempty(obj.RI), "RI should be set before")
     % generate source:VE0
-    current_source.RI_bg = obj.RI_bg;
-    incident_Efield = current_source.generate_Efield([obj.boundary_thickness_pixel; obj.boundary_thickness_pixel]);
+    current_source(1).RI_bg = obj.RI_bg;
+    incident_Efield = current_source(1).generate_Efield([obj.boundary_thickness_pixel; obj.boundary_thickness_pixel]);
+    for src = current_source(2:end)
+        src.RI_bg = obj.RI_bg;
+        incident_Efield = incident_Efield + src.generate_Efield([obj.boundary_thickness_pixel; obj.boundary_thickness_pixel]);
+    end
     if obj.use_GPU
         incident_Efield = gpuArray(incident_Efield);
     end
@@ -16,9 +20,12 @@ function [Efield,Hfield]=solve(obj, current_source)
         end
     end
     source = source + 1i*obj.eps_imag * incident_Efield;
+    clear incident_Efield;
     % evaluate scattered field
     [Efield, Hfield] = eval_scattered_field(obj,source);
     % evaluate full field
-    Efield = Efield + current_source.generate_Efield(zeros(2,3));
-    Hfield = Hfield + current_source.generate_Hfield(zeros(2,3));
+    for src = current_source
+        Efield = Efield + src.generate_Efield(zeros(2,3));
+        Hfield = Hfield + src.generate_Hfield(zeros(2,3));
+    end
 end

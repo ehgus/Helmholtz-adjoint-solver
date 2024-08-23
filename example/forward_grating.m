@@ -85,7 +85,6 @@ else
     params_FDTD=params;
     params_FDTD.use_GPU=false;
     params_FDTD.boundary_thickness = [0 0 0];
-    params_FDTD.is_plane_wave = true;
     params_FDTD.PML_boundary = [false false true];
     params_FDTD.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
     params_FDTD.hide_GUI = false;

@@ -5,7 +5,6 @@ classdef FDTDsolver < ForwardSolver
         boundary_thickness
         ROI
         % FDTD option
-        is_plane_wave = false
         PML_boundary = [false false true]
         % interative GUI
         hide_GUI = true
@@ -124,43 +123,47 @@ classdef FDTDsolver < ForwardSolver
                 if obj.PML_boundary(axis)
                     bc_code = sprintf('set("%s min bc", "PML");set("%s max bc", "PML");set("pml profile", 3);',target_name,target_name);
                 else
-                    bc_code = sprintf('set("%s min bc", "Bloch");',target_name);
+                    bc_code = sprintf('set("%s min bc", "Periodic");',target_name);
                 end
                 mesh_code = sprintf('set("define %s mesh by",4);set("mesh cells %s", num_%s-1);',target_name, target_name, target_name);
                 appevalscript(obj.lumerical_session, strcat(boundary_size_code, bc_code, mesh_code));
             end
             % add source
-            k_0 =2*pi/current_source.wavelength;
-            phi = asin(sqrt(sum(current_source.horizontal_k_vector .^2))/k_0);
-            if phi == 0
-                theta = 0;
-            else
-                theta = atan(current_source.horizontal_k_vector(2)/current_source.horizontal_k_vector(1));
-            end
-            rot_matrix = rotz(theta) * roty(phi);
-            pol = circshift(current_source.polarization,-current_source.direction);
-            horizontal_axis = rem([3 1] + current_source.direction, 3) + 1;
-            horizontal_name1 = axis_name_list{horizontal_axis(1)};
-            horizontal_name2 = axis_name_list{horizontal_axis(2)};
-            for pol_idx = 0:1
-                % pol_idx == 0 => p-pol, pol_idx == 1 => s-pol 
-                pol_direction = rot_matrix * circshift([1 0 0], pol_idx)';
-                complex_amp = dot(pol_direction, pol);
-                if abs(complex_amp) ~= 0
-                    source_insertion_code = strcat('addplane;', ...
-                                                   sprintf('set("name", "pol%d");',pol_idx+1), ...
-                                                   sprintf('set("center wavelength", %g);', obj.wavelength*microns), ...
-                                                   sprintf('set("wavelength span", 0);'), ...
-                                                   sprintf('set("polarization angle", %d);', 90*pol_idx), ...
-                                                   sprintf('set("amplitude", %g);', abs(complex_amp)), ...
-                                                   sprintf('set("phase", %g);', 180/pi*angle(complex_amp)), ...
-                                                   sprintf('set("angle theta", %g);', 180/pi*theta), ...
-                                                   sprintf('set("angle phi", %g);', 180/pi*phi), ...
-                                                   sprintf('set("%s min", min_%s); set("%s max", max_%s);',horizontal_name1,horizontal_name1,horizontal_name1,horizontal_name1), ...
-                                                   sprintf('set("%s min", min_%s); set("%s max", max_%s);',horizontal_name2,horizontal_name2,horizontal_name2,horizontal_name2), ...
-                                                   sprintf('set("%s", min_%s);',axis_name_list{current_source.direction},axis_name_list{current_source.direction}) ...
-                                                   );
-                    appevalscript(obj.lumerical_session, source_insertion_code);
+            for src_idx = 1:length(current_source)
+                src = current_source(src_idx);
+                src.RI_bg = obj.RI_bg;
+                k_0 =2*pi*src.RI_bg/src.wavelength;
+                theta = asind(sqrt(sum(src.horizontal_k_vector .^2))/k_0);
+                if theta == 0
+                    phi = 0;
+                else
+                    phi = atand(src.horizontal_k_vector(2)/src.horizontal_k_vector(1));
+                end
+                rot_matrix = rotz(phi) * roty(theta);
+                pol = circshift(src.polarization,-src.direction);
+                horizontal_axis = rem([3 1] + src.direction, 3) + 1;
+                horizontal_name1 = axis_name_list{horizontal_axis(1)};
+                horizontal_name2 = axis_name_list{horizontal_axis(2)};
+                for pol_idx = 0:1
+                    % pol_idx == 0 => p-pol, pol_idx == 1 => s-pol 
+                    pol_direction = rot_matrix * circshift([1 0 0], pol_idx)';
+                    complex_amp = dot(pol_direction, pol);
+                    if abs(complex_amp) ~= 0
+                        source_insertion_code = strcat('addplane;', ...
+                                                    sprintf('set("name", "src%d_pol%d");',src_idx,pol_idx+1), ...
+                                                    sprintf('set("center wavelength", %g);', obj.wavelength*microns), ...
+                                                    sprintf('set("wavelength span", 0);'), ...
+                                                    sprintf('set("polarization angle", %d);', 90*pol_idx), ...
+                                                    sprintf('set("amplitude", %g);', abs(complex_amp)), ...
+                                                    sprintf('set("phase", %g);', 180/pi*angle(complex_amp)), ...
+                                                    sprintf('set("angle theta", %g);', theta), ...
+                                                    sprintf('set("angle phi", %g);', phi), ...
+                                                    sprintf('set("%s min", min_%s); set("%s max", max_%s);',horizontal_name1,horizontal_name1,horizontal_name1,horizontal_name1), ...
+                                                    sprintf('set("%s min", min_%s); set("%s max", max_%s);',horizontal_name2,horizontal_name2,horizontal_name2,horizontal_name2), ...
+                                                    sprintf('set("%s", min_%s);',axis_name_list{src.direction},axis_name_list{src.direction}) ...
+                                                    );
+                        appevalscript(obj.lumerical_session, source_insertion_code);
+                    end
                 end
             end
             % set profiler
