@@ -9,9 +9,8 @@ params.NA=1.2;
 database = RefractiveIndexDB();
 params.wavelength=0.532;
 H2O = database.material("main","H2O","Daimon-20.0C");
-SiO2 = database.material("main","SiO2","Malitson");
 params.RI_bg=H2O(params.wavelength);
-RI_sp=SiO2(params.wavelength);
+RI_sp = H2O(params.wavelength);
 params.resolution=ones(1,3) * 0.05;
 params.use_abbe_sine=true;
 params.size= [201 201 191];
@@ -34,31 +33,25 @@ forward_FDTD_params.iterations_number=-1;
 forward_FDTD_params.hide_GUI = false;
 forward_FDTD_params.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
 
-% forward solver parameters - MIE
-forward_params_Mie=params;
-forward_params_Mie.use_GPU=false;
-forward_params_Mie.truncated = true;
-forward_params_Mie.verbose = false;
-forward_params_Mie.boundary_thickness = [0 0 0];
-forward_params_Mie.lmax = 80;
-forward_params_Mie.n_s = RI_sp;
-forward_params_Mie.radius = radius;
-forward_params_Mie.divide_section = 10;
-
 %% create phantom RI and field
 % make the phantom
 RI=phantom_bead(params.size, [params.RI_bg, RI_sp], round(radius/params.resolution(3)));
 
 %2 illumination parameters
+illum_order = 3;
+ky = 2*pi*illum_order/(params.size(2)*params.resolution(2));
 source_params = params;
 source_params.polarization = [1 0 0];
 source_params.direction = 3;
-source_params.horizontal_k_vector = [0 0];
+source_params.horizontal_k_vector = [0 ky];
 source_params.center_position = [1 1 1];
 source_params.grid_size = source_params.size;
 current_source = PlaneSource(source_params);
+source_params.horizontal_k_vector = [0 -ky];
+current_source(2) = PlaneSource(source_params);
+
 %% solve the forward problem
-cbs_file =fullfile(dirname,"example/SiO2_5um_bead_CBS.mat");
+cbs_file =fullfile(dirname,"example/plain_CBS_two_beam.mat");
 if isfile(cbs_file)
     load(cbs_file, 'field_CBS', 'Hfield_CBS');
 else
@@ -70,7 +63,7 @@ else
     save(cbs_file, 'field_CBS', 'Hfield_CBS');
 end
 
-fdtd_file =fullfile(dirname,"example/SiO2_5um_bead_FDTD.mat");
+fdtd_file =fullfile(dirname,"example/plain_FDTD_two_beam.mat");
 if isfile(fdtd_file)
     load(fdtd_file, 'field_FDTD', 'Hfield_FDTD');
 else
@@ -81,27 +74,14 @@ else
     toc;
     save(fdtd_file, 'field_FDTD', 'Hfield_FDTD');
 end
-%compute the forward field - Mie
-mie_field_filename = fullfile(dirname,'example/Mie_field.mat');
-if isfile(mie_field_filename)
-    load(mie_field_filename, 'field_3D_Mie');
-else
-    forward_solver_Mie=MieTheorySolver(forward_params_Mie);
-    forward_solver_Mie.set_RI(RI);
-    tic;
-    [field_3D_Mie]=forward_solver_Mie.solve(current_source);
-    toc;
-    save(mie_field_filename, 'field_3D_Mie');
-end
 
 %% Draw results
 
 % 3D field distribution: E field
 intensity_CBS=sum(abs(field_CBS(:,:,:,:,1)).^2,4);
 intensity_FDTD=single(sum(abs(field_FDTD(:,:,:,:,1)).^2,4));
-intensity_Mie=single(sum(abs(field_3D_Mie(:,:,:,:,1)).^2,4));
-figure('Name','Intensity: CBS / FDTD / Mie scattering');
-orthosliceViewer(cat(2,intensity_CBS,intensity_FDTD,intensity_Mie));
+figure('Name','Intensity: CBS / FDTD');
+orthosliceViewer(cat(2,intensity_CBS,intensity_FDTD));
 colormap parula;
 
 % 3D field distribution: H field
@@ -112,30 +92,19 @@ orthosliceViewer(cat(2,H_intensity_CBS, H_intensity_FDTD));
 colormap parula;
 
 % intensity cross section through the center of the bead
-figure('Name','Z-axis intensity profile througth the center of a bead'); hold on;
-grid_idx = (0:size(RI,3)-1)*params.resolution(3);
+figure('Name','Y-axis intensity profile'); hold on;
+grid_idx = (0:size(RI,1)-1)*params.resolution(3);
 range_of_bead = [-radius radius] + grid_idx(fix(end/2));
-line(grid_idx, squeeze(intensity_Mie(round(end/2),round(end/2),:)),'Color', 'black','LineWidth',1);
-line(grid_idx, squeeze(intensity_CBS(round(end/2),round(end/2),:)),'Color', '#0072BD','LineWidth',1);
-line(grid_idx, squeeze(intensity_FDTD(round(end/2),round(end/2),:)),'Color', '#D95319','LineWidth',1);
-xline(range_of_bead(1),'--r','inside bead')
-xline(range_of_bead(2),'--r','outside bead')
-legend('Mie scattering', 'CBS', 'FDTD'), title('Axial intensity')
+line(grid_idx, squeeze(intensity_CBS(round(end/2),:,round(end/2))),'Color', '#0072BD','LineWidth',1);
+line(grid_idx, squeeze(intensity_FDTD(round(end/2),:,round(end/2))),'Color', '#D95319','LineWidth',1);
+legend('CBS', 'FDTD'), title('lateral intensity')
 
 % intensity cross section images
 color_range = [0 15];
-figure('Name', 'cross section of E field: CBS / FDTD / Mie scattering');
-subplot(1,3,1);
+figure('Name', 'cross section of E field: CBS / FDTD');
+subplot(1,2,1);
 imagesc(squeeze(intensity_CBS(round(end/2),:,:)), color_range);
 colormap parula;
-subplot(1,3,2);
+subplot(1,2,2);
 imagesc(squeeze(intensity_FDTD(round(end/2),:,:)), color_range);
 colormap parula;
-subplot(1,3,3);
-imagesc(squeeze(intensity_Mie(round(end/2),:,:)), color_range);
-colormap parula;
-
-%image quality
-fprintf("MSE: CBS = %.3g, FDTD = %.3g\n",immse(intensity_Mie, intensity_CBS),immse(intensity_Mie, intensity_FDTD))
-fprintf("PSNR: CBS = %.3g, FDTD = %.3g\n",psnr(intensity_Mie, intensity_CBS),psnr(intensity_Mie, intensity_FDTD))
-fprintf("SSIM: CBS = %.3g, FDTD = %.3g\n",ssim(intensity_Mie, intensity_CBS),ssim(intensity_Mie, intensity_FDTD))
