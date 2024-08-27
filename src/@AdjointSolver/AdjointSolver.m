@@ -80,10 +80,9 @@ classdef AdjointSolver < OpticalSimulation
                 options.H_field = cell(1,length(options.target_transmission));
                 for idx = 1:length(options.E_field)
                     src = options.current_source(idx);
-                    options.E_field{idx} = src.generate_Efield(repmat(options.forward_solver.boundary_thickness_pixel,2,1));
-                    options.H_field{idx} = src.generate_Hfield(repmat(options.forward_solver.boundary_thickness_pixel,2,1));
-                    normal_S = 2 * real(poynting_vector(options.E_field{idx}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:), ...
-                                                        options.H_field{idx}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)));
+                    options.E_field{idx} = src.generate_Efield(zeros(2,3));
+                    options.H_field{idx} = src.generate_Hfield(zeros(2,3));
+                    normal_S = 2 * real(poynting_vector(options.E_field{idx}, options.H_field{idx}));
                     options.normal_transmission(idx) = abs(sum(normal_S(:,:,end,3),1:2));
                 end
             end
