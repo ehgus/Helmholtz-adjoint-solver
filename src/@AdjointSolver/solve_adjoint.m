@@ -27,8 +27,13 @@ function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
             relative_transmission(idx) = sum(eigen_S(:,:,end,3),'all');
         end
         relative_transmission = relative_transmission./options.normal_transmission;
-        adjoint_source_weight = (abs(relative_transmission).^2 - options.target_transmission).*(relative_transmission./abs(relative_transmission));
-        disp(abs(relative_transmission).^2)
+        adjoint_source_weight = abs(relative_transmission).^2 - options.target_transmission;
+        for idx = 1:length(relative_transmission)
+            val = relative_transmission(idx);
+            if isfinite(val/abs(val))
+                adjoint_source_weight(idx) = adjoint_source_weight(idx)*(val/abs(val));
+            end
+        end
         for idx = 1:length(options.E_field)
             adjoint_field = adjoint_field + 1i * conj(options.E_field{idx}* adjoint_source_weight(idx));
         end
