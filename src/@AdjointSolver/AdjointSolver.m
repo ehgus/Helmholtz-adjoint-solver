@@ -75,10 +75,13 @@ classdef AdjointSolver < OpticalSimulation
                 % phase is not important
                 assert(isfield(options, 'surface_vector'));
                 assert(isfield(options, 'target_transmission'));
-                assert(isfield(options, 'E_field')); % {x,y,z,direction}
-                assert(isfield(options, 'H_field')); % {x,y,z,direction}: H_field is consistant with E_field
-                options.normal_transmission = zeros(1,length(options.E_field));
+                options.normal_transmission = zeros(1,length(options.target_transmission));
+                options.E_field = cell(1,length(options.target_transmission));
+                options.H_field = cell(1,length(options.target_transmission));
                 for idx = 1:length(options.E_field)
+                    src = options.current_source(idx);
+                    options.E_field{idx} = src.generate_Efield(repmat(options.forward_solver.boundary_thickness_pixel,2,1));
+                    options.H_field{idx} = src.generate_Hfield(repmat(options.forward_solver.boundary_thickness_pixel,2,1));
                     normal_S = 2 * real(poynting_vector(options.E_field{idx}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:), ...
                                                         options.H_field{idx}(obj.forward_solver.ROI(1):obj.forward_solver.ROI(2),obj.forward_solver.ROI(3):obj.forward_solver.ROI(4),obj.forward_solver.ROI(5):obj.forward_solver.ROI(6),:)));
                     options.normal_transmission(idx) = abs(sum(normal_S(:,:,end,3),1:2));

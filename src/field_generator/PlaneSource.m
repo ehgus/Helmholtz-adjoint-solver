@@ -18,6 +18,9 @@ classdef PlaneSource < CurrentSource
             horizontal_idx = circshift(1:3,-obj.direction);
             horizontal_idx = horizontal_idx(1:2);
             unit_phase(horizontal_idx) = obj.horizontal_k_vector .* obj.resolution(horizontal_idx);
+            if ~obj.outcoming_wave
+                unit_phase = -unit_phase;
+            end
             % generate field
             field_polarization = reshape(obj.polarization, 1, 1, 1, 3);
             ranges = { ...
@@ -35,11 +38,18 @@ classdef PlaneSource < CurrentSource
             % axial phase
             k_axial = sqrt((2*pi/obj.wavelength*obj.RI_bg)^2 - sum(obj.horizontal_k_vector.^2));
             unit_phase(obj.direction) = k_axial * obj.resolution(obj.direction);
-            k_vector(obj.direction) = k_axial;
+            if obj.outcoming_wave
+                k_vector(obj.direction) = k_axial;
+            else
+                k_vector(obj.direction) = -k_axial;
+            end
             % horizontal phase
             horizontal_idx = circshift(1:3,-obj.direction);
             horizontal_idx = horizontal_idx(1:2);
             unit_phase(horizontal_idx) = obj.horizontal_k_vector .* obj.resolution(horizontal_idx);
+            if ~obj.outcoming_wave
+                unit_phase = -unit_phase;
+            end
             k_vector(horizontal_idx) = obj.horizontal_k_vector;
             % generate field
             impedance = 377/obj.RI_bg;

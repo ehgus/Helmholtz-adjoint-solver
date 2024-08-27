@@ -82,27 +82,25 @@ options = struct;
 options.target_transmission = target_transmission;
 options.surface_vector = zeros(adjoint_params.size(1),adjoint_params.size(2),adjoint_params.size(3),3);
 options.surface_vector(:,:,end,:) = options.surface_vector(:,:,end,:) + reshape([0 0 1],1,1,1,3);
-options.E_field = cell(1,length(options.target_transmission));
-options.H_field = cell(1,length(options.target_transmission));
 params_CBS.RI_bg = RI_list(3);
 options.forward_solver = ConvergentBornSolver(params_CBS);
 impedance = 377/options.forward_solver.RI_bg;
 Nsize = options.forward_solver.size + 2*options.forward_solver.boundary_thickness_pixel;
 Nsize(4) = 3;
 
-for i = 1:length(options.E_field)
+for i = 1:length(options.target_transmission)
     illum_order = i - 4;
     k_y = 2*pi*illum_order/(params_CBS.size(2)*params_CBS.resolution(2));
     adj_source_params = params_CBS;
     adj_source_params.polarization = [-1 0 0];
     adj_source_params.direction = 3;
-    adj_source_params.horizontal_k_vector = [0 k_y];
-    adj_source_params.center_position = [1 1 1-options.forward_solver.boundary_thickness_pixel(3)];
     adj_source_params.grid_size = adj_source_params.size;
+    adj_source_params.outcoming_wave = false;
+    adj_source_params.horizontal_k_vector = [0 -k_y];
+    adj_source_params.center_position = [1 1 adj_source_params.size(3)+1];
+
     adj_current_source = PlaneSource(adj_source_params);
-    options.current_source{i} = adj_current_source;
-    options.E_field{i} = adj_current_source.generate_Efield(repmat(options.forward_solver.boundary_thickness_pixel,2,1));
-    options.H_field{i} = adj_current_source.generate_Hfield(repmat(options.forward_solver.boundary_thickness_pixel,2,1));
+    options.current_source(i) = adj_current_source;
 end
 
 % Execute the optimization code

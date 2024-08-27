@@ -37,10 +37,6 @@ function [Field, FoM] =solve_adjoint(obj, E_fwd, H_fwd, options)
         for idx = 1:length(options.E_field)
             adjoint_field = adjoint_field + 1i * conj(options.E_field{idx}* adjoint_source_weight(idx));
         end
-        
-        % ad-hoc solution: It places input field at the edge of the simulation region.
-        adjoint_field(:,:,obj.forward_solver.ROI(6)+1:end,:) = flip(adjoint_field(:,:,2*obj.forward_solver.ROI(6)-end+1:obj.forward_solver.ROI(6),:),3);
-
         % figure of merit
         FoM = sum(abs(adjoint_source_weight).^2,'all');
         options.forward_solver.set_RI(obj.forward_solver.RI);

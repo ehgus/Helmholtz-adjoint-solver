@@ -1,5 +1,6 @@
 classdef(Abstract) CurrentSource < OpticalSimulation
     properties
+        outcoming_wave = true
         polarization
         grid_size
         RI_bg
