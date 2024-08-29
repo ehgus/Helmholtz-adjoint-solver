@@ -83,8 +83,6 @@ if target_solver == "CBS"
     forward_solver=ConvergentBornSolver(params_CBS);
 else
     params_FDTD=params;
-    params_FDTD.use_GPU=false;
-    params_FDTD.boundary_thickness = [0 0 0];
     params_FDTD.PML_boundary = [false false true];
     params_FDTD.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
     params_FDTD.hide_GUI = false;

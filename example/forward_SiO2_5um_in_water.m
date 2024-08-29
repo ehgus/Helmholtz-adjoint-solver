@@ -26,11 +26,7 @@ forward_CBS_params.iterations_number=-1;
 
 % forward solver parameters - FDTD
 forward_FDTD_params=params;
-forward_FDTD_params.use_GPU=false;
-forward_FDTD_params.use_cuda=false;
 forward_FDTD_params.verbose=false;
-forward_FDTD_params.boundary_thickness=[0 0 1];
-forward_FDTD_params.iterations_number=-1;
 forward_FDTD_params.hide_GUI = false;
 forward_FDTD_params.fdtd_temp_dir = fullfile(dirname,'test/FDTD_TEMP');
 

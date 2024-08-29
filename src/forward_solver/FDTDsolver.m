@@ -1,9 +1,5 @@
 classdef FDTDsolver < ForwardSolver
     properties
-        % scattering object w/ boundary
-        boundary_thickness_pixel
-        boundary_thickness
-        ROI
         % FDTD option
         PML_boundary = [false false true]
         % interative GUI
@@ -32,14 +28,6 @@ classdef FDTDsolver < ForwardSolver
     methods
         function obj=FDTDsolver(params)
             obj@ForwardSolver(params);
-            % check boundary thickness
-            if length(obj.boundary_thickness) == 1
-                obj.boundary_thickness = zeros(1,3);
-                obj.boundary_thickness(:) = obj.boundary_thickness;
-            end
-            assert(length(obj.boundary_thickness) == 3, 'boundary_thickness should be either a 3-size vector or a scalar')
-            obj.boundary_thickness_pixel = round(obj.boundary_thickness*obj.wavelength/obj.RI_bg./(obj.resolution.*2));
-            obj.boundary_thickness_pixel(3) = max(1, obj.boundary_thickness_pixel(3)); % make place for source
             % find lumerical solverRI
             obj.lumerical_api_dir = FDTDsolver.find_lumerical_api();
             addpath(obj.lumerical_api_dir);
@@ -54,22 +42,7 @@ classdef FDTDsolver < ForwardSolver
             appclose(obj.lumerical_session);
         end
         function set_RI(obj,RI)
-            obj.RI= RI;
-            old_RI_size=size(obj.RI);
-            pott=RI2potential(obj.RI,obj.wavelength,obj.RI_bg);
-            pott=padarray(pott,double(obj.boundary_thickness_pixel),'replicate');
-            obj.RI=potential2RI(pott,obj.wavelength,obj.RI_bg);
-            
-            obj.ROI = [...
-                obj.boundary_thickness_pixel(1)+1 obj.boundary_thickness_pixel(1)+old_RI_size(1)...
-                obj.boundary_thickness_pixel(2)+1 obj.boundary_thickness_pixel(2)+old_RI_size(2)...
-                obj.boundary_thickness_pixel(3)+1 obj.boundary_thickness_pixel(3)+old_RI_size(3)];
-            obj.RI = potential2RI(pott,obj.wavelength,obj.RI_bg);
-            % replicate along the periodic axis
-            padding_size = ones(1,3);
-            padding_size(obj.PML_boundary) = 0;
-            obj.RI = padarray(obj.RI, padding_size, "circular","both");
-            obj.RI= double(obj.RI); % Lumerical only accept double-type variables
+            obj.RI= double(RI);
         end
         function [Efield, Hfield]=solve(obj,current_source)
             assert(isa(current_source, 'PlaneSource'), "PlaneSource is the only available source")
@@ -77,7 +50,11 @@ classdef FDTDsolver < ForwardSolver
             axis_name_list = {'x', 'y', 'z'};
             microns = 1e-6;
             resolution = obj.resolution .* microns;
-            lumerical_roi = obj.ROI - 1;
+            lumerical_roi = [
+                1 size(obj.RI,1), ...
+                1 size(obj.RI,2), ...
+                1 size(obj.RI,3) ...
+            ];
             for axis = 1:3
                 lumerical_roi([2*axis-1, 2*axis]) = lumerical_roi([2*axis-1, 2*axis]) * resolution(axis);
             end
@@ -93,23 +70,24 @@ classdef FDTDsolver < ForwardSolver
             fsp_name = fullfile(obj.save_directory, "Temp.fsp");
             appevalscript(obj.lumerical_session, sprintf('save("%s");',fsp_name));
             % add material
-            appputvar(obj.lumerical_session, 'RI', obj.RI);
+            RI_padded = obj.RI;
+            for idx = 1:3
+                if obj.PML_boundary(idx)
+                    RI_padded = padarray(RI_padded, circshift([0,0,1],idx), "replicate");
+                else
+                    RI_padded = padarray(RI_padded, circshift([0,0,1],idx), "circular");
+                end
+            end
+            appputvar(obj.lumerical_session, 'RI', RI_padded);
             for axis = 1:3
-                appputvar(obj.lumerical_session, axis_name_list{axis}, (1:size(obj.RI, axis))*resolution(axis));
+                appputvar(obj.lumerical_session, axis_name_list{axis}, (0:size(RI_padded, axis)-1)*resolution(axis));
             end
             appevalscript(obj.lumerical_session, 'addimport;importnk2(RI, x, y, z);');
             for axis = 1:3
                 target_name = axis_name_list{axis};
-                if obj.PML_boundary(axis)
-                    min_max_code = strcat(sprintf('min_%s = get("%s min");',target_name, target_name), ...
-                                          sprintf('max_%s = get("%s max");',target_name, target_name));
-                    num_code = sprintf('num_%s = get("data %s points");',target_name, target_name);
-                else
-                    min_max_code = strcat(sprintf('min_%s = get("%s min")+d%s;', target_name, target_name, target_name), ...
-                                          sprintf('max_%s = get("%s max")-d%s;', target_name, target_name, target_name));
-                    num_code = sprintf('num_%s = get("data %s points")-2;',target_name, target_name);
-                end
-                appevalscript(obj.lumerical_session,strcat(min_max_code, num_code));
+                min_max_code = strcat(sprintf('min_%s = get("%s min")+d%s/2;',target_name, target_name, target_name), ...
+                                      sprintf('max_%s = get("%s max")-d%s/2;',target_name, target_name, target_name));
+                appevalscript(obj.lumerical_session,min_max_code);
             end
             % set boundary
             appevalscript(obj.lumerical_session, 'addfdtd;set("dimension", 2);set("min mesh step", 0);set("mesh type", 3);');
@@ -121,7 +99,7 @@ classdef FDTDsolver < ForwardSolver
                 else
                     bc_code = sprintf('set("%s min bc", "Periodic");',target_name);
                 end
-                mesh_code = sprintf('set("define %s mesh by",4);set("mesh cells %s", num_%s-1);',target_name, target_name, target_name);
+                mesh_code = sprintf('set("define %s mesh by","maximum mesh step");set("d%s", d%s);',target_name, target_name, target_name);
                 appevalscript(obj.lumerical_session, strcat(boundary_size_code, bc_code, mesh_code));
             end
             % add source

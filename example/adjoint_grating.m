@@ -84,9 +84,6 @@ options.surface_vector = zeros(adjoint_params.size(1),adjoint_params.size(2),adj
 options.surface_vector(:,:,end,:) = options.surface_vector(:,:,end,:) + reshape([0 0 1],1,1,1,3);
 params_CBS.RI_bg = RI_list(3);
 options.forward_solver = ConvergentBornSolver(params_CBS);
-impedance = 377/options.forward_solver.RI_bg;
-Nsize = options.forward_solver.size + 2*options.forward_solver.boundary_thickness_pixel;
-Nsize(4) = 3;
 
 for i = 1:length(options.target_transmission)
     illum_order = i - 4;
