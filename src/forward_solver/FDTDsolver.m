@@ -50,14 +50,6 @@ classdef FDTDsolver < ForwardSolver
             axis_name_list = {'x', 'y', 'z'};
             microns = 1e-6;
             resolution = obj.resolution .* microns;
-            lumerical_roi = [
-                1 size(obj.RI,1), ...
-                1 size(obj.RI,2), ...
-                1 size(obj.RI,3) ...
-            ];
-            for axis = 1:3
-                lumerical_roi([2*axis-1, 2*axis]) = lumerical_roi([2*axis-1, 2*axis]) * resolution(axis);
-            end
             % initialize solver
             init_code = strcat('switchtolayout;', ...
                                'closeall;', ...
@@ -85,8 +77,8 @@ classdef FDTDsolver < ForwardSolver
             appevalscript(obj.lumerical_session, 'addimport;importnk2(RI, x, y, z);');
             for axis = 1:3
                 target_name = axis_name_list{axis};
-                min_max_code = strcat(sprintf('min_%s = get("%s min")+d%s/2;',target_name, target_name, target_name), ...
-                                      sprintf('max_%s = get("%s max")-d%s/2;',target_name, target_name, target_name));
+                min_max_code = strcat(sprintf('min_%s = get("%s min");',target_name, target_name), ...
+                                      sprintf('max_%s = get("%s max")-d%s;',target_name, target_name, target_name));
                 appevalscript(obj.lumerical_session,min_max_code);
             end
             % set boundary
@@ -116,7 +108,7 @@ classdef FDTDsolver < ForwardSolver
                 rot_matrix = rotz(phi) * roty(theta);
                 pol = circshift(src.polarization,-src.direction);
                 horizontal_axis = rem([3 1] + src.direction, 3) + 1;
-                center_xyz = src.center_position.*resolution;
+                center_xyz = (src.center_position-1).*resolution;
                 horizontal_name1 = axis_name_list{horizontal_axis(1)};
                 horizontal_name2 = axis_name_list{horizontal_axis(2)};
                 for pol_idx = 0:1
@@ -168,7 +160,7 @@ classdef FDTDsolver < ForwardSolver
             appevalscript(obj.lumerical_session, 'addpower;set("name","field_profile_vol");set("monitor type",8);');
             for axis = 1:3
                 target_name = axis_name_list{axis};
-                profiler_size_code = sprintf('set("%s min",min_%s+%g);set("%s max",min_%s+%g);',target_name,target_name,lumerical_roi(2*axis-1),target_name,target_name,lumerical_roi(2*axis));
+                profiler_size_code = sprintf('set("%s min",min_%s);set("%s max",max_%s-d%s);',target_name,target_name,target_name,target_name,target_name);
                 appevalscript(obj.lumerical_session, profiler_size_code);
             end
             % run simulation
