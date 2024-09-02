@@ -36,7 +36,7 @@ source_params = params;
 source_params.polarization = [1 0 0];
 source_params.direction = 3;
 source_params.horizontal_k_vector = [0 0];
-source_params.center_position = [1 1 1];
+source_params.center_position = [round(grid_size(1)/2) round(grid_size(2)/2) 1];
 source_params.grid_size = source_params.size;
 
 current_source = PlaneSource(source_params);
@@ -94,7 +94,7 @@ for i = 1:length(options.target_transmission)
     adj_source_params.grid_size = adj_source_params.size;
     adj_source_params.outcoming_wave = false;
     adj_source_params.horizontal_k_vector = [0 -k_y];
-    adj_source_params.center_position = [1 1 adj_source_params.size(3)+1];
+    adj_source_params.center_position = [round(grid_size(1)/2) round(grid_size(2)/2) adj_source_params.size(3)+1];
 
     adj_current_source = PlaneSource(adj_source_params);
     options.current_source(i) = adj_current_source;
