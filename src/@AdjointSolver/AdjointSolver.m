@@ -99,7 +99,7 @@ classdef AdjointSolver < OpticalSimulation
                     obj.gradient(:) = obj.gradient + E_adj(:,:,:,axis).*E_fwd(:,:,:,axis);
                 end
             end
-            obj.gradient = 2*(2*pi/obj.wavelength)^2*obj.gradient.*RI;
+            obj.gradient = 2*obj.gradient.*RI;
             obj.gradient = conj(obj.gradient);
         end
     end
