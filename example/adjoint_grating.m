@@ -22,6 +22,8 @@ Microchem_SU8_2000 = RI_database.material("other","resists","Microchem SU-8 2000
 RI_list = cellfun(@(func) func(wavelength), {PDMS TiO2 Microchem_SU8_2000});
 thickness_pixel = [0.20 mask_width]/resolution;
 RI = phantom_plate(grid_size, RI_list, thickness_pixel);
+RI_density = 0.5 + 0.1*(readmatrix("grating_random_seed.csv")-0.5);
+RI(real(RI)>2) = reshape(RI(real(RI)>2)-PDMS(wavelength),11,100,[]).*RI_density + PDMS(wavelength);
 
 % Optical parameters
 params.NA = NA;
