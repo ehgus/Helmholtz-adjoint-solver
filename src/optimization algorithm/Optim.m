@@ -86,14 +86,9 @@ classdef Optim < handle
             % grad w.r.t intermediate RI -> grad w.r.t density
             density_grad = grad(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
             RI_region = RI(obj.optim_ROI(1,1):obj.optim_ROI(2,1),obj.optim_ROI(1,2):obj.optim_ROI(2,2),obj.optim_ROI(1,3):obj.optim_ROI(2,3),:,:);
-            figure(3)%doritos
-            subplot(2,length(obj.regularizer_sequence)+1,1);imagesc(real(density_grad(:,:,1)))
-            subplot(2,length(obj.regularizer_sequence)+1,length(obj.regularizer_sequence)+2);imagesc(real(RI_region(:,:,1)))
             for idx = 1:length(obj.regularizer_sequence)
                 regularizer = obj.regularizer_sequence{idx};
                 [density_grad,RI_region] = regularize_gradient(regularizer, density_grad, RI_region, iter_idx);
-                subplot(2,length(obj.regularizer_sequence)+1,idx+1);imagesc(real(density_grad(:,:,1)))
-                subplot(2,length(obj.regularizer_sequence)+1,length(obj.regularizer_sequence)+idx+2);imagesc(real(RI_region(:,:,1)))
             end
         end
 
