@@ -19,7 +19,7 @@ classdef AdjointSolver < OpticalSimulation
             obj@OpticalSimulation(options);
         end
 
-        function RI_opt=solve(obj, current_source, RI, options)
+        function [RI_opt, RI_intermediate] = solve(obj, current_source, RI, options)
             % initialize parameters
             RI_opt=single(RI);
             RI_section = obj.sectioning_position;
@@ -31,12 +31,18 @@ classdef AdjointSolver < OpticalSimulation
             obj.optimizer.init();
             obj.gradient = complex(zeros(size(RI,1:4),'single'));
             options = obj.preprocess_params(options);
+            if nargout > 1
+                RI_intermediate = cell(1, obj.max_iter);
+            end
             % main
             for iter_idx = 1:obj.max_iter
                 fprintf('Iteration: %d\n', iter_idx);
                 t_start = tic;
                 % Calculated gradient RI based on intensity mode
                 RI_opt = obj.optimizer.try_preprocess(RI_opt, iter_idx);
+                if nargout > 1
+                    RI_intermediate{iter_idx} = RI_opt;
+                end
                 obj.forward_solver.set_RI(RI_opt);
                 [E_fwd, H_fwd] = obj.forward_solver.solve(current_source);
                 [E_adj, figure_of_merit(iter_idx)]=obj.solve_adjoint(E_fwd, H_fwd, options);

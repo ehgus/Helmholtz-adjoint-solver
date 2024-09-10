@@ -103,7 +103,7 @@ for i = 1:length(options.target_transmission)
 end
 
 % Execute the optimization code
-RI_optimized=adjoint_solver.solve(current_source,RI,options);
+[RI_optimized, whole_RI_intermediate] =adjoint_solver.solve(current_source,RI,options);
 
 %% Visualization
 display_RI_Efield(forward_solver,RI_optimized,current_source,'after optimization')
@@ -111,3 +111,10 @@ display_RI_Efield(forward_solver,RI_optimized,current_source,'after optimization
 %% Optional: save RI configuration
 filename = 'CBS_optimized grating.mat';
 save_RI(filename, RI_optimized(:,:,thickness_pixel(1)+1:sum(thickness_pixel(1:2))), params.resolution, params.wavelength);
+
+filename = 'CBS_optimized itermediate grating.mat';
+RI_intermediate = zeros(length(whole_RI_intermediate), grid_size(2));
+for idx = 1:length(whole_RI_intermediate)
+    RI_intermediate(idx,:) = squeeze(whole_RI_intermediate{idx}(1,:,thickness_pixel(1) + 1));
+end
+save(filename, 'RI_intermediate');
