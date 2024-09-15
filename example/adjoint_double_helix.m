@@ -87,7 +87,7 @@ density_projection_sequence = { ...
     AvgRegularizer('z', @(step) 15<=step), ...
     RotSymRegularizer('z',2, @(step) 15<=step), ...
 };
-grad_weight = 0.2;
+grad_weight = 50;
 
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;
@@ -117,7 +117,7 @@ density_projection_sequence = { ...
     PeriodicAvgRegularizer('z', pixel_period, @(step) 15<=step), ...
     RotSymRegularizer('z',2, @(step) 15<=step), ...
 };
-grad_weight = 0.2;
+grad_weight = 50;
 
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;
@@ -163,3 +163,36 @@ filename = sprintf('optimized double helix mask_Diameter-%.2fum_single plate.mat
 save_RI(filename, RI_optimized_single, params.resolution, params.wavelength,E_field_list{1});
 filename = sprintf('optimized double helix mask_Diameter-%.2fum_double plate.mat',diameter);
 save_RI(filename, RI_optimized_double, params.resolution, params.wavelength,E_field_list{2});
+
+%% Optional Design case: free-form plate model
+regularizer_sequence = { ...
+    BoundRegularizer(RI_list(1), RI_list(2)), ...
+    BinaryRegularizer(RI_list(1), RI_list(2), 0.5, 1, @(step) (step>=50)*(1+(step-50)/20)) ...
+};
+density_projection_sequence = { ...
+    BoundRegularizer(0, 1), ...
+    RotSymRegularizer('z',2, @(step) 15<=step), ...
+};
+grad_weight = 50;
+
+adjoint_params=params;
+adjoint_params.forward_solver = forward_solver;
+adjoint_params.optim_mode = "Intensity";
+adjoint_params.max_iter = 70;
+adjoint_params.optimizer = Optim(optim_region, regularizer_sequence, density_projection_sequence, grad_weight);
+adjoint_params.verbose = true;
+adjoint_params.verbose_level = 0;
+adjoint_params.sectioning_axis = "z";
+adjoint_params.sectioning_position = thickness_pixel(1)+1;
+adjoint_params.temp_save_dir = "temp_double_helix_free_form";
+
+adjoint_solver = AdjointSolver(adjoint_params);
+
+% Execute the optimization code
+RI_optimized_free_form=adjoint_solver.solve(current_source,RImap,options);
+forward_solver.set_RI(RI_optimized_free_form);
+E_field_free_form = forward_solver.solve(current_source);
+
+filename = sprintf('optimized double helix mask_Diameter-%.2fum_free form.mat',diameter);
+save_RI(filename, RI_optimized_free_form, params.resolution, params.wavelength,E_field_free_form);
+
