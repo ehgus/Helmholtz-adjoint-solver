@@ -99,6 +99,8 @@ adjoint_params.verbose_level = 0;
 adjoint_params.sectioning_axis = "z";
 adjoint_params.sectioning_position = thickness_pixel(1)+1;
 adjoint_params.temp_save_dir = "temp_double_helix_single_plate";
+adjoint_params.verbose_level = 1;
+adjoint_params.temp_save_dir = "temp_double_helix";
 
 adjoint_solver = AdjointSolver(adjoint_params);
 
