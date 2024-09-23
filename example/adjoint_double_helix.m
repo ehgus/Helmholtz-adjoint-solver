@@ -87,7 +87,7 @@ density_projection_sequence = { ...
     AvgRegularizer('z', @(step) 15<=step), ...
     RotSymRegularizer('z',2, @(step) 15<=step), ...
 };
-grad_weight = 50;
+grad_weight = 60;
 
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;
@@ -117,7 +117,7 @@ density_projection_sequence = { ...
     PeriodicAvgRegularizer('z', pixel_period, @(step) 15<=step), ...
     RotSymRegularizer('z',2, @(step) 15<=step), ...
 };
-grad_weight = 50;
+grad_weight = 60;
 
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;
@@ -173,7 +173,7 @@ density_projection_sequence = { ...
     BoundRegularizer(0, 1), ...
     RotSymRegularizer('z',2, @(step) 15<=step), ...
 };
-grad_weight = 50;
+grad_weight = 60;
 
 adjoint_params=params;
 adjoint_params.forward_solver = forward_solver;
@@ -196,3 +196,28 @@ E_field_free_form = forward_solver.solve(current_source);
 filename = sprintf('optimized double helix mask_Diameter-%.2fum_free form.mat',diameter);
 save_RI(filename, RI_optimized_free_form, params.resolution, params.wavelength,E_field_free_form);
 
+%% Performance comaprision
+E_field_list = cell(2,1);
+for i = 1:2
+    if i == 1
+        RI_optimized = RI_optimized_single;
+        plate_type = "single";
+    else
+        RI_optimized = RI_optimized_free_form;
+        plate_type = "free_form";
+    end
+    forward_solver.set_RI(RI_optimized);
+    E_field = forward_solver.solve(current_source);
+    E_intensity = sum(abs(E_field),4);
+    viewerContinuous = viewer3d(BackgroundColor="white",BackgroundGradient="off",CameraZoom=2);
+    hVolumeContinuous = volshow(real(RI_optimized), OverlayData=E_intensity, Parent= viewerContinuous, OverlayAlphamap = linspace(0,0.2,256),...
+        OverlayRenderingStyle = "GradientOverlay", RenderingStyle = "GradientOpacity", OverlayColormap=parula);
+
+    center = size(E_intensity)/2;
+    viewerContinuous.CameraTarget = center;
+    
+    final_cost = sum(intensity_weight.*E_intensity,'all');
+    fprintf("final cost of %s plate: %g\n\n",plate_type,final_cost)
+    E_field_list{i} = E_field;
+end
+disp("Higher the cost, better the result")
