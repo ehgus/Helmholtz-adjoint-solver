@@ -43,6 +43,18 @@ classdef AdjointSolver < OpticalSimulation
                 if nargout > 1
                     RI_intermediate{iter_idx} = RI_opt;
                 end
+                if obj.verbose && obj.verbose_level >= 1
+                    temp_fname = fullfile(obj.temp_save_dir,sprintf("iter_%d.mat",iter_idx));
+                    if isfile(temp_fname)
+                        temp_next_fname = fullfile(obj.temp_save_dir,sprintf("iter_%d.mat",iter_idx+1));
+                        if ~isfile(temp_next_fname)
+                            load(temp_fname,"RI_opt");
+                            obj.optimizer.init();
+                            obj.optimizer.try_preprocess(RI_opt, iter_idx);
+                        end
+                        continue
+                    end
+                end
                 obj.forward_solver.set_RI(RI_opt);
                 [E_fwd, H_fwd] = obj.forward_solver.solve(current_source);
                 [E_adj, figure_of_merit(iter_idx)]=obj.solve_adjoint(E_fwd, H_fwd, options);
