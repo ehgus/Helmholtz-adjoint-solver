@@ -71,7 +71,7 @@ density_projection_sequence = { ...
     MirrorSymRegularizer('xy', @(step) 15<=step), ...
     RotSymRegularizer('z',1, @(step) 15<=step), ...
 };
-grad_weight = 50;
+grad_weight = 60;
 
 % Adjoint solver
 adjoint_params=params;
@@ -82,6 +82,8 @@ adjoint_params.optimizer = Optim(optim_region, regularizer_sequence, density_pro
 adjoint_params.verbose = true;
 adjoint_params.sectioning_axis = "z";
 adjoint_params.sectioning_position = thickness_pixel(1)+1;
+adjoint_params.verbose_level = 1;
+adjoint_params.temp_save_dir = "temp_metalens";
 
 
 adjoint_solver = AdjointSolver(adjoint_params);
